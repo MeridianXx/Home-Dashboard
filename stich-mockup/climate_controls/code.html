@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Climate Control - inicio.cloud</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error-container": "#6e0523",
+                    "inverse-surface": "#0e0e0c",
+                    "surface-container-high": "#f0eee6",
+                    "surface-container-low": "#fcf9f3",
+                    "tertiary": "#885c00",
+                    "surface-container-highest": "#eae8e0",
+                    "inverse-primary": "#788cf6",
+                    "surface-tint": "#475bc2",
+                    "secondary-fixed": "#83faab",
+                    "surface": "#fffcf7",
+                    "tertiary-fixed-dim": "#eaaa3d",
+                    "surface-bright": "#fffcf7",
+                    "background": "#fffcf7",
+                    "primary": "#475bc2",
+                    "on-primary-fixed-variant": "#001462",
+                    "outline": "#81817a",
+                    "on-primary-fixed": "#000000",
+                    "on-tertiary": "#ffffff",
+                    "secondary-container": "#83faab",
+                    "on-tertiary-fixed-variant": "#624100",
+                    "surface-variant": "#eae8e0",
+                    "error-container": "#f97386",
+                    "primary-container": "#788cf6",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed-dim": "#74ec9e",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed-dim": "#6a7ee7",
+                    "outline-variant": "#bbb9b2",
+                    "on-primary-container": "#000b45",
+                    "primary-dim": "#3a4fb5",
+                    "tertiary-dim": "#785000",
+                    "on-tertiary-fixed": "#3b2600",
+                    "on-secondary-fixed-variant": "#006a38",
+                    "on-secondary-container": "#005f32",
+                    "on-surface-variant": "#65655e",
+                    "surface-container-lowest": "#ffffff",
+                    "on-background": "#383833",
+                    "secondary": "#00743e",
+                    "tertiary-fixed": "#fab849",
+                    "surface-dim": "#e4e2da",
+                    "error": "#af3b50",
+                    "on-secondary-fixed": "#004a26",
+                    "inverse-on-surface": "#9e9d98",
+                    "on-tertiary-container": "#563800",
+                    "on-surface": "#383833",
+                    "primary-fixed": "#788cf6",
+                    "on-error": "#ffffff",
+                    "secondary-dim": "#006636",
+                    "tertiary-container": "#fab849",
+                    "error-dim": "#6b0221",
+                    "surface-container": "#f6f3ec"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0ede8; /* System specific override from prompt */
+        }
+        h1, h2, h3 {
+            font-family: 'Manrope', sans-serif;
+        }
+    </style>
+</head>
+<body class="text-on-surface">
+<nav class="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-16 bg-[#fffcf7] dark:bg-stone-950">
+<div class="text-xl font-bold text-[#0e0e0c] dark:text-[#fffcf7]">inicio.cloud</div>
+<div class="hidden md:flex items-center space-x-1">
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] transition-colors" href="#">Home</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] transition-colors" href="#">Energy</a>
+<a class="bg-[#0e0e0c] dark:bg-[#fffcf7] text-[#fffcf7] dark:text-[#0e0e0c] rounded-full px-4 py-1.5 transition-all" href="#">Climate</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] transition-colors" href="#">Media</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] transition-colors" href="#">Servers</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] transition-colors" href="#">Containers</a>
+</div>
+<div class="flex items-center space-x-4">
+<span class="material-symbols-outlined text-[#383833] cursor-pointer" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-[#383833] cursor-pointer" data-icon="settings">settings</span>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden">
+<img alt="User Profile" data-alt="professional headshot of a person with friendly expression in minimalist modern studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcMoXPtgA02hExBj64FEk2ywLPg_Bfot3AUVgShmsx6ODLQ62vYHjBk5vLB6r5G38PnCClwLzJ4UmxQxakIWZNTfQWxiCn7LFj_R2tzUUxqbL87GQT9VfPxC5S4vLK_astSJku7rsP4dN0GTJrpKG8-wE-gsvEkSravahPMcKKYeaOnSkKd4mvHKn7zHZp6ehl34_RWArgML0eESo7Z4Xc6KmqU2LOBNmwcYQ677iRQtqeTO3ZwlG8ONVX0X9Zs4ImyOCrEpQRv5Q"/>
+</div>
+</div>
+</nav>
+<main class="pt-24 pb-12 px-8 max-w-[1440px] mx-auto">
+<header class="mb-10">
+<h1 class="text-4xl font-extrabold tracking-tight text-on-surface mb-2">Climate Control</h1>
+<p class="text-on-surface-variant font-medium">Home environmental monitoring and HVAC systems</p>
+</header>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-start">
+<section class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-[0px_12px_32px_rgba(56,56,51,0.04)] col-span-full">
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="thermostat">thermostat</span>
+                            Room Temperatures
+                        </h2>
+<span class="text-xs font-bold uppercase tracking-widest text-outline-variant">IKEA VINDSTYRKA Sensors</span>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+<div class="bg-surface-container p-4 rounded-lg flex flex-col gap-1 transition-all hover:bg-surface-container-high">
+<span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Living Room</span>
+<div class="flex items-baseline gap-1">
+<span class="text-3xl font-bold text-on-surface">21.4</span>
+<span class="text-sm font-medium text-on-surface-variant">°C</span>
+</div>
+</div>
+<div class="bg-surface-container p-4 rounded-lg flex flex-col gap-1 transition-all hover:bg-surface-container-high border-l-4 border-primary">
+<span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Kitchen</span>
+<div class="flex items-baseline gap-1">
+<span class="text-3xl font-bold text-on-surface">22.8</span>
+<span class="text-sm font-medium text-on-surface-variant">°C</span>
+</div>
+</div>
+<div class="bg-surface-container p-4 rounded-lg flex flex-col gap-1 transition-all hover:bg-surface-container-high">
+<span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Bedroom</span>
+<div class="flex items-baseline gap-1">
+<span class="text-3xl font-bold text-on-surface">19.5</span>
+<span class="text-sm font-medium text-on-surface-variant">°C</span>
+</div>
+</div>
+<div class="bg-surface-container p-4 rounded-lg flex flex-col gap-1 transition-all hover:bg-surface-container-high">
+<span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Office</span>
+<div class="flex items-baseline gap-1">
+<span class="text-3xl font-bold text-on-surface">20.9</span>
+<span class="text-sm font-medium text-on-surface-variant">°C</span>
+</div>
+</div>
+<div class="bg-surface-container p-4 rounded-lg flex flex-col gap-1 transition-all hover:bg-surface-container-high">
+<span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Guest Room</span>
+<div class="flex items-baseline gap-1">
+<span class="text-3xl font-bold text-on-surface">18.2</span>
+<span class="text-sm font-medium text-on-surface-variant">°C</span>
+</div>
+</div>
+<div class="bg-surface-container p-4 rounded-lg flex flex-col gap-1 transition-all hover:bg-surface-container-high">
+<span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Bath</span>
+<div class="flex items-baseline gap-1">
+<span class="text-3xl font-bold text-on-surface">24.1</span>
+<span class="text-sm font-medium text-on-surface-variant">°C</span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-[0px_12px_32px_rgba(56,56,51,0.04)]">
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="heat_pump">heat_pump</span>
+                            Nibe S1255
+                        </h2>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse" style="filter: blur(2px);"></span>
+<span class="text-[10px] font-bold text-secondary uppercase">Active</span>
+</div>
+</div>
+<div class="space-y-4">
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container p-4 rounded">
+<span class="text-[10px] uppercase font-bold text-on-surface-variant block mb-1">Supply Temp</span>
+<span class="text-xl font-bold">34.2°C</span>
+</div>
+<div class="bg-surface-container p-4 rounded">
+<span class="text-[10px] uppercase font-bold text-on-surface-variant block mb-1">Return Temp</span>
+<span class="text-xl font-bold">28.9°C</span>
+</div>
+</div>
+<div class="flex justify-between items-center p-3 bg-surface-container-low rounded">
+<span class="text-sm font-medium">Operating Mode</span>
+<span class="text-sm font-bold text-primary">Heating + HW</span>
+</div>
+<div class="flex justify-between items-center p-3 bg-surface-container-low rounded">
+<span class="text-sm font-medium">Instant COP</span>
+<div class="flex items-center gap-2">
+<span class="text-sm font-bold">4.82</span>
+<div class="w-12 h-1.5 bg-outline-variant/20 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[85%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-[0px_12px_32px_rgba(56,56,51,0.04)]">
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="ac_unit">ac_unit</span>
+                            Mitsubishi AC
+                        </h2>
+</div>
+<div class="space-y-6">
+<div class="text-center py-4">
+<span class="text-5xl font-black text-on-surface">20°</span>
+<span class="text-sm font-semibold text-on-surface-variant block mt-1">Target Temperature</span>
+</div>
+<div class="relative pt-1">
+<input class="w-full h-2 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" max="30" min="16" type="range" value="20"/>
+<div class="flex justify-between text-[10px] font-bold text-outline-variant mt-2">
+<span>16°C</span>
+<span>30°C</span>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-2">
+<button class="bg-primary text-white p-3 rounded-xl flex flex-col items-center gap-1 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-xl" data-icon="sunny">sunny</span>
+<span class="text-[10px] font-bold uppercase">Heat</span>
+</button>
+<button class="bg-surface-container text-on-surface-variant p-3 rounded-xl flex flex-col items-center gap-1 hover:bg-surface-container-high transition-transform active:scale-95">
+<span class="material-symbols-outlined text-xl" data-icon="ac_unit">ac_unit</span>
+<span class="text-[10px] font-bold uppercase">Cool</span>
+</button>
+<button class="bg-surface-container text-on-surface-variant p-3 rounded-xl flex flex-col items-center gap-1 hover:bg-surface-container-high transition-transform active:scale-95">
+<span class="material-symbols-outlined text-xl" data-icon="air">air</span>
+<span class="text-[10px] font-bold uppercase">Fan</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<aside class="lg:col-span-4 space-y-6">
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-[0px_12px_32px_rgba(56,56,51,0.04)]">
+<h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="humidity_mid">humidity_mid</span>
+                        Humidity
+                    </h2>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="bed">bed</span>
+</div>
+<div>
+<p class="text-sm font-bold">Bedroom</p>
+<p class="text-[11px] text-outline">Ideal Range</p>
+</div>
+</div>
+<span class="text-lg font-bold text-secondary">42%</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="bathtub">bathtub</span>
+</div>
+<div>
+<p class="text-sm font-bold">Bathroom</p>
+<p class="text-[11px] text-error">High Humidity</p>
+</div>
+</div>
+<span class="text-lg font-bold text-error">68%</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="weekend">weekend</span>
+</div>
+<div>
+<p class="text-sm font-bold">Living Room</p>
+<p class="text-[11px] text-outline">Nominal</p>
+</div>
+</div>
+<span class="text-lg font-bold">45%</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-[0px_12px_32px_rgba(56,56,51,0.04)]">
+<h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="kitchen">kitchen</span>
+                        Kitchen Hub
+                    </h2>
+<div class="grid grid-cols-1 gap-3">
+<div class="p-4 rounded-xl bg-surface-container border-l-4 border-secondary flex justify-between items-center">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="dishwasher">dishwasher</span>
+<div>
+<p class="text-sm font-bold">Dishwasher</p>
+<p class="text-[10px] text-on-surface-variant font-medium">Cycle: ECO • 12m left</p>
+</div>
+</div>
+<span class="text-[10px] font-bold bg-secondary/10 text-secondary px-2 py-1 rounded">RUNNING</span>
+</div>
+<div class="p-4 rounded-xl bg-surface-container-low flex justify-between items-center opacity-80">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="local_laundry_service">local_laundry_service</span>
+<div>
+<p class="text-sm font-bold">Washing Machine</p>
+<p class="text-[10px] text-on-surface-variant font-medium">Idle • Ready to start</p>
+</div>
+</div>
+<span class="text-[10px] font-bold bg-outline-variant/10 text-on-surface-variant px-2 py-1 rounded">STANDBY</span>
+</div>
+<div class="p-4 rounded-xl bg-surface-container-low flex justify-between items-center">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="refrigerator">kitchen</span>
+<div>
+<p class="text-sm font-bold">Fridge/Freezer</p>
+<p class="text-[10px] text-on-surface-variant font-medium">T: 4°C / -18°C</p>
+</div>
+</div>
+<span class="text-[10px] font-bold bg-secondary/10 text-secondary px-2 py-1 rounded">OPTIMAL</span>
+</div>
+</div>
+</div>
+<div class="rounded-lg overflow-hidden h-48 relative">
+<img alt="Interior home" class="w-full h-full object-cover" data-alt="minimalist modern interior living room with soft natural light large windows and warm wood accents" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAp10a3p1jcmcJ4ugz_QyBgj5RnhfTNfViwMouH9_d-EcCU8PAoEtrbnlyeDd35aiG-c0ZF-Y1nBmnydb_DSzFRxlFr1BHPMnobL0IsLtCvYV7YbDATQpom6Q3KU-A_vVhnxOEOniEHFh5DwQ2-txzKoM-u0o_xsaa2TkoB0xdTjaWDde3MZpkUxx_5YxbTNkRMIJTseXKurARXO6TjWDD0RHq51eBj3TWa_oJ0hWL4Mx7RmS7NcAKxc6D-6Pe-r73wqrUdop0xcDo"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4">
+<span class="text-white text-[10px] font-bold uppercase tracking-widest">Outdoor Air Quality</span>
+<div class="flex items-center gap-2">
+<span class="text-white text-2xl font-bold">Good</span>
+<span class="text-secondary-fixed font-bold text-sm">AQI 14</span>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+<footer class="bg-[#f6f3ec] dark:bg-stone-900 flex justify-between items-center px-8 py-4 w-full mt-auto">
+<div class="text-sm font-bold text-[#383833]">inicio.cloud</div>
+<div class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60">
+            © 2024 inicio.cloud • System Operational
+        </div>
+<div class="flex gap-4">
+<a class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60 hover:opacity-100 underline transition-opacity" href="#">Privacy</a>
+<a class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60 hover:opacity-100 underline transition-opacity" href="#">Docs</a>
+<a class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60 hover:opacity-100 underline transition-opacity" href="#">API</a>
+</div>
+</footer>
+</body></html>

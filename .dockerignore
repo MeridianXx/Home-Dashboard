@@ -1,0 +1,6 @@
+.git
+.next
+node_modules
+stich-mockup
+.env.local
+*.md

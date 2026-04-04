@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>inicio.cloud - Home Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error-container": "#6e0523",
+                    "inverse-surface": "#0e0e0c",
+                    "surface-container-high": "#f0eee6",
+                    "surface-container-low": "#fcf9f3",
+                    "tertiary": "#885c00",
+                    "surface-container-highest": "#eae8e0",
+                    "inverse-primary": "#788cf6",
+                    "surface-tint": "#475bc2",
+                    "secondary-fixed": "#83faab",
+                    "surface": "#fffcf7",
+                    "tertiary-fixed-dim": "#eaaa3d",
+                    "surface-bright": "#fffcf7",
+                    "background": "#fffcf7",
+                    "primary": "#475bc2",
+                    "on-primary-fixed-variant": "#001462",
+                    "outline": "#81817a",
+                    "on-primary-fixed": "#000000",
+                    "on-tertiary": "#ffffff",
+                    "secondary-container": "#83faab",
+                    "on-tertiary-fixed-variant": "#624100",
+                    "surface-variant": "#eae8e0",
+                    "error-container": "#f97386",
+                    "primary-container": "#788cf6",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed-dim": "#74ec9e",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed-dim": "#6a7ee7",
+                    "outline-variant": "#bbb9b2",
+                    "on-primary-container": "#000b45",
+                    "primary-dim": "#3a4fb5",
+                    "tertiary-dim": "#785000",
+                    "on-tertiary-fixed": "#3b2600",
+                    "on-secondary-fixed-variant": "#006a38",
+                    "on-secondary-container": "#005f32",
+                    "on-surface-variant": "#65655e",
+                    "surface-container-lowest": "#ffffff",
+                    "on-background": "#383833",
+                    "secondary": "#00743e",
+                    "tertiary-fixed": "#fab849",
+                    "surface-dim": "#e4e2da",
+                    "error": "#af3b50",
+                    "on-secondary-fixed": "#004a26",
+                    "inverse-on-surface": "#9e9d98",
+                    "on-tertiary-container": "#563800",
+                    "on-surface": "#383833",
+                    "primary-fixed": "#788cf6",
+                    "on-error": "#ffffff",
+                    "secondary-dim": "#006636",
+                    "tertiary-container": "#fab849",
+                    "error-dim": "#6b0221",
+                    "surface-container": "#f6f3ec"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        .font-headline { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary-container selection:text-on-primary-container min-h-screen">
+<!-- Top Navigation Bar (Shared Component Execution) -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-16 bg-[#fffcf7] dark:bg-stone-950">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold text-[#0e0e0c] dark:text-[#fffcf7] font-headline">inicio.cloud</span>
+<nav class="hidden md:flex gap-1">
+<a class="bg-[#0e0e0c] dark:bg-[#fffcf7] text-[#fffcf7] dark:text-[#0e0e0c] rounded-full px-4 py-1.5 transition-all font-medium text-sm" href="#">Home</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] dark:hover:text-[#788cf6] transition-colors font-medium text-sm" href="#">Energy</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] dark:hover:text-[#788cf6] transition-colors font-medium text-sm" href="#">Climate</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] dark:hover:text-[#788cf6] transition-colors font-medium text-sm" href="#">Media</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] dark:hover:text-[#788cf6] transition-colors font-medium text-sm" href="#">Servers</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] dark:hover:text-[#788cf6] transition-colors font-medium text-sm" href="#">Containers</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden sm:flex items-center bg-surface-container rounded-full px-4 py-1.5 text-on-surface-variant gap-2 text-sm">
+<span class="material-symbols-outlined text-[18px]">search</span>
+<span class="opacity-60">Search system...</span>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">settings</button>
+<div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden">
+<img alt="User Profile" data-alt="Minimalist headshot portrait of a tech professional with soft lighting and clean background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCflEkLdr8SzPXeErybfWaqgmKZkwuRaTklWb8JI9Ksxh5Ep5P7y7ZJtSQaAFm39j2-vMzJLQHYZSMENjeqc-6UKGE4hsy7kfOjxo38Q4TFHQJ3wnnoV4EYkD4NccI_KPaXs6WDehF2ZTAIUyeYyOr7sT56YkF9pS0gix7jOwzCJDcB1f1rH9QOqwo_9-WhZ9aoxzZCiLLvFzuepdQcITi4HTSiOFIqMJMTP4xa1ck8-kPw9yJb5lspVpITNo-Cg4DK9gm8nHMr5s4"/>
+</div>
+</div>
+</header>
+<!-- Side Navigation Bar (Shared Component Execution) -->
+<aside class="hidden lg:flex flex-col fixed left-0 top-16 h-[calc(100vh-64px)] py-6 bg-[#f6f3ec] dark:bg-stone-900 w-64 z-40 transition-all duration-300">
+<div class="px-6 mb-8 flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined">dns</span>
+</div>
+<div>
+<p class="font-headline text-sm font-black text-[#383833]">System Admin</p>
+<p class="text-[11px] text-stone-400 font-medium">Local Instance</p>
+</div>
+</div>
+<nav class="flex-1 px-2 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-[#383833] dark:text-stone-400 opacity-70 hover:bg-[#fffcf7]/50 dark:hover:bg-stone-800 transition-all" href="#">
+<span class="material-symbols-outlined">devices</span>
+<span class="font-medium">Devices</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#383833] dark:text-stone-400 opacity-70 hover:bg-[#fffcf7]/50 dark:hover:bg-stone-800 transition-all" href="#">
+<span class="material-symbols-outlined">bolt</span>
+<span class="font-medium">Automations</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#383833] dark:text-stone-400 opacity-70 hover:bg-[#fffcf7]/50 dark:hover:bg-stone-800 transition-all" href="#">
+<span class="material-symbols-outlined">lan</span>
+<span class="font-medium">Network</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#383833] dark:text-stone-400 opacity-70 hover:bg-[#fffcf7]/50 dark:hover:bg-stone-800 transition-all" href="#">
+<span class="material-symbols-outlined">list_alt</span>
+<span class="font-medium">Logs</span>
+</a>
+</nav>
+<div class="px-4 mb-6">
+<button class="w-full bg-primary text-on-primary py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                Add Device
+            </button>
+</div>
+<div class="px-2 space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-[#383833] dark:text-stone-400 opacity-70 hover:bg-[#fffcf7]/50 transition-all text-xs" href="#">
+<span class="material-symbols-outlined text-[18px]">help</span>
+                Support
+            </a>
+<a class="flex items-center gap-3 px-4 py-2 text-[#383833] dark:text-stone-400 opacity-70 hover:bg-[#fffcf7]/50 transition-all text-xs" href="#">
+<span class="material-symbols-outlined text-[18px]">update</span>
+                Updates
+            </a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="pt-20 lg:pl-64 pb-24 px-8 min-h-screen">
+<!-- Dashboard Header: Weather & Time -->
+<section class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+<div>
+<h1 class="text-4xl font-headline font-extrabold tracking-tight text-on-surface">Overview</h1>
+<p class="text-on-surface-variant font-medium">Welcome back, Admin. System is running stable.</p>
+</div>
+<div class="flex items-center gap-6 bg-surface-container rounded-2xl px-6 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary-fixed text-4xl" style="font-variation-settings: 'FILL' 1;">wb_sunny</span>
+<div class="flex flex-col">
+<span class="text-2xl font-bold font-headline">18°C</span>
+<span class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Partly Cloudy</span>
+</div>
+</div>
+<div class="w-px h-8 bg-outline-variant opacity-20"></div>
+<div class="flex flex-col text-right">
+<span class="text-2xl font-bold font-headline">14:42</span>
+<span class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Oct 24, 2024</span>
+</div>
+</div>
+</section>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
+<!-- Column 1: Server Health & Alerts -->
+<div class="flex flex-col gap-6">
+<!-- Server Health Pills -->
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-sm">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Infrastructure</h3>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(0,116,62,0.5)] animate-pulse"></span>
+<span class="font-semibold text-sm">Proxmox VE</span>
+</div>
+<span class="text-xs font-bold bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full">ACTIVE</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(0,116,62,0.5)] animate-pulse"></span>
+<span class="font-semibold text-sm">Unraid Array</span>
+</div>
+<span class="text-xs font-bold bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full">HEALTHY</span>
+</div>
+</div>
+</div>
+<!-- Active Alerts -->
+<div class="bg-error-container/10 p-6 rounded-lg relative overflow-hidden">
+<div class="flex items-center gap-3 mb-3">
+<span class="material-symbols-outlined text-error">warning</span>
+<h3 class="font-bold text-on-error-container">System Alerts</h3>
+</div>
+<div class="space-y-3">
+<div class="bg-white/60 p-3 rounded-xl">
+<p class="text-xs font-bold text-on-surface">Proxmox Backup Failed</p>
+<p class="text-[11px] text-on-surface-variant">Storage 'Local-ZFS' at 92% capacity</p>
+</div>
+<div class="bg-white/60 p-3 rounded-xl">
+<p class="text-xs font-bold text-on-surface">Unraid Parity Check</p>
+<p class="text-[11px] text-on-surface-variant">Scheduled check in progress (42%)</p>
+</div>
+</div>
+</div>
+<!-- Doorbell Card -->
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-sm">
+<div class="flex justify-between items-center mb-4">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Security</h3>
+<span class="text-[11px] font-bold text-primary">LIVE</span>
+</div>
+<div class="relative rounded-xl overflow-hidden aspect-video bg-stone-200 mb-3 group">
+<img alt="Front Door" class="object-cover w-full h-full" data-alt="A clean modern front door porch area seen through a security camera lens with soft overcast lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoWgKq6I7o_8hby2lFrqtJTsYw5x_AHdMKNb0WMNaaBF0cCeyTNxWY5pG-Al6d5cEtnHvBgDGJylCE65j0ly2eLszA_PzRGxtI01SH8fmc4oyvLGhKdFF-A7DPQvfjluPxVz_KLsIvCUKBlFOAinTg98Xq53NMoGHnH535KE314s6PcKl2-LxrexginaqYtGEiCktx5zPLH92NYdCO7n7-d8AVcigheFUWmQxiVBQFHBi2UHrrHygBOqR5ZQ1nicLNkGJ5RVJKDUs"/>
+<div class="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors"></div>
+<div class="absolute top-2 left-2 px-2 py-1 bg-black/40 backdrop-blur-md rounded text-[10px] text-white font-bold">AQARA G4 • FRONT DOOR</div>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-xs text-on-surface-variant">Last motion</span>
+<span class="text-xs font-bold">12 mins ago</span>
+</div>
+</div>
+</div>
+<!-- Column 2: Quick Grid Section (Stats) -->
+<div class="flex flex-col gap-6 md:col-span-1">
+<div class="grid grid-cols-2 gap-4">
+<!-- Indoor Temp -->
+<div class="bg-surface-container-lowest p-5 rounded-lg shadow-sm">
+<span class="material-symbols-outlined text-primary mb-3">thermostat</span>
+<p class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Indoor</p>
+<p class="text-2xl font-bold font-headline mt-1">21.5°C</p>
+</div>
+<!-- Energy Usage -->
+<div class="bg-surface-container-lowest p-5 rounded-lg shadow-sm">
+<span class="material-symbols-outlined text-tertiary mb-3">bolt</span>
+<p class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Tibber</p>
+<p class="text-2xl font-bold font-headline mt-1">2.4<span class="text-sm font-normal">kW</span></p>
+</div>
+<!-- EV 1 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg shadow-sm col-span-1">
+<p class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Enyaq</p>
+<p class="text-2xl font-bold font-headline mt-1">82%</p>
+<div class="w-full bg-surface-container h-1 mt-3 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[82%]"></div>
+</div>
+</div>
+<!-- EV 2 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg shadow-sm col-span-1">
+<p class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Polestar 2</p>
+<p class="text-2xl font-bold font-headline mt-1">45%</p>
+<div class="w-full bg-surface-container h-1 mt-3 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full w-[45%]"></div>
+</div>
+</div>
+<!-- Roborock -->
+<div class="bg-surface-container-lowest p-5 rounded-lg shadow-sm col-span-2 flex items-center justify-between">
+<div>
+<p class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Roborock S8</p>
+<p class="text-sm font-bold mt-1">Docked • 100%</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">cleaning_services</span>
+</div>
+</div>
+<!-- Scene Buttons -->
+<div class="bg-surface-container p-6 rounded-lg">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Quick Scenes</h3>
+<div class="grid grid-cols-2 gap-3">
+<button class="bg-surface-container-lowest p-4 rounded-xl flex flex-col items-center gap-2 hover:bg-inverse-surface hover:text-surface transition-all group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">dark_mode</span>
+<span class="text-xs font-bold">Evening</span>
+</button>
+<button class="bg-surface-container-lowest p-4 rounded-xl flex flex-col items-center gap-2 hover:bg-inverse-surface hover:text-surface transition-all group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">logout</span>
+<span class="text-xs font-bold">Away</span>
+</button>
+<button class="bg-surface-container-lowest p-4 rounded-xl flex flex-col items-center gap-2 hover:bg-inverse-surface hover:text-surface transition-all group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">bedtime</span>
+<span class="text-xs font-bold">Night</span>
+</button>
+<button class="bg-surface-container-lowest p-4 rounded-xl flex flex-col items-center gap-2 hover:bg-inverse-surface hover:text-surface transition-all group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">movie</span>
+<span class="text-xs font-bold">Movie</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Column 3: Lights Overview (Hue + Plejd) -->
+<div class="flex flex-col gap-6 md:col-span-2 xl:col-span-2">
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-sm">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Lighting Control</h3>
+<span class="text-[11px] font-medium text-on-surface-variant">12 active zones</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-8">
+<!-- Living Room -->
+<div class="space-y-4">
+<div class="flex justify-between items-end border-b border-outline-variant/10 pb-2">
+<span class="font-headline font-bold text-lg">Living Room</span>
+<span class="text-[10px] uppercase font-black text-secondary">4 Lights On</span>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between group">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Ceiling Hue</p>
+<p class="text-[10px] text-on-surface-variant">Brightness: 80%</p>
+</div>
+</div>
+<input checked="" class="w-10 h-5 bg-secondary-container rounded-full appearance-none relative cursor-pointer before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-5 transition-all" type="checkbox"/>
+</div>
+<div class="flex items-center justify-between group">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">floor_lamp</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Floor Plejd</p>
+<p class="text-[10px] text-on-surface-variant">State: Off</p>
+</div>
+</div>
+<input class="w-10 h-5 bg-outline-variant/30 rounded-full appearance-none relative cursor-pointer before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-5 transition-all" type="checkbox"/>
+</div>
+</div>
+</div>
+<!-- Kitchen -->
+<div class="space-y-4">
+<div class="flex justify-between items-end border-b border-outline-variant/10 pb-2">
+<span class="font-headline font-bold text-lg">Kitchen</span>
+<span class="text-[10px] uppercase font-black text-on-surface-variant">All Off</span>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between group">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">countertops</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Counter Strips</p>
+<p class="text-[10px] text-on-surface-variant">System: Hue</p>
+</div>
+</div>
+<input class="w-10 h-5 bg-outline-variant/30 rounded-full appearance-none relative cursor-pointer before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-5 transition-all" type="checkbox"/>
+</div>
+<div class="flex items-center justify-between group">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">dining</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Dining Table</p>
+<p class="text-[10px] text-on-surface-variant">System: Plejd</p>
+</div>
+</div>
+<input class="w-10 h-5 bg-outline-variant/30 rounded-full appearance-none relative cursor-pointer before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-5 transition-all" type="checkbox"/>
+</div>
+</div>
+</div>
+<!-- Master Bedroom -->
+<div class="space-y-4">
+<div class="flex justify-between items-end border-b border-outline-variant/10 pb-2">
+<span class="font-headline font-bold text-lg">Bedroom</span>
+<span class="text-[10px] uppercase font-black text-secondary">Active</span>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between group">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">bed</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Bedside Hue</p>
+<p class="text-[10px] text-on-surface-variant">Mood: Read</p>
+</div>
+</div>
+<input checked="" class="w-10 h-5 bg-secondary-container rounded-full appearance-none relative cursor-pointer before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-5 transition-all" type="checkbox"/>
+</div>
+</div>
+</div>
+<!-- Outdoor -->
+<div class="space-y-4">
+<div class="flex justify-between items-end border-b border-outline-variant/10 pb-2">
+<span class="font-headline font-bold text-lg">Outdoor</span>
+<span class="text-[10px] uppercase font-black text-on-surface-variant">Auto Schedule</span>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between group">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">deck</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Deck Spotlights</p>
+<p class="text-[10px] text-on-surface-variant">Plejd Timer</p>
+</div>
+</div>
+<input class="w-10 h-5 bg-outline-variant/30 rounded-full appearance-none relative cursor-pointer before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-5 transition-all" type="checkbox"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Live Network Traffic Sparkline -->
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-sm">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Network Activity</h3>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-[10px] font-bold">WAN</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-[10px] font-bold">LAN</span>
+</div>
+</div>
+</div>
+<div class="h-24 w-full flex items-end gap-1">
+<!-- Mock Sparkline -->
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 40%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 55%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 35%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 60%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 85%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 70%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 45%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 30%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 50%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 90%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 65%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 40%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 75%"></div>
+<div class="bg-primary/20 hover:bg-primary transition-colors flex-1 rounded-t-sm" style="height: 55%"></div>
+</div>
+<div class="flex justify-between mt-4 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
+<span>Current Throughput</span>
+<span class="text-on-surface">420 Mbps Down / 42 Mbps Up</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer (Shared Component Execution) -->
+<footer class="lg:pl-64 fixed bottom-0 w-full bg-[#f6f3ec] dark:bg-stone-900 z-30">
+<div class="flex justify-between items-center px-8 py-4 w-full">
+<span class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60">© 2024 inicio.cloud • System Operational</span>
+<div class="flex gap-6">
+<a class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60 hover:opacity-100 underline transition-opacity" href="#">Privacy</a>
+<a class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60 hover:opacity-100 underline transition-opacity" href="#">Docs</a>
+<a class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60 hover:opacity-100 underline transition-opacity" href="#">API</a>
+</div>
+<span class="text-sm font-bold text-[#383833]">inicio.cloud</span>
+</div>
+</footer>
+</body></html>

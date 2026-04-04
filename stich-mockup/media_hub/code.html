@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error-container": "#6e0523",
+                    "inverse-surface": "#0e0e0c",
+                    "surface-container-high": "#f0eee6",
+                    "surface-container-low": "#fcf9f3",
+                    "tertiary": "#885c00",
+                    "surface-container-highest": "#eae8e0",
+                    "inverse-primary": "#788cf6",
+                    "surface-tint": "#475bc2",
+                    "secondary-fixed": "#83faab",
+                    "surface": "#fffcf7",
+                    "tertiary-fixed-dim": "#eaaa3d",
+                    "surface-bright": "#fffcf7",
+                    "background": "#fffcf7",
+                    "primary": "#475bc2",
+                    "on-primary-fixed-variant": "#001462",
+                    "outline": "#81817a",
+                    "on-primary-fixed": "#000000",
+                    "on-tertiary": "#ffffff",
+                    "secondary-container": "#83faab",
+                    "on-tertiary-fixed-variant": "#624100",
+                    "surface-variant": "#eae8e0",
+                    "error-container": "#f97386",
+                    "primary-container": "#788cf6",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed-dim": "#74ec9e",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed-dim": "#6a7ee7",
+                    "outline-variant": "#bbb9b2",
+                    "on-primary-container": "#000b45",
+                    "primary-dim": "#3a4fb5",
+                    "tertiary-dim": "#785000",
+                    "on-tertiary-fixed": "#3b2600",
+                    "on-secondary-fixed-variant": "#006a38",
+                    "on-secondary-container": "#005f32",
+                    "on-surface-variant": "#65655e",
+                    "surface-container-lowest": "#ffffff",
+                    "on-background": "#383833",
+                    "secondary": "#00743e",
+                    "tertiary-fixed": "#fab849",
+                    "surface-dim": "#e4e2da",
+                    "error": "#af3b50",
+                    "on-secondary-fixed": "#004a26",
+                    "inverse-on-surface": "#9e9d98",
+                    "on-tertiary-container": "#563800",
+                    "on-surface": "#383833",
+                    "primary-fixed": "#788cf6",
+                    "on-error": "#ffffff",
+                    "secondary-dim": "#006636",
+                    "tertiary-container": "#fab849",
+                    "error-dim": "#6b0221",
+                    "surface-container": "#f6f3ec"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .headline { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #bbb9b2; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-16 bg-[#fffcf7] dark:bg-stone-950">
+<div class="text-xl font-bold text-[#0e0e0c] dark:text-[#fffcf7]">inicio.cloud</div>
+<nav class="hidden md:flex items-center gap-2">
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] dark:hover:text-[#788cf6] transition-colors" href="#">Home</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] dark:hover:text-[#788cf6] transition-colors" href="#">Energy</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] dark:hover:text-[#788cf6] transition-colors" href="#">Climate</a>
+<a class="bg-[#0e0e0c] dark:bg-[#fffcf7] text-[#fffcf7] dark:text-[#0e0e0c] rounded-full px-4 py-1.5 transition-all" href="#">Media</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] dark:hover:text-[#788cf6] transition-colors" href="#">Servers</a>
+<a class="text-[#383833] dark:text-[#bbb9b2] px-4 py-1.5 hover:text-[#475bc2] dark:hover:text-[#788cf6] transition-colors" href="#">Containers</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[#475bc2] dark:text-[#788cf6] hover:scale-95 transition-transform">notifications</button>
+<button class="material-symbols-outlined text-[#475bc2] dark:text-[#788cf6] hover:scale-95 transition-transform">settings</button>
+<img alt="User Profile" class="w-8 h-8 rounded-full object-cover" data-alt="professional headshot of a person with friendly expression, clean minimalist background, soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoBGyihKU8-9Hy36nZGWDvjuKjBBVD4b2743vy9njscnD5WbgsJ7lT7kSak0AiFHxFeI88QoyFdgdvjI5sWTHtaLNJnxOXW6hk5La-HcHCc7N4KfVcIBcYBl_ORfgAIRcHaakS-aWk0h6lIw75_F6f2hEzGB_UGtXUlfkFnbtzLR3ufDMIFYuQ9YBoojsqN1rvwZJQd7CR_dC896gfa45SArhfZGcR3HMvmiqNxww03n-0OynBIWtn3oL8ROqck-c4AJzbXtrEDWw"/>
+</div>
+</header>
+<!-- Side Navigation -->
+<aside class="hidden lg:flex flex-col fixed left-0 top-16 h-[calc(100vh-64px)] py-6 bg-[#f6f3ec] dark:bg-stone-900 w-64">
+<div class="px-6 mb-8 flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container">dns</span>
+</div>
+<div>
+<div class="text-sm font-black text-[#383833] leading-none">System Admin</div>
+<div class="text-[11px] text-stone-400 font-medium">Local Instance</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-4 px-6 py-3 text-[#383833] dark:text-stone-400 opacity-70 hover:bg-[#fffcf7]/50 transition-all" href="#">
+<span class="material-symbols-outlined">devices</span>
+<span class="font-medium">Devices</span>
+</a>
+<a class="flex items-center gap-4 px-6 py-3 text-[#383833] dark:text-stone-400 opacity-70 hover:bg-[#fffcf7]/50 transition-all" href="#">
+<span class="material-symbols-outlined">bolt</span>
+<span class="font-medium">Automations</span>
+</a>
+<a class="flex items-center gap-4 px-6 py-3 text-[#383833] dark:text-stone-400 opacity-70 hover:bg-[#fffcf7]/50 transition-all" href="#">
+<span class="material-symbols-outlined">lan</span>
+<span class="font-medium">Network</span>
+</a>
+<a class="flex items-center gap-4 px-6 py-3 text-[#383833] dark:text-stone-400 opacity-70 hover:bg-[#fffcf7]/50 transition-all" href="#">
+<span class="material-symbols-outlined">list_alt</span>
+<span class="font-medium">Logs</span>
+</a>
+</nav>
+<div class="px-6 mt-auto space-y-4">
+<button class="w-full py-2 bg-primary text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity">Add Device</button>
+<div class="pt-4 flex flex-col gap-2">
+<a class="flex items-center gap-3 text-xs text-[#383833] opacity-60 hover:opacity-100 transition-opacity" href="#">
+<span class="material-symbols-outlined text-lg">help</span> Support
+                </a>
+<a class="flex items-center gap-3 text-xs text-[#383833] opacity-60 hover:opacity-100 transition-opacity" href="#">
+<span class="material-symbols-outlined text-lg">update</span> Updates
+                </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="lg:ml-64 pt-20 pb-20 px-4 md:px-8 bg-surface-container min-h-screen">
+<div class="max-w-[1440px] mx-auto space-y-8">
+<!-- Page Header -->
+<div class="flex flex-col gap-1">
+<h1 class="text-3xl font-extrabold tracking-tight text-on-surface">Media Center</h1>
+<p class="text-on-surface-variant text-sm">Orchestrating 14 local and cloud streaming services</p>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+<!-- Plex Section -->
+<section class="xl:col-span-2 space-y-4">
+<div class="flex items-center gap-2 px-2">
+<span class="material-symbols-outlined text-tertiary">stadium</span>
+<h2 class="headline text-lg font-bold">Plex Media Server</h2>
+</div>
+<div class="bg-surface-container-lowest rounded-lg p-6 space-y-6">
+<!-- Now Playing -->
+<div class="flex gap-4 items-start">
+<img alt="Dune Movie Poster" class="w-24 h-36 rounded-md object-cover shadow-lg" data-alt="vibrant cinematic movie poster for a sci-fi epic, intense desert lighting, high contrast color palette" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGnoElfyEMzIk9tq_RerY6hp2aUkH3JFoR_V6mNtChVjZOUiGGzO9mTHbYcmzRe6PbjRch1V1p_z8VITCGExFV02k8gy9nGOEvJIgSAvSqmIiqTrbkE4143p6xTVK6SBaiiQDI8VOojtnq7L-vkYIkGviTtUewSg7aAgASVLdyfEvyGnquvFoA90x8ZnhiUINRYBpYLle3E_Xrwg5VaHW5k1OtyPzvZRAkDa9rm6S7AmMIv27SGySEwevVdrFHJerD8Rdx9EfubR4"/>
+<div class="flex-1 space-y-3">
+<div>
+<span class="text-[10px] font-bold uppercase tracking-widest text-primary mb-1 block">Now Playing</span>
+<h3 class="font-bold text-xl leading-tight">Dune: Part Two</h3>
+<p class="text-xs text-on-surface-variant italic">Playing on Living Room TV • 4K HDR</p>
+</div>
+<div class="space-y-1">
+<div class="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary w-2/3"></div>
+</div>
+<div class="flex justify-between text-[10px] font-medium text-on-surface-variant">
+<span>01:42:05</span>
+<span>02:46:00</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Additions -->
+<div class="pt-4">
+<p class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-4">Recent Additions</p>
+<div class="grid grid-cols-4 gap-3">
+<div class="space-y-1">
+<div class="aspect-[2/3] bg-surface-container rounded-md overflow-hidden">
+<img alt="Movie 1" class="w-full h-full object-cover" data-alt="movie poster artwork with colorful neon aesthetics, abstract urban night scene" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBe7VmbnAYMAvvZYoX1EjtfNKP8oB1aL4HF34YY1spCaP7twv9GbTlY9D6u4M44xT5n7ZSRB3pR9_BSw7wtJ8nlHRueAHCdjtvirlKHzlcPw0r_sf6z4P10mSgvRS6VcLRhNlEloFowFa3xPVVjhoPV6iOfE9ekGrdL7LTCF-ECYjCWBgi45Rm3vMODZty3YGDvatb0ynllEAqVMfFzvLhfUn4IiwMEXQIwd4OcndNMUaREMYKwUP8c8orI_jzGzF9tGEJbtOm_P3Y"/>
+</div>
+<p class="text-[10px] font-semibold truncate">Poor Things</p>
+</div>
+<div class="space-y-1">
+<div class="aspect-[2/3] bg-surface-container rounded-md overflow-hidden">
+<img alt="Movie 2" class="w-full h-full object-cover" data-alt="dramatic film poster with moody lighting, portrait of a central character, cinematic grain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCiJkBovxUwwGTBvCyNuIhc_YjfbOiG2qSRj3UbyWQIbJVicbnNyS12KMmQM20JbkptIiqU6fmn7H7M6GmG7wmTpASJDefROvzDgkQYq88smp1OIcHBQQ4z0XKWCS1QSniVAPRvFBImPNEbenNgKYzOHVYa1J6etDra3iGDXlZi7loG5DW0Jz3mACs35hbeS7jTZFsjd1uo0V1yoXij9J1UCKCNvHaKeeDnCDaKlivjKntL7oYcuTqwGkWkAzt-abMbdqovo5NlzOQ"/>
+</div>
+<p class="text-[10px] font-semibold truncate">Oppenheimer</p>
+</div>
+<div class="space-y-1">
+<div class="aspect-[2/3] bg-surface-container rounded-md overflow-hidden">
+<img alt="Movie 3" class="w-full h-full object-cover" data-alt="minimalist modern movie poster, bold typography and singular striking image, studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2KIJeU2RdUhJNhUPD1cp9xcS75wtl4Ao_nMW7E3OXgEXaLVAQjo7UhAMpQLnd5-qXqgfJo86gEQ7rSjiD1kjZA_t3-KsmWeCgWnFeqg70Cdmg5PRtQpMkgfq_wnfTrnOPSCcwRcnEJxUCi9Lrpent7lptMdpL4pbXntSHfwh1OtMY5v76C04EVcc1kJzFUr2Zen7Pxfu2JDMwyjlhwYupwcnsLZg87a1d4JGhEeSB98D4LBxPKnaWIppVJADcAoJUcMxRpUCaAoU"/>
+</div>
+<p class="text-[10px] font-semibold truncate">The Bear</p>
+</div>
+<div class="space-y-1">
+<div class="aspect-[2/3] bg-surface-container rounded-md overflow-hidden">
+<img alt="Movie 4" class="w-full h-full object-cover" data-alt="animated film poster with vibrant playful colors, whimsical character design, soft digital painting style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDd6WZE8cUeK-bD2JIM6T91nCKMcY-_9OIYhPuwTZHbLL4zd52siOtnAFNwhlsPi3cIzv_bKl1FvEJR72OMyqeXKhN9_hPavoatAHH48jTLG_uAxBBAj_PTq_dzT_VSKFucY7_adKE8P2JGzKrP7W5RcbcKNH7G1DC9SvgJgFR-gvMLNHHjfX7iIoJoEYoABlTuxk-6weZFIDPUYqMUwuK4iPxfqkVU7Y5SD1ZIxRZvkMu3BxzzpHNcNT-KeHEclRls5RsTSM116sA"/>
+</div>
+<p class="text-[10px] font-semibold truncate">Elemental</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Sonos Section -->
+<section class="xl:col-span-1 space-y-4">
+<div class="flex items-center gap-2 px-2">
+<span class="material-symbols-outlined text-secondary">speaker_group</span>
+<h2 class="headline text-lg font-bold">Sonos Audio</h2>
+</div>
+<div class="space-y-4">
+<!-- Kitchen -->
+<div class="bg-surface-container-lowest rounded-lg p-5 flex flex-col gap-4 shadow-sm">
+<div class="flex justify-between items-center">
+<span class="text-xs font-bold text-on-surface">Kitchen</span>
+<div class="flex gap-2">
+<button class="material-symbols-outlined text-lg text-on-surface-variant">skip_previous</button>
+<button class="material-symbols-outlined text-lg text-primary" style="font-variation-settings: 'FILL' 1;">pause_circle</button>
+<button class="material-symbols-outlined text-lg text-on-surface-variant">skip_next</button>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<img alt="Album Art" class="w-10 h-10 rounded-md object-cover" data-alt="colorful abstract album cover art with swirling patterns and vibrant hues" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfQjoqpF_-aug86_qp8mfM4CtOV5kR-e9jzUmABE0tnOBPQcbvwhUbPhx-Z_Dg07knH6uVUJk84CWB933z8fYfTbBFzFnuPtEZN3GjEvHf07dIqztowTGjZvDov1bGXuhJSiv8z_atxJzlLQ85pdBKpMISGbC4m6cg4Y4FZ0TnItWT7CszH9S3THIzxIDGVb-LUux9jwU6uYKXwhNgeKM-gVYpoq2AEdCOs9LHmopiopv9CvS_an1-iXl2LPvaiES9qkuB_aCv7oM"/>
+<div class="overflow-hidden">
+<p class="text-xs font-bold truncate">Midnight City</p>
+<p class="text-[10px] text-on-surface-variant truncate">M83 • Hurry Up, We're Dreaming</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-sm text-on-surface-variant">volume_down</span>
+<div class="flex-1 h-1 bg-surface-container rounded-full relative">
+<div class="absolute left-0 top-0 h-full w-2/5 bg-on-surface rounded-full"></div>
+</div>
+<span class="material-symbols-outlined text-sm text-on-surface-variant">volume_up</span>
+</div>
+</div>
+<!-- Office -->
+<div class="bg-surface-container-lowest rounded-lg p-5 flex flex-col gap-4 shadow-sm opacity-60">
+<div class="flex justify-between items-center">
+<span class="text-xs font-bold text-on-surface">Office</span>
+<button class="material-symbols-outlined text-lg text-on-surface-variant">play_circle</button>
+</div>
+<p class="text-[11px] text-on-surface-variant text-center py-2">Nothing playing in this room</p>
+</div>
+</div>
+</section>
+<!-- Apple TV & Infrastructure -->
+<section class="xl:col-span-1 space-y-4">
+<div class="flex items-center gap-2 px-2">
+<span class="material-symbols-outlined text-primary">tv</span>
+<h2 class="headline text-lg font-bold">Apple TV Units</h2>
+</div>
+<div class="space-y-3">
+<div class="bg-surface-container-lowest rounded-lg p-4 flex items-center justify-between border-l-4 border-primary">
+<div>
+<h3 class="text-xs font-bold">Bedroom Apple TV</h3>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-[10px] font-medium text-on-surface-variant uppercase">Netflix</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary">cast_connected</span>
+</div>
+<div class="bg-surface-container-lowest rounded-lg p-4 flex items-center justify-between">
+<div>
+<h3 class="text-xs font-bold text-on-surface-variant">Patio Apple TV</h3>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
+<span class="text-[10px] font-medium text-on-surface-variant uppercase">Standby</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline-variant">power_settings_new</span>
+</div>
+</div>
+<div class="pt-4 space-y-4">
+<div class="flex items-center gap-2 px-2">
+<span class="material-symbols-outlined text-error">cloud_download</span>
+<h2 class="headline text-lg font-bold">Management</h2>
+</div>
+<!-- Sonarr -->
+<div class="bg-surface-container-lowest rounded-lg p-5 space-y-3">
+<div class="flex justify-between items-center">
+<p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Sonarr: Upcoming</p>
+<span class="text-[10px] font-bold text-primary">View All</span>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-[11px]">
+<span class="font-semibold">Succession S04E08</span>
+<span class="text-on-surface-variant">Tonight</span>
+</div>
+<div class="flex justify-between items-center text-[11px]">
+<span class="font-semibold">Barry S04E07</span>
+<span class="text-on-surface-variant">Tomorrow</span>
+</div>
+<div class="flex justify-between items-center text-[11px]">
+<span class="font-semibold">Slow Horses S03E01</span>
+<span class="text-on-surface-variant">3 Days</span>
+</div>
+</div>
+</div>
+<!-- Radarr -->
+<div class="bg-surface-container-lowest rounded-lg p-5 space-y-3">
+<p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Radarr: Movie Queue</p>
+<div class="space-y-4">
+<div class="space-y-1.5">
+<div class="flex justify-between text-[11px]">
+<span class="font-semibold">Killers of the Flower Moon</span>
+<span class="text-on-surface-variant">84%</span>
+</div>
+<div class="h-1 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[84%]"></div>
+</div>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between text-[11px]">
+<span class="font-semibold">Poor Things</span>
+<span class="text-on-surface-variant">12%</span>
+</div>
+<div class="h-1 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary w-[12%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Emby Section (Asymmetric Tall Card) -->
+<section class="xl:col-span-2 space-y-4">
+<div class="flex items-center gap-2 px-2">
+<span class="material-symbols-outlined text-primary-dim">movie</span>
+<h2 class="headline text-lg font-bold">Emby Connect</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="bg-surface-container-lowest rounded-lg p-6 flex flex-col justify-between min-h-[280px] bg-gradient-to-br from-white to-surface-container-low">
+<div>
+<span class="text-[10px] font-bold uppercase tracking-widest text-error mb-2 block">Direct Stream</span>
+<h3 class="font-bold text-2xl mb-1">The Last of Us</h3>
+<p class="text-xs text-on-surface-variant mb-6">Season 1 • Episode 3</p>
+<div class="flex items-center gap-2 mb-4">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-[10px] font-bold">1080P</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-[10px] font-bold">BITRATE: 12MBPS</span>
+</div>
+</div>
+<div class="flex gap-4">
+<button class="flex-1 bg-inverse-surface text-surface py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">play_arrow</span> Remote Control
+                                </button>
+<button class="w-12 h-10 border border-outline-variant/20 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-lg">more_horiz</span>
+</button>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-lg p-5">
+<p class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-4">Recently Added TV</p>
+<div class="space-y-4 custom-scrollbar overflow-y-auto max-h-[200px] pr-2">
+<div class="flex items-center gap-3">
+<div class="w-12 h-16 bg-surface-container rounded-md shrink-0 overflow-hidden">
+<img alt="Show 1" class="w-full h-full object-cover" data-alt="noir style television show poster with deep shadows and dramatic single light source" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6VOIe9eNrqCnmYUGLkW4541ZvFvDP5Z4vITjgBen0eNOTv2laUYoPlwZExYc4_JMMKLo1j35Sg7wPu6HhfTYtJ8XfD1h2_eoQk8YgUa0Uw3O0JHr5Q4MJiOxKDQC1o3iqW2YSG-8uaHQ5WZe-NwpgB3YUCg00iFzeoof77rfMovxs1cWdLn22Fn3m3YZ6VZ4VjlAMBbwpeo4f4R-KAEW8q2Xt-H1HzVIl2qyiA229CWCCW9GOWgkr-C-m5MilYKaPsgMp9HZ_nls"/>
+</div>
+<div>
+<p class="text-xs font-bold">Masters of the Air</p>
+<p class="text-[10px] text-on-surface-variant">S01 Complete • 4K</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-12 h-16 bg-surface-container rounded-md shrink-0 overflow-hidden">
+<img alt="Show 2" class="w-full h-full object-cover" data-alt="vintage cinematic film frame, 35mm grain, moody historical drama aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_ALv-Z2zRGaBgIzeKg5Ir3JcH-LpsXJ0BEZ4pxV5iL7BqlB6ISLWTRseT4yk4SqGbwiaudiODO8cLETx_2Ios43jo42dIGn4lyKtJAMysqaqv_SnHm8laGHoxyjsYj7ruHA6FYXVOd1VnFshRQUNScH3U5Katbgd1HUM3r_ElPynKW5CPMs-8Yo6cnjbV0c-PKcBjKp21ZmbPhlAOGk5rVNZ_8DSPjuty8jstZ1jX5Utr46JDqUCP2IzqXBqftLBzSsaOBvske1g"/>
+</div>
+<div>
+<p class="text-xs font-bold">The Curse</p>
+<p class="text-[10px] text-on-surface-variant">S01E10 • WEB-DL</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-12 h-16 bg-surface-container rounded-md shrink-0 overflow-hidden">
+<img alt="Show 3" class="w-full h-full object-cover" data-alt="neon city cyberpunk aesthetic, vibrant blues and pinks, digital futuristic artwork" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAf-gY-45HY-7dl-89VwSObOfS1wE9uKTKs6My-UwPObk2akt-a4Pw7T5VNTSKRQIHBH83bNuwWUvTrNcaOpC3hghi6Uku-WhSfBuLptwYWfhJNBo5dC-OAFThIr3UWlGXRcQqSzAZ4wMUNfKeZiUg8g9w5UtBuWuIfsQMK-WouUi6QJA681MNDbB4E1AQfQ0UWIf3XRdWkVkHu0V49JdEVvOnfjT0OQVwww7A2F1Jpmo_kO1ZDbS0AisaYP28S6urCentme-NSYIY"/>
+</div>
+<div>
+<p class="text-xs font-bold">Shōgun</p>
+<p class="text-[10px] text-on-surface-variant">S01E03 • HDR10</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="lg:ml-64 bg-[#f6f3ec] dark:bg-stone-900 flex justify-between items-center px-8 py-4 w-full">
+<div class="flex items-center gap-4">
+<span class="text-sm font-bold text-[#383833]">inicio.cloud</span>
+<span class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60">© 2024 • System Operational</span>
+</div>
+<div class="flex gap-6">
+<a class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60 hover:opacity-100 underline transition-opacity" href="#">Privacy</a>
+<a class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60 hover:opacity-100 underline transition-opacity" href="#">Docs</a>
+<a class="text-[11px] font-medium Inter uppercase tracking-wider text-[#383833] opacity-60 hover:opacity-100 underline transition-opacity" href="#">API</a>
+</div>
+</footer>
+<!-- Mobile Navigation Bar -->
+<nav class="md:hidden fixed bottom-0 w-full h-16 bg-surface-container-lowest border-t border-outline-variant/10 flex justify-around items-center px-4 z-50">
+<button class="flex flex-col items-center gap-1 opacity-60">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px]">Home</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">movie</span>
+<span class="text-[10px] font-bold">Media</span>
+</button>
+<button class="flex flex-col items-center gap-1 opacity-60">
+<span class="material-symbols-outlined">dns</span>
+<span class="text-[10px]">Servers</span>
+</button>
+<button class="flex flex-col items-center gap-1 opacity-60">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px]">Settings</span>
+</button>
+</nav>
+</body></html>
