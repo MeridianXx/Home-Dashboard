@@ -11,7 +11,7 @@ export async function haGet<T>(path: string): Promise<T> {
   if (!BASE || !TOKEN) throw new Error("HA_URL / HA_TOKEN saknas");
   const res = await fetch(`${BASE}${path}`, {
     headers: headers(),
-    next: { revalidate: 0 },
+    cache: "no-store",
   });
   if (!res.ok) throw new Error(`HA ${path}: ${res.status}`);
   return res.json() as Promise<T>;
@@ -27,6 +27,19 @@ export async function haPost(path: string, body: unknown): Promise<unknown> {
   });
   if (!res.ok) throw new Error(`HA POST ${path}: ${res.status}`);
   return res.json();
+}
+
+/** Render a Jinja2 template via /api/template and return the raw string result */
+async function haTemplate(template: string): Promise<string> {
+  if (!BASE || !TOKEN) throw new Error("HA_URL / HA_TOKEN saknas");
+  const res = await fetch(`${BASE}/api/template`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({ template }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`HA template: ${res.status}`);
+  return res.text();
 }
 
 // ─── Entity state ─────────────────────────────────────────────────────────────
@@ -46,37 +59,48 @@ export async function getState(entityId: string): Promise<HAState> {
   return haGet<HAState>(`/api/states/${entityId}`);
 }
 
-// ─── Area / entity registry (in-process cache, 60 s TTL) ─────────────────────
+// ─── Area / entity registry — HA template API, 60 s in-process cache ─────────
 
-type Area        = { area_id: string; name: string };
-type EntityEntry = { entity_id: string; area_id: string | null; device_id: string | null; disabled_by: string | null };
-type DeviceEntry = { id: string; area_id: string | null };
+type Area = { area_id: string; name: string };
 
-let _reg: { entityArea: Record<string, string>; areas: Record<string, Area>; ts: number } | null = null;
-
-export async function getRegistry(): Promise<{
+let _reg: {
   entityArea: Record<string, string>;   // entity_id → area_id
   areas: Record<string, Area>;          // area_id   → Area
+  ts: number;
+} | null = null;
+
+export async function getRegistry(): Promise<{
+  entityArea: Record<string, string>;
+  areas: Record<string, Area>;
 }> {
   if (_reg && Date.now() - _reg.ts < 60_000) return _reg;
 
-  const [areaList, entities, devices] = await Promise.all([
-    haGet<Area[]>("/api/config/area_registry/list"),
-    haGet<EntityEntry[]>("/api/config/entity_registry/list"),
-    haGet<DeviceEntry[]>("/api/config/device_registry/list"),
-  ]);
+  // Single template call returns all areas + their entity lists
+  const tpl = [
+    "{% set ns = namespace(r=[]) %}",
+    "{% for a in areas() %}",
+    "{% set ns.r = ns.r + [{",
+    "\"id\": a,",
+    "\"name\": area_name(a),",
+    "\"entities\": area_entities(a) | list",
+    "}] %}",
+    "{% endfor %}",
+    "{{ ns.r | tojson }}",
+  ].join("");
 
-  const deviceArea: Record<string, string> = {};
-  for (const d of devices) { if (d.area_id) deviceArea[d.id] = d.area_id; }
+  const raw      = await haTemplate(tpl);
+  const areaList = JSON.parse(raw) as Array<{ id: string; name: string; entities: string[] }>;
 
   const entityArea: Record<string, string> = {};
-  for (const e of entities) {
-    if (e.disabled_by) continue;
-    const aid = e.area_id ?? (e.device_id ? (deviceArea[e.device_id] ?? null) : null);
-    if (aid) entityArea[e.entity_id] = aid;
+  const areas: Record<string, Area>        = {};
+
+  for (const area of areaList) {
+    areas[area.id] = { area_id: area.id, name: area.name };
+    for (const entityId of area.entities) {
+      entityArea[entityId] = area.id;
+    }
   }
 
-  const areas = Object.fromEntries(areaList.map(a => [a.area_id, a]));
   _reg = { entityArea, areas, ts: Date.now() };
   return _reg;
 }
