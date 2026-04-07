@@ -116,9 +116,11 @@ export async function GET() {
         cpu_brand: info.cpu.brand,
         cpu_cores: info.cpu.cores,
         cpu_pct: Math.round(metrics.cpu.percentTotal),
-        mem_used_gb: +(metrics.memory.used / 1073741824).toFixed(1),
+        // percentTotal matches Unraid's own RAM widget (excludes page cache, ~16%)
+        // metrics.memory.used includes all page cache and is ~4x higher than Unraid shows
+        mem_pct: Math.round(metrics.memory.percentTotal),
+        mem_used_gb: +((metrics.memory.total * metrics.memory.percentTotal / 100) / 1073741824).toFixed(1),
         mem_total_gb: +(metrics.memory.total / 1073741824).toFixed(1),
-        mem_pct: Math.round((metrics.memory.used / metrics.memory.total) * 100),
       },
       array: {
         state: array.state,
