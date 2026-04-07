@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+const baseConfig: NextConfig = {
   // Required for the multi-stage Docker build to produce a self-contained server
   output: "standalone",
 
@@ -15,4 +15,18 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// PWA uses a webpack plugin which conflicts with Turbopack in dev.
+// Only wrap with withPWA in production builds.
+async function getConfig(): Promise<NextConfig> {
+  if (process.env.NODE_ENV === "production") {
+    const { default: withPWA } = await import("@ducanh2912/next-pwa");
+    return withPWA({
+      dest: "public",
+      cacheOnFrontEndNav: true,
+      aggressiveFrontEndNavCaching: true,
+    })(baseConfig);
+  }
+  return baseConfig;
+}
+
+export default getConfig();

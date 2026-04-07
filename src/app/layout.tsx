@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { Inter, Manrope } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Inter, Syne } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -8,15 +8,27 @@ const inter = Inter({
   display: "swap",
 });
 
-const manrope = Manrope({
+const syne = Syne({
   subsets: ["latin"],
-  variable: "--font-manrope",
+  variable: "--font-syne",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Villa Björkdalen",
-  description: "Home automation & homelab dashboard",
+  title: "inicio.cloud — Villa Björkdalen",
+  description: "Homelab & smarthome dashboard",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "inicio",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#475bc2",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -25,16 +37,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="sv" className={`${inter.variable} ${manrope.variable}`}>
+    <html lang="sv" className={`${inter.variable} ${syne.variable}`}>
       <head>
         {/* Pre-compiled Tailwind output (avoids PostCSS subprocess in dev) */}
         <link rel="stylesheet" href="/tw.css" />
         {/* Material Symbols */}
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"

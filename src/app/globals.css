@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@source "../../src";
+@source "../../src/**/*.{tsx,ts,jsx,js}";
 
 /* ── Digital Atelier Design System ── */
 @theme {
@@ -69,7 +69,7 @@
   --color-outline-variant:          #bbb9b2;
 
   /* Typography */
-  --font-headline: var(--font-manrope), "Manrope", sans-serif;
+  --font-headline: var(--font-syne), "Syne", sans-serif;
   --font-body:     var(--font-inter), "Inter", sans-serif;
   --font-label:    var(--font-inter), "Inter", sans-serif;
   --font-sans:     var(--font-inter), "Inter", sans-serif;
