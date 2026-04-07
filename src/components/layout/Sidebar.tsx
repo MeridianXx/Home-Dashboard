@@ -5,14 +5,14 @@ import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
 
 const CONTEXTS = [
-  { icon: "home", label: "Home", href: "/home" },
+  { icon: "home", label: "Hem", href: "/home" },
   { icon: "dns", label: "Homelab", href: "/homelab" },
   { icon: "fitness_center", label: "Fitness", href: "/fitness" },
-  { icon: "yard", label: "Garden", href: "/garden" },
+  { icon: "yard", label: "Trädgård", href: "/garden" },
 ] as const;
 
 const SECONDARY = [
-  { icon: "settings", label: "Settings", href: "#" },
+  { icon: "settings", label: "Inställningar", href: "#" },
   { icon: "help", label: "Support", href: "#" },
 ];
 

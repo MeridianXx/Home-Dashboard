@@ -3,25 +3,24 @@
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
 
-// Context metadata — label and sub-tabs for each dashboard context
 const CONTEXT_META: Record<
   string,
   { label: string; tabs?: { label: string; suffix: string }[] }
 > = {
   "/home": {
-    label: "Home",
+    label: "Hem",
     tabs: [
-      { label: "Overview", suffix: "" },
-      { label: "Automations", suffix: "/automations" },
+      { label: "Översikt", suffix: "" },
+      { label: "Automationer", suffix: "/automations" },
     ],
   },
   "/homelab": {
     label: "Homelab",
     tabs: [
-      { label: "Overview", suffix: "" },
-      { label: "Servers", suffix: "/servers" },
+      { label: "Översikt", suffix: "" },
+      { label: "Servrar", suffix: "/servers" },
       { label: "Containers", suffix: "/containers" },
-      { label: "Network", suffix: "/network" },
+      { label: "Nätverk", suffix: "/network" },
     ],
   },
   "/fitness": {
@@ -29,14 +28,14 @@ const CONTEXT_META: Record<
     tabs: [
       { label: "Dashboard", suffix: "" },
       { label: "Coach", suffix: "/coach" },
-      { label: "History", suffix: "/history" },
+      { label: "Historik", suffix: "/history" },
     ],
   },
   "/garden": {
-    label: "Garden",
+    label: "Trädgård",
     tabs: [
-      { label: "Overview", suffix: "" },
-      { label: "Planner", suffix: "/planner" },
+      { label: "Översikt", suffix: "" },
+      { label: "Planering", suffix: "/planner" },
     ],
   },
 };
@@ -47,6 +46,9 @@ function getContextKey(pathname: string): string {
   );
   return key ?? "/home";
 }
+
+// Mock weather — replaced with real data in Fas 2
+const WEATHER = { temp: "-2", icon: "ac_unit", condition: "Klart" };
 
 export default function TopBar() {
   const pathname = usePathname();
@@ -64,11 +66,11 @@ export default function TopBar() {
         borderBottom: "1px solid rgba(187,185,178,0.15)",
       }}
     >
-      {/* Sidebar toggle — always visible */}
+      {/* Sidebar toggle */}
       <button
         onClick={() => setSidebarCollapsed(!collapsed)}
         className="hidden md:flex items-center justify-center w-16 h-full shrink-0 transition-opacity opacity-60 hover:opacity-100"
-        aria-label="Toggle sidebar"
+        aria-label="Växla sidopanel"
         style={{ color: "var(--color-on-surface)" }}
       >
         <span className="material-symbols-outlined">
@@ -76,7 +78,7 @@ export default function TopBar() {
         </span>
       </button>
 
-      {/* Logo — visible on mobile (md: hidden behind toggle) */}
+      {/* Logo — mobile only */}
       <span
         className="md:hidden text-lg font-black tracking-tight font-headline px-5"
         style={{ color: "var(--color-on-surface)" }}
@@ -120,17 +122,39 @@ export default function TopBar() {
         )}
       </div>
 
+      {/* Weather chip — always visible */}
+      <div
+        className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full mr-2"
+        style={{
+          backgroundColor: "var(--color-surface-container)",
+          color: "var(--color-on-surface)",
+        }}
+      >
+        <span
+          className="material-symbols-outlined text-[16px]"
+          style={{ color: "var(--color-primary)" }}
+        >
+          {WEATHER.icon}
+        </span>
+        <span className="text-sm font-bold">{WEATHER.temp}°</span>
+        <span
+          className="text-xs hidden lg:inline"
+          style={{ color: "var(--color-on-surface-variant)" }}
+        >
+          {WEATHER.condition}
+        </span>
+      </div>
+
       {/* Right actions */}
-      <div className="flex items-center gap-3 px-5">
+      <div className="flex items-center gap-3 px-4">
         <button
           className="material-symbols-outlined transition-colors opacity-70 hover:opacity-100"
           style={{ color: "var(--color-on-surface-variant)" }}
-          aria-label="Notifications"
+          aria-label="Aviseringar"
         >
           notifications
         </button>
 
-        {/* Avatar */}
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
           style={{

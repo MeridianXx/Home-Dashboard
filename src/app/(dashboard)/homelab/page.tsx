@@ -67,6 +67,7 @@ export default function HomelabPage() {
         <p className="text-sm font-medium mt-1" style={{ color: "var(--color-on-surface-variant)" }}>
           Proxmox · Unraid · Portainer
         </p>
+
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">

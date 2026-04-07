@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
-  { icon: "home", label: "Home", href: "/home" },
+  { icon: "home", label: "Hem", href: "/home" },
   { icon: "dns", label: "Homelab", href: "/homelab" },
   { icon: "fitness_center", label: "Fitness", href: "/fitness" },
-  { icon: "yard", label: "Garden", href: "/garden" },
+  { icon: "yard", label: "Trädgård", href: "/garden" },
 ] as const;
 
 export default function MobileNav() {
