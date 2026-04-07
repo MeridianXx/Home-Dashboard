@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import MobileNav from "@/components/layout/MobileNav";
@@ -11,7 +12,9 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const collapsed = useDashboardStore((s) => s.sidebarCollapsed);
-  const sidebarWidth = collapsed ? "md:ml-16" : "md:ml-60";
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const sidebarWidth = mounted && collapsed ? "md:ml-16" : "md:ml-60";
 
   return (
     <>

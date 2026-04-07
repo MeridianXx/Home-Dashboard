@@ -1,6 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import useSWR from "swr";
+
+function useHydrated() {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  return hydrated;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -200,6 +207,7 @@ function DiskRow({ disk }: { disk: DiskEntry }) {
 // ─── Proxmox Card ─────────────────────────────────────────────────────────────
 
 function ProxmoxCard() {
+  const hydrated = useHydrated();
   const { data, error, isLoading } = useSWR<ProxmoxData>(
     "/api/homelab/proxmox", fetcher, { refreshInterval: 30_000 }
   );
@@ -209,7 +217,7 @@ function ProxmoxCard() {
     <Card accent="var(--color-primary)">
       {error || data?.error ? (
         <ErrorBanner message={data?.error ?? "Kunde inte nå Proxmox"} />
-      ) : isLoading || !n ? (
+      ) : !hydrated || isLoading || !n ? (
         <div className="space-y-3">
           <Skeleton className="h-10" /><Skeleton className="h-14" /><Skeleton className="h-32" />
         </div>
@@ -254,6 +262,7 @@ function ProxmoxCard() {
 // ─── Unraid Card ──────────────────────────────────────────────────────────────
 
 function UnraidCard() {
+  const hydrated = useHydrated();
   const { data, error, isLoading } = useSWR<UnraidData>(
     "/api/homelab/unraid", fetcher, { refreshInterval: 30_000 }
   );
@@ -265,7 +274,7 @@ function UnraidCard() {
     <Card accent="var(--color-tertiary)">
       {error || data?.error ? (
         <ErrorBanner message={data?.error ?? "Kunde inte nå Unraid"} />
-      ) : isLoading || !sys ? (
+      ) : !hydrated || isLoading || !sys ? (
         <div className="space-y-3">
           <Skeleton className="h-10" /><Skeleton className="h-14" /><Skeleton className="h-40" />
         </div>
@@ -282,11 +291,12 @@ function UnraidCard() {
           {arr && (
             <div className="mt-4">
               {/* Array */}
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center justify-between mb-2">
                 <SectionLabel>Array</SectionLabel>
                 {arr.used_pct >= 85 && (
-                  <span className="mb-3">
-                    <WarnTooltip text={`${arr.used_pct}% full — ${arr.free_tb} TB kvar`} />
+                  <span className="flex items-center gap-1 mb-3 text-xs font-semibold" style={{ color: "var(--color-error)" }}>
+                    <span className="material-symbols-outlined text-[14px]">warning</span>
+                    {arr.used_pct}% fullt — {arr.free_tb} TB kvar
                   </span>
                 )}
               </div>
@@ -334,6 +344,7 @@ function UnraidCard() {
 // ─── Containers Card ──────────────────────────────────────────────────────────
 
 function ContainersCard() {
+  const hydrated = useHydrated();
   const { data, isLoading } = useSWR<UnraidData>("/api/homelab/unraid", fetcher, { refreshInterval: 30_000 });
   const containers = data?.containers ?? [];
   const problems = containers.filter(c => c.auto_start && c.state !== "RUNNING");
@@ -365,7 +376,7 @@ function ContainersCard() {
         </div>
       )}
 
-      {isLoading ? (
+      {!hydrated || isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
           {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
         </div>

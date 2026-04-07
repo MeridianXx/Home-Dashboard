@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
@@ -19,11 +20,14 @@ const SECONDARY = [
 export default function Sidebar() {
   const pathname = usePathname();
   const collapsed = useDashboardStore((s) => s.sidebarCollapsed);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isCollapsed = mounted && collapsed;
 
   return (
     <aside
       className={`hidden md:flex flex-col fixed left-0 top-16 h-[calc(100vh-64px)] z-40 transition-all duration-300 ${
-        collapsed ? "w-16" : "w-60"
+        isCollapsed ? "w-16" : "w-60"
       }`}
       style={{
         backgroundColor: "var(--color-surface-container)",
@@ -32,7 +36,7 @@ export default function Sidebar() {
       }}
     >
       {/* Branding block — only when expanded */}
-      {!collapsed && (
+      {!isCollapsed && (
         <div className="px-5 py-5 mb-2">
           <p
             className="text-xs font-bold uppercase tracking-widest"
@@ -50,16 +54,16 @@ export default function Sidebar() {
       )}
 
       {/* Context nav */}
-      <nav className={`flex-1 ${collapsed ? "px-1 pt-4" : "px-2"} space-y-0.5`}>
+      <nav className={`flex-1 ${isCollapsed ? "px-1 pt-4" : "px-2"} space-y-0.5`}>
         {CONTEXTS.map(({ icon, label, href }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
               key={href}
               href={href}
-              title={collapsed ? label : undefined}
+              title={isCollapsed ? label : undefined}
               className={`flex items-center gap-3 rounded-xl transition-all ${
-                collapsed ? "justify-center px-0 py-3" : "px-3 py-2.5"
+                isCollapsed ? "justify-center px-0 py-3" : "px-3 py-2.5"
               } ${active ? "opacity-100" : "opacity-60 hover:opacity-90"}`}
               style={
                 active
@@ -73,26 +77,26 @@ export default function Sidebar() {
               }
             >
               <span className="material-symbols-outlined text-[22px]">{icon}</span>
-              {!collapsed && <span className="font-semibold text-sm">{label}</span>}
+              {!isCollapsed && <span className="font-semibold text-sm">{label}</span>}
             </Link>
           );
         })}
       </nav>
 
       {/* Secondary links */}
-      <div className={`${collapsed ? "px-1" : "px-2"} mb-4 space-y-0.5`}>
+      <div className={`${isCollapsed ? "px-1" : "px-2"} mb-4 space-y-0.5`}>
         {SECONDARY.map(({ icon, label, href }) => (
           <Link
             key={label}
             href={href}
-            title={collapsed ? label : undefined}
+            title={isCollapsed ? label : undefined}
             className={`flex items-center gap-3 rounded-xl transition-all opacity-50 hover:opacity-80 ${
-              collapsed ? "justify-center px-0 py-3" : "px-3 py-2"
+              isCollapsed ? "justify-center px-0 py-3" : "px-3 py-2"
             }`}
             style={{ color: "var(--color-on-surface)" }}
           >
             <span className="material-symbols-outlined text-[20px]">{icon}</span>
-            {!collapsed && <span className="text-sm font-medium">{label}</span>}
+            {!isCollapsed && <span className="text-sm font-medium">{label}</span>}
           </Link>
         ))}
       </div>
