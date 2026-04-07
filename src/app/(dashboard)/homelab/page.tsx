@@ -244,16 +244,16 @@ function ProxmoxCard() {
           {/* VMs & LXC */}
           <div>
             <SectionLabel>Virtual Machines &amp; Containers</SectionLabel>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {n.vms.map(v => {
                 const isVM = v.type === "qemu";
                 const running = v.status === "running";
                 return (
-                  <div key={v.vmid} className="flex items-center gap-2.5 p-2.5 rounded-lg"
+                  <div key={v.vmid} className="flex items-center gap-3 px-3 py-3 rounded-xl"
                     style={{ backgroundColor: "var(--color-surface-container)" }}>
                     <span className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: running ? "var(--color-secondary)" : "var(--color-outline)" }} />
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
+                    <span className="text-[10px] font-bold px-2 py-1 rounded-md shrink-0 min-w-[32px] text-center"
                       style={isVM
                         ? { backgroundColor: "rgba(71,91,194,0.18)", color: "var(--color-primary)" }
                         : { backgroundColor: "rgba(100,170,120,0.18)", color: "var(--color-secondary)" }}>
@@ -277,7 +277,7 @@ function ProxmoxCard() {
 
           {/* Docker containers via Portainer */}
           {pContainers.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-5">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[11px] font-bold uppercase tracking-widest"
                   style={{ color: "var(--color-on-surface-variant)" }}>Containers</p>
@@ -285,13 +285,13 @@ function ProxmoxCard() {
                   {pContainers.length} igång
                 </span>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {pContainers.map(c => (
-                  <div key={c.id} className="flex items-center gap-2.5 p-2.5 rounded-lg"
+                  <div key={c.id} className="flex items-center gap-3 px-3 py-3 rounded-xl"
                     style={{ backgroundColor: "var(--color-surface-container)" }}>
                     <span className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: "var(--color-secondary)" }} />
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
+                    <span className="text-[10px] font-bold px-2 py-1 rounded-md shrink-0 min-w-[32px] text-center"
                       style={{ backgroundColor: "rgba(71,91,194,0.12)", color: "var(--color-primary)" }}>
                       CTR
                     </span>
@@ -299,7 +299,7 @@ function ProxmoxCard() {
                       style={{ color: "var(--color-on-surface)" }}>{c.name}</span>
                     {c.webui && c.webuiLabel ? (
                       <a href={c.webui} target="_blank" rel="noopener noreferrer"
-                        className="text-xs font-mono shrink-0 px-1.5 py-0.5 rounded-md transition-opacity hover:opacity-100 opacity-60"
+                        className="text-xs font-mono shrink-0 px-2 py-1 rounded-md transition-opacity hover:opacity-100 opacity-60"
                         style={{ backgroundColor: "rgba(71,91,194,0.10)", color: "var(--color-primary)" }}>
                         {c.webuiLabel}
                       </a>
