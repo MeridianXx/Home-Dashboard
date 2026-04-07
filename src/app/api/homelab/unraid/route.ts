@@ -46,8 +46,8 @@ function mapDisk(d: Disk, type: "disk" | "cache") {
     temp: d.temp,
     spinning: d.isSpinning,
     errors: d.numErrors,
-    used_tb: d.fsUsed ? +(d.fsUsed / 1073741824).toFixed(1) : null,
-    total_tb: d.fsSize ? +(d.fsSize / 1073741824).toFixed(1) : null,
+    used_tb: d.fsUsed ? +(d.fsUsed / 1e9).toFixed(1) : null,
+    total_tb: d.fsSize ? +(d.fsSize / 1e9).toFixed(1) : null,
     used_pct: d.fsSize && d.fsUsed ? Math.round((d.fsUsed / d.fsSize) * 100) : null,
     type,
   };
@@ -124,9 +124,9 @@ export async function GET() {
       },
       array: {
         state: array.state,
-        total_tb: +(capTotal / 1073741824).toFixed(1),
-        used_tb: +(capUsed / 1073741824).toFixed(1),
-        free_tb: +(capFree / 1073741824).toFixed(1),
+        total_tb: +(capTotal / 1e9).toFixed(1),
+        used_tb: +(capUsed / 1e9).toFixed(1),
+        free_tb: +(capFree / 1e9).toFixed(1),
         used_pct: Math.round((capUsed / capTotal) * 100),
         parity_ok: array.parities.every(p => p.status === "DISK_OK"),
         disks: array.disks.map(d => mapDisk(d, "disk")),
