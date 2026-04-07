@@ -122,10 +122,9 @@ function WarnTooltip({ text }: { text: string }) {
 }
 
 /** Consistent server header block */
-function ServerHeader({ hostname, online, uptime, cpu_pct, mem_pct, mem_used_gb, mem_total_gb, net_in, net_out, accent, icon, sub }: {
+function ServerHeader({ hostname, online, uptime, cpu_pct, mem_pct, mem_used_gb, mem_total_gb, accent, icon, sub }: {
   hostname: string; online: boolean; uptime: string;
   cpu_pct: number; mem_pct: number; mem_used_gb: number; mem_total_gb: number;
-  net_in?: string | null; net_out?: string | null;
   accent: string; icon: string; sub?: string;
 }) {
   return (
@@ -143,7 +142,7 @@ function ServerHeader({ hostname, online, uptime, cpu_pct, mem_pct, mem_used_gb,
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-2 gap-3">
         {[
           { label: "CPU", value: `${cpu_pct}%`, pct: cpu_pct },
           { label: "RAM", value: `${mem_used_gb}/${mem_total_gb} GB`, pct: mem_pct },
@@ -157,20 +156,6 @@ function ServerHeader({ hostname, online, uptime, cpu_pct, mem_pct, mem_used_gb,
           </div>
         ))}
       </div>
-
-      {(net_in || net_out) && (
-        <div className="flex items-center gap-4 px-1 mb-1 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-          <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[13px]">arrow_downward</span>
-            <span className="font-semibold" style={{ color: "var(--color-on-surface)" }}>{net_in}</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[13px]">arrow_upward</span>
-            <span className="font-semibold" style={{ color: "var(--color-on-surface)" }}>{net_out}</span>
-          </span>
-          <span>nät i/o</span>
-        </div>
-      )}
     </>
   );
 }
@@ -227,7 +212,6 @@ function ProxmoxCard() {
             hostname="Proxmox VE" online={n.status === "online"} uptime={n.uptime}
             cpu_pct={n.cpu_pct} mem_pct={n.mem_pct}
             mem_used_gb={n.mem_used_gb} mem_total_gb={n.mem_total_gb}
-            net_in={n.net_in} net_out={n.net_out}
             accent="var(--color-primary)" icon="dns"
             sub={`${n.cpu_cores} kärnor`}
           />
@@ -235,22 +219,37 @@ function ProxmoxCard() {
           <div className="mt-4">
             <SectionLabel>Virtual Machines &amp; Containers</SectionLabel>
             <div className="space-y-1.5">
-              {n.vms.map(v => (
-                <div key={v.vmid} className="flex items-center gap-2.5 p-2.5 rounded-lg"
-                  style={{ backgroundColor: "var(--color-surface-container)" }}>
-                  <span className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: v.status === "running" ? "var(--color-secondary)" : "var(--color-outline)" }} />
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-mono"
-                    style={{ backgroundColor: "var(--color-surface-container-high)", color: "var(--color-on-surface-variant)" }}>
-                    {v.type === "qemu" ? "VM" : "LXC"}
-                  </span>
-                  <span className="text-sm font-mono font-semibold flex-1 min-w-0 truncate" style={{ color: "var(--color-on-surface)" }}>{v.name}</span>
-                  {v.status === "running"
-                    ? <span className="text-xs shrink-0" style={{ color: "var(--color-on-surface-variant)" }}>{v.cpu_pct}% · {v.mem_used_gb}/{v.mem_total_gb} GB</span>
-                    : <span className="text-xs shrink-0" style={{ color: "var(--color-outline)" }}>stoppad</span>
-                  }
-                </div>
-              ))}
+              {n.vms.map(v => {
+                const isVM = v.type === "qemu";
+                const running = v.status === "running";
+                return (
+                  <div key={v.vmid} className="flex items-center gap-2.5 p-2.5 rounded-lg"
+                    style={{ backgroundColor: "var(--color-surface-container)" }}>
+                    {/* Status dot */}
+                    <span className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: running ? "var(--color-secondary)" : "var(--color-outline)" }} />
+                    {/* Colored type chip */}
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
+                      style={isVM
+                        ? { backgroundColor: "rgba(71,91,194,0.18)", color: "var(--color-primary)" }
+                        : { backgroundColor: "rgba(100,170,120,0.18)", color: "var(--color-secondary)" }}>
+                      {isVM ? "VM" : "LXC"}
+                    </span>
+                    {/* Name */}
+                    <span className="text-sm font-mono font-semibold flex-1 min-w-0 truncate"
+                      style={{ color: "var(--color-on-surface)" }}>{v.name}</span>
+                    {/* Stats */}
+                    {running ? (
+                      <div className="text-xs shrink-0 text-right" style={{ color: "var(--color-on-surface-variant)" }}>
+                        <span>CPU {v.cpu_pct}%</span>
+                        <span className="ml-2">RAM {v.mem_used_gb}/{v.mem_total_gb} GB</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs shrink-0" style={{ color: "var(--color-outline)" }}>stoppad</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </>
