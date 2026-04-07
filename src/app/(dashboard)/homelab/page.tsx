@@ -99,8 +99,8 @@ function ErrorBanner({ message }: { message: string }) {
 function StatBar({ pct, color = "var(--color-primary)", label }: { pct: number; color?: string; label?: string }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 min-w-0 h-2 rounded-full border"
-        style={{ backgroundColor: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
+      <div className="flex-1 min-w-0 h-2 rounded-full"
+        style={{ backgroundColor: "var(--color-surface-container-high)" }}>
         <div className="h-full rounded-full transition-all"
           style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }} />
       </div>
@@ -348,8 +348,8 @@ function UnraidCard() {
               <SectionLabel>Storage</SectionLabel>
 
               {/* Array — label + summary bar INSIDE the box */}
-              <div className="rounded-xl overflow-hidden border"
-                style={{ backgroundColor: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}>
+              <div className="rounded-xl overflow-hidden"
+                style={{ backgroundColor: "var(--color-surface-container)" }}>
                 {/* Box header: label + usage + optional warning */}
                 <div className="flex items-center justify-between px-3 py-3 border-b"
                   style={{ borderColor: "var(--color-outline-variant)" }}>
@@ -384,8 +384,8 @@ function UnraidCard() {
               {pools.map(pool => {
                 const poolColor = "var(--color-secondary)";
                 return (
-                  <div key={pool.name} className="rounded-xl overflow-hidden border"
-                    style={{ backgroundColor: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}>
+                  <div key={pool.name} className="rounded-xl overflow-hidden"
+                    style={{ backgroundColor: "var(--color-surface-container)" }}>
                     {/* Box header */}
                     <div className="flex items-center justify-between px-3 py-3 border-b"
                       style={{ borderColor: "var(--color-outline-variant)" }}>
