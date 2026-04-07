@@ -6,11 +6,10 @@ const QUERY = `
     info {
       os { hostname platform uptime }
       cpu { brand cores threads }
-      memory { layout { size } }
     }
     metrics {
       cpu { percentTotal }
-      memory { percentTotal total }
+      memory { total used percentTotal }
     }
     array {
       state
@@ -33,6 +32,27 @@ function fmtUptime(iso: string) {
   return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+/** Group caches by pool: "cache" + "cache2" → "cache", "cache_ssd" + "cache_ssd2" → "cache_ssd" */
+function poolName(name: string) {
+  return name.replace(/\d+$/, "");
+}
+
+type Disk = { name: string; status: string; temp: number | null; isSpinning: boolean; numErrors: number; fsSize: number | null; fsUsed: number | null; fsFree: number | null };
+
+function mapDisk(d: Disk, type: "disk" | "cache") {
+  return {
+    name: d.name,
+    status: d.status,
+    temp: d.temp,
+    spinning: d.isSpinning,
+    errors: d.numErrors,
+    used_tb: d.fsUsed ? +(d.fsUsed / 1073741824).toFixed(1) : null,
+    total_tb: d.fsSize ? +(d.fsSize / 1073741824).toFixed(1) : null,
+    used_pct: d.fsSize && d.fsUsed ? Math.round((d.fsUsed / d.fsSize) * 100) : null,
+    type,
+  };
+}
+
 export async function GET() {
   if (!BASE || !API_KEY) {
     return Response.json({ error: "UNRAID_URL / UNRAID_API_KEY saknas" }, { status: 503 });
@@ -51,20 +71,19 @@ export async function GET() {
     const json = await res.json() as {
       data?: {
         info: {
-          os: { hostname: string; platform: string; uptime: string };
+          os: { hostname: string; uptime: string };
           cpu: { brand: string; cores: number; threads: number };
-          memory: { layout: Array<{ size: number }> };
         };
         metrics: {
           cpu: { percentTotal: number };
-          memory: { percentTotal: number; total: number };
+          memory: { total: number; used: number; percentTotal: number };
         };
         array: {
           state: string;
           capacity: { kilobytes: { total: string; used: string; free: string } };
-          parities: Array<{ name: string; status: string; temp: number | null; isSpinning: boolean; numErrors: number }>;
-          disks: Array<{ name: string; status: string; temp: number | null; isSpinning: boolean; numErrors: number; fsSize: number | null; fsUsed: number | null; fsFree: number | null }>;
-          caches: Array<{ name: string; status: string; temp: number | null; isSpinning: boolean; numErrors: number; fsSize: number | null; fsUsed: number | null; fsFree: number | null }>;
+          parities: Disk[];
+          disks: Disk[];
+          caches: Disk[];
         };
         docker: {
           containers: Array<{ names: string[]; image: string; state: string; status: string; autoStart: boolean }>;
@@ -81,8 +100,14 @@ export async function GET() {
     const capTotal = Number(cap.total);
     const capUsed = Number(cap.used);
     const capFree = Number(cap.free);
-    const memTotalGb = +(metrics.memory.total / 1073741824).toFixed(1);
-    const memUsedGb = +((metrics.memory.total * metrics.memory.percentTotal / 100) / 1073741824).toFixed(1);
+
+    // Group caches by pool name
+    const cacheGroups: Record<string, ReturnType<typeof mapDisk>[]> = {};
+    for (const c of array.caches) {
+      const pool = poolName(c.name);
+      if (!cacheGroups[pool]) cacheGroups[pool] = [];
+      cacheGroups[pool].push(mapDisk(c, "cache"));
+    }
 
     return Response.json({
       system: {
@@ -90,11 +115,10 @@ export async function GET() {
         uptime: fmtUptime(info.os.uptime),
         cpu_brand: info.cpu.brand,
         cpu_cores: info.cpu.cores,
-        cpu_threads: info.cpu.threads,
         cpu_pct: Math.round(metrics.cpu.percentTotal),
-        mem_used_gb: memUsedGb,
-        mem_total_gb: memTotalGb,
-        mem_pct: Math.round(metrics.memory.percentTotal),
+        mem_used_gb: +(metrics.memory.used / 1073741824).toFixed(1),
+        mem_total_gb: +(metrics.memory.total / 1073741824).toFixed(1),
+        mem_pct: Math.round((metrics.memory.used / metrics.memory.total) * 100),
       },
       array: {
         state: array.state,
@@ -103,25 +127,18 @@ export async function GET() {
         free_tb: +(capFree / 1073741824).toFixed(1),
         used_pct: Math.round((capUsed / capTotal) * 100),
         parity_ok: array.parities.every(p => p.status === "DISK_OK"),
+        disks: array.disks.map(d => mapDisk(d, "disk")),
       },
-      disks: [
-        ...array.disks.map(d => ({
-          name: d.name, status: d.status, temp: d.temp,
-          spinning: d.isSpinning, errors: d.numErrors,
-          used_tb: d.fsUsed ? +(d.fsUsed / 1073741824).toFixed(1) : null,
-          total_tb: d.fsSize ? +(d.fsSize / 1073741824).toFixed(1) : null,
-          used_pct: d.fsSize && d.fsUsed ? Math.round((d.fsUsed / d.fsSize) * 100) : null,
-          type: "disk" as const,
-        })),
-        ...array.caches.map(c => ({
-          name: c.name, status: c.status, temp: c.temp,
-          spinning: c.isSpinning, errors: c.numErrors,
-          used_tb: c.fsUsed ? +(c.fsUsed / 1073741824).toFixed(1) : null,
-          total_tb: c.fsSize ? +(c.fsSize / 1073741824).toFixed(1) : null,
-          used_pct: c.fsSize && c.fsUsed ? Math.round((c.fsUsed / c.fsSize) * 100) : null,
-          type: "cache" as const,
-        })),
-      ],
+      cache_pools: Object.entries(cacheGroups).map(([name, disks]) => ({
+        name,
+        disks,
+        total_tb: +(disks.reduce((s, d) => s + (d.total_tb ?? 0), 0)).toFixed(1),
+        used_tb: +(disks.reduce((s, d) => s + (d.used_tb ?? 0), 0)).toFixed(1),
+        used_pct: (() => {
+          const withData = disks.filter(d => d.used_pct != null);
+          return withData.length ? Math.round(withData.reduce((s, d) => s + (d.used_pct ?? 0), 0) / withData.length) : null;
+        })(),
+      })),
       containers: docker.containers.map(c => ({
         name: c.names[0]?.replace(/^\//, "") ?? "?",
         image: c.image,

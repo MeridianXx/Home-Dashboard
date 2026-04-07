@@ -5,7 +5,6 @@ const BASE = process.env.PROXMOX_URL ?? "https://192.168.1.20:8006";
 const TOKEN_ID = process.env.PROXMOX_TOKEN_ID ?? "";
 const TOKEN_SECRET = process.env.PROXMOX_TOKEN_SECRET ?? "";
 
-// Self-signed cert on Proxmox — safe to skip verification on LAN
 function pveGet(path: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const url = new URL(`${BASE}/api2/json${path}`);
@@ -22,18 +21,26 @@ function pveGet(path: string): Promise<unknown> {
         let data = "";
         res.on("data", (chunk) => (data += chunk));
         res.on("end", () => {
-          try {
-            const json = JSON.parse(data) as { data: unknown };
-            resolve(json.data);
-          } catch (e) {
-            reject(e);
-          }
+          try { resolve((JSON.parse(data) as { data: unknown }).data); }
+          catch (e) { reject(e); }
         });
       }
     );
     req.on("error", reject);
     req.end();
   });
+}
+
+function fmtUptime(secs: number) {
+  const d = Math.floor(secs / 86400);
+  const h = Math.floor((secs % 86400) / 3600);
+  return d > 0 ? `${d}d ${h}h` : `${h}h`;
+}
+
+function fmtBytes(bps: number) {
+  if (bps >= 1_048_576) return `${(bps / 1_048_576).toFixed(1)} MB/s`;
+  if (bps >= 1024) return `${(bps / 1024).toFixed(0)} KB/s`;
+  return `${Math.round(bps)} B/s`;
 }
 
 export async function GET() {
@@ -47,46 +54,52 @@ export async function GET() {
       mem: number; maxmem: number; uptime: number;
     }>;
 
-    const vmsPerNode = await Promise.all(
+    const perNode = await Promise.all(
       nodes.map(async (n) => {
-        const [qemu, lxc] = await Promise.all([
+        const [qemu, lxc, rrd] = await Promise.all([
           pveGet(`/nodes/${n.node}/qemu`) as Promise<Array<{
             vmid: number; name: string; status: string;
-            cpu: number; cpus: number; mem: number; maxmem: number; uptime: number;
+            cpu: number; mem: number; maxmem: number; uptime: number;
           }>>,
           pveGet(`/nodes/${n.node}/lxc`) as Promise<Array<{
             vmid: number; name: string; status: string;
-            cpu: number; cpus: number; mem: number; maxmem: number; uptime: number;
+            cpu: number; mem: number; maxmem: number; uptime: number;
+          }>>,
+          pveGet(`/nodes/${n.node}/rrddata?timeframe=hour&cf=AVERAGE`) as Promise<Array<{
+            netin?: number; netout?: number;
           }>>,
         ]);
-        return { node: n.node, vms: [...qemu.map(v => ({ ...v, type: "qemu" })), ...lxc.map(v => ({ ...v, type: "lxc" }))] };
+
+        // last non-null RRD point
+        const netPoint = [...rrd].reverse().find(p => p.netin != null) ?? {};
+
+        return {
+          node: n.node,
+          status: n.status,
+          cpu_pct: Math.round(n.cpu * 100),
+          cpu_cores: n.maxcpu,
+          mem_used_gb: +(n.mem / 1073741824).toFixed(1),
+          mem_total_gb: +(n.maxmem / 1073741824).toFixed(1),
+          mem_pct: Math.round((n.mem / n.maxmem) * 100),
+          uptime: fmtUptime(n.uptime),
+          net_in: netPoint.netin ? fmtBytes(netPoint.netin) : null,
+          net_out: netPoint.netout ? fmtBytes(netPoint.netout) : null,
+          vms: [...qemu.map(v => ({ ...v, type: "qemu" })), ...lxc.map(v => ({ ...v, type: "lxc" }))]
+            .map(v => ({
+              vmid: v.vmid,
+              name: v.name,
+              type: v.type,
+              status: v.status,
+              cpu_pct: Math.round((v.cpu ?? 0) * 100),
+              mem_used_gb: +(v.mem / 1073741824).toFixed(1),
+              mem_total_gb: +(v.maxmem / 1073741824).toFixed(1),
+            }))
+            .sort((a, b) => a.vmid - b.vmid),
+        };
       })
     );
 
-    return Response.json({
-      nodes: nodes.map((n) => ({
-        node: n.node,
-        status: n.status,
-        cpu_pct: Math.round(n.cpu * 100),
-        cpu_cores: n.maxcpu,
-        mem_used_gb: +(n.mem / 1073741824).toFixed(1),
-        mem_total_gb: +(n.maxmem / 1073741824).toFixed(1),
-        uptime_s: n.uptime,
-      })),
-      vms: vmsPerNode.flatMap(({ node, vms }) =>
-        vms.map((v) => ({
-          vmid: v.vmid,
-          name: v.name,
-          type: v.type,
-          node,
-          status: v.status,
-          cpu_pct: Math.round((v.cpu ?? 0) * 100),
-          mem_used_gb: +(v.mem / 1073741824).toFixed(1),
-          mem_total_gb: +(v.maxmem / 1073741824).toFixed(1),
-          uptime_s: v.uptime,
-        }))
-      ).sort((a, b) => a.vmid - b.vmid),
-    });
+    return Response.json({ nodes: perNode });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 502 });
   }
