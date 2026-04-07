@@ -277,7 +277,11 @@ function ProxmoxCard() {
 
           {/* Docker containers via Portainer */}
           {pContainers.length > 0 && (
-            <div className="mt-5">
+            <div className="mt-8">
+              {/* Divider — same pattern as ServerHeader */}
+              <div className="pb-5">
+                <div className="border-t" style={{ borderColor: "var(--color-outline-variant)" }} />
+              </div>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[11px] font-bold uppercase tracking-widest"
                   style={{ color: "var(--color-on-surface-variant)" }}>Containers</p>
