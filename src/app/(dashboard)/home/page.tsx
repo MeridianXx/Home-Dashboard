@@ -78,8 +78,8 @@ const LIGHTING_ZONES = [
 ];
 
 const FAVORITES = [
-  { name: "Taklampa vardagsrum", icon: "ceiling_light", on: true, type: "light" },
-  { name: "Golvlampa kontor", icon: "floor_lamp", on: false, type: "light" },
+  { name: "Taklampa vardagsrum", icon: "lightbulb", on: true, type: "light" },
+  { name: "Golvlampa kontor", icon: "wb_incandescent", on: false, type: "light" },
   { name: "Laddbox Skoda", icon: "ev_charger", on: true, type: "device" },
   { name: "Nibe S1255", icon: "heat_pump", on: true, type: "device" },
   { name: "Entrédörr", icon: "door_front", on: false, type: "lock" },
