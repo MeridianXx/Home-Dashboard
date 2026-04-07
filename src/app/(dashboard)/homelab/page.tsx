@@ -209,7 +209,7 @@ function ProxmoxCard() {
       ) : (
         <>
           <ServerHeader
-            hostname="Proxmox VE" online={n.status === "online"} uptime={n.uptime}
+            hostname="proxmox" online={n.status === "online"} uptime={n.uptime}
             cpu_pct={n.cpu_pct} mem_pct={n.mem_pct}
             mem_used_gb={n.mem_used_gb} mem_total_gb={n.mem_total_gb}
             accent="var(--color-primary)" icon="dns"
@@ -280,7 +280,7 @@ function UnraidCard() {
       ) : (
         <>
           <ServerHeader
-            hostname={sys.hostname} online uptime={sys.uptime}
+            hostname="unraid" online uptime={sys.uptime}
             cpu_pct={sys.cpu_pct} mem_pct={sys.mem_pct}
             mem_used_gb={sys.mem_used_gb} mem_total_gb={sys.mem_total_gb}
             accent="var(--color-tertiary)" icon="storage"
