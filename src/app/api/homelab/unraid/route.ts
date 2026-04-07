@@ -4,16 +4,20 @@ const API_KEY = process.env.UNRAID_API_KEY ?? "";
 const QUERY = `
   query DashboardData {
     info {
-      os { hostname version uptime }
-      cpu { brand cores threads usage }
-      memory { total used free }
+      os { hostname platform uptime }
+      cpu { brand cores threads }
+      memory { layout { size } }
+    }
+    metrics {
+      cpu { percentTotal }
+      memory { percentTotal total }
     }
     array {
       state
       capacity { kilobytes { total used free } }
-      parities { name device status temp spinning errors }
-      disks { name device status temp spinning errors fsSize fsUsed fsFree }
-      caches { name device status temp spinning errors fsSize fsUsed fsFree }
+      parities { name status temp isSpinning numErrors }
+      disks { name status temp isSpinning numErrors fsSize fsUsed fsFree }
+      caches { name status temp isSpinning numErrors fsSize fsUsed fsFree }
     }
     docker {
       containers { names image state status autoStart }
@@ -21,14 +25,8 @@ const QUERY = `
   }
 `;
 
-function kb(n: number | null | undefined) {
-  if (!n) return null;
-  return +(n / 1073741824).toFixed(2); // KB → GB
-}
-
 function fmtUptime(iso: string) {
-  const started = new Date(iso).getTime();
-  const secs = Math.floor((Date.now() - started) / 1000);
+  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   const d = Math.floor(secs / 86400);
   const h = Math.floor((secs % 86400) / 3600);
   const m = Math.floor((secs % 3600) / 60);
@@ -53,16 +51,20 @@ export async function GET() {
     const json = await res.json() as {
       data?: {
         info: {
-          os: { hostname: string; version: string; uptime: string };
-          cpu: { brand: string; cores: number; threads: number; usage: number };
-          memory: { total: number; used: number; free: number };
+          os: { hostname: string; platform: string; uptime: string };
+          cpu: { brand: string; cores: number; threads: number };
+          memory: { layout: Array<{ size: number }> };
+        };
+        metrics: {
+          cpu: { percentTotal: number };
+          memory: { percentTotal: number; total: number };
         };
         array: {
           state: string;
-          capacity: { kilobytes: { total: number; used: number; free: number } };
-          parities: Array<{ name: string; device: string; status: string; temp: number | null; spinning: boolean; errors: number }>;
-          disks: Array<{ name: string; device: string; status: string; temp: number | null; spinning: boolean; errors: number; fsSize: number; fsUsed: number; fsFree: number }>;
-          caches: Array<{ name: string; device: string; status: string; temp: number | null; spinning: boolean; errors: number; fsSize: number; fsUsed: number; fsFree: number }>;
+          capacity: { kilobytes: { total: string; used: string; free: string } };
+          parities: Array<{ name: string; status: string; temp: number | null; isSpinning: boolean; numErrors: number }>;
+          disks: Array<{ name: string; status: string; temp: number | null; isSpinning: boolean; numErrors: number; fsSize: number | null; fsUsed: number | null; fsFree: number | null }>;
+          caches: Array<{ name: string; status: string; temp: number | null; isSpinning: boolean; numErrors: number; fsSize: number | null; fsUsed: number | null; fsFree: number | null }>;
         };
         docker: {
           containers: Array<{ names: string[]; image: string; state: string; status: string; autoStart: boolean }>;
@@ -74,45 +76,49 @@ export async function GET() {
     if (json.errors?.length) throw new Error(json.errors.map(e => e.message).join(", "));
     if (!json.data) throw new Error("Tomt svar från Unraid");
 
-    const { info, array, docker } = json.data;
+    const { info, metrics, array, docker } = json.data;
     const cap = array.capacity.kilobytes;
+    const capTotal = Number(cap.total);
+    const capUsed = Number(cap.used);
+    const capFree = Number(cap.free);
+    const memTotalGb = +(metrics.memory.total / 1073741824).toFixed(1);
+    const memUsedGb = +((metrics.memory.total * metrics.memory.percentTotal / 100) / 1073741824).toFixed(1);
 
     return Response.json({
       system: {
         hostname: info.os.hostname,
-        version: info.os.version,
         uptime: fmtUptime(info.os.uptime),
         cpu_brand: info.cpu.brand,
         cpu_cores: info.cpu.cores,
         cpu_threads: info.cpu.threads,
-        cpu_pct: Math.round(info.cpu.usage),
-        mem_used_gb: kb(info.memory.used),
-        mem_total_gb: kb(info.memory.total),
-        mem_pct: Math.round((info.memory.used / info.memory.total) * 100),
+        cpu_pct: Math.round(metrics.cpu.percentTotal),
+        mem_used_gb: memUsedGb,
+        mem_total_gb: memTotalGb,
+        mem_pct: Math.round(metrics.memory.percentTotal),
       },
       array: {
         state: array.state,
-        total_tb: +(cap.total / 1073741824).toFixed(1),
-        used_tb: +(cap.used / 1073741824).toFixed(1),
-        free_tb: +(cap.free / 1073741824).toFixed(1),
-        used_pct: Math.round((cap.used / cap.total) * 100),
+        total_tb: +(capTotal / 1073741824).toFixed(1),
+        used_tb: +(capUsed / 1073741824).toFixed(1),
+        free_tb: +(capFree / 1073741824).toFixed(1),
+        used_pct: Math.round((capUsed / capTotal) * 100),
         parity_ok: array.parities.every(p => p.status === "DISK_OK"),
       },
       disks: [
         ...array.disks.map(d => ({
-          name: d.name, device: d.device, status: d.status,
-          temp: d.temp, spinning: d.spinning, errors: d.errors,
+          name: d.name, status: d.status, temp: d.temp,
+          spinning: d.isSpinning, errors: d.numErrors,
           used_tb: d.fsUsed ? +(d.fsUsed / 1073741824).toFixed(1) : null,
           total_tb: d.fsSize ? +(d.fsSize / 1073741824).toFixed(1) : null,
-          used_pct: d.fsSize ? Math.round((d.fsUsed / d.fsSize) * 100) : null,
+          used_pct: d.fsSize && d.fsUsed ? Math.round((d.fsUsed / d.fsSize) * 100) : null,
           type: "disk" as const,
         })),
         ...array.caches.map(c => ({
-          name: c.name, device: c.device, status: c.status,
-          temp: c.temp, spinning: c.spinning, errors: c.errors,
+          name: c.name, status: c.status, temp: c.temp,
+          spinning: c.isSpinning, errors: c.numErrors,
           used_tb: c.fsUsed ? +(c.fsUsed / 1073741824).toFixed(1) : null,
           total_tb: c.fsSize ? +(c.fsSize / 1073741824).toFixed(1) : null,
-          used_pct: c.fsSize ? Math.round((c.fsUsed / c.fsSize) * 100) : null,
+          used_pct: c.fsSize && c.fsUsed ? Math.round((c.fsUsed / c.fsSize) * 100) : null,
           type: "cache" as const,
         })),
       ],
