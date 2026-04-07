@@ -50,6 +50,7 @@ type PortainerData = {
     id: string; name: string; state: string; status: string;
     ports: Array<{ public: number; private: number; webui: string }>;
     webui: string | null;
+    webuiLabel: string | null;
   }>;
   error?: string;
 };
@@ -296,11 +297,11 @@ function ProxmoxCard() {
                     </span>
                     <span className="text-sm font-mono font-semibold flex-1 min-w-0 truncate"
                       style={{ color: "var(--color-on-surface)" }}>{c.name}</span>
-                    {c.webui ? (
+                    {c.webui && c.webuiLabel ? (
                       <a href={c.webui} target="_blank" rel="noopener noreferrer"
                         className="text-xs font-mono shrink-0 px-1.5 py-0.5 rounded-md transition-opacity hover:opacity-100 opacity-60"
                         style={{ backgroundColor: "rgba(71,91,194,0.10)", color: "var(--color-primary)" }}>
-                        :{c.ports.find(p => p.webui === c.webui)?.public}
+                        {c.webuiLabel}
                       </a>
                     ) : null}
                   </div>

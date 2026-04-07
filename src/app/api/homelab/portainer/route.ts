@@ -46,9 +46,32 @@ type DockerContainer = {
   Ports: DockerPort[];
 };
 
+// Ports that are internal/agent ports and should never be shown as web UIs
+const SKIP_PORTS = new Set([8000, 8001]);
+
 function buildWebUi(port: number): string {
   const proto = port === 443 || port === 9443 || port === 8443 ? "https" : "http";
   return `${proto}://${DOCKER_HOST}:${port}`;
+}
+
+// 80/443 are almost always reverse-proxy pass-through ports — use only as last resort
+const PROXY_PORTS = new Set([80, 443]);
+
+function pickBestPort(ports: Array<{ public: number; private: number; webui: string }>) {
+  const candidates = ports.filter(p => !SKIP_PORTS.has(p.public));
+  if (!candidates.length) return null;
+
+  // Prefer non-proxy ports; within those, prefer HTTPS admin ports (9443, 8443)
+  const preferred = candidates.filter(p => !PROXY_PORTS.has(p.public));
+  const pool = preferred.length ? preferred : candidates;
+
+  return pool.sort((a, b) => {
+    const httpsA = a.public === 9443 || a.public === 8443;
+    const httpsB = b.public === 9443 || b.public === 8443;
+    if (httpsA && !httpsB) return -1;
+    if (!httpsA && httpsB) return 1;
+    return 0;
+  })[0];
 }
 
 export async function GET() {
@@ -69,16 +92,16 @@ export async function GET() {
           .filter(p => p.PublicPort && p.Type === "tcp" && !seen.has(p.PublicPort!) && seen.add(p.PublicPort!))
           .map(p => ({ public: p.PublicPort!, private: p.PrivatePort, webui: buildWebUi(p.PublicPort!) }));
 
+        const best = pickBestPort(ports);
+
         return {
           id: c.Id.slice(0, 12),
           name: c.Names[0]?.replace(/^\//, "") ?? "?",
           state: c.State,
           status: c.Status,
           ports,
-          // Primary webUI: prefer non-80/443 admin ports (e.g. 81 for NPM, 9443 for Portainer)
-          webui: ports.find(p => p.public !== 80 && p.public !== 443)?.webui
-            ?? ports[0]?.webui
-            ?? null,
+          webui: best?.webui ?? null,
+          webuiLabel: best ? `${DOCKER_HOST}:${best.public}` : null,
         };
       }),
     });
