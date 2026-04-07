@@ -141,13 +141,19 @@ export async function GET() {
           return withData.length ? Math.round(withData.reduce((s, d) => s + (d.used_pct ?? 0), 0) / withData.length) : null;
         })(),
       })),
-      containers: docker.containers.map(c => ({
-        name: c.names[0]?.replace(/^\//, "") ?? "?",
-        image: c.image,
-        state: c.state,
-        status: c.status,
-        auto_start: c.autoStart,
-      })),
+      containers: docker.containers.map(c => {
+        const name = c.names[0]?.replace(/^\//, "") ?? "?";
+        // Derive group from name prefix (nextcloud-aio-* etc.)
+        const group = name.startsWith("nextcloud-aio-") ? "Nextcloud" : null;
+        return {
+          name,
+          image: c.image,
+          state: c.state,
+          status: c.status,
+          auto_start: c.autoStart,
+          group,
+        };
+      }),
     });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 502 });
