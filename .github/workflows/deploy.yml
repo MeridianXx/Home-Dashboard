@@ -5,11 +5,15 @@ on:
     branches: [v2]
 
 jobs:
-  deploy:
+  # ── Job 1: Bygg image och pusha till GHCR ──────────────────────────────────
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write   # behövs för att pusha till GHCR
+      packages: write
+
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
 
     steps:
       - name: Checka ut kod
@@ -34,15 +38,24 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploya på servern via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cd /opt/home-dashboard
-            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u meridianxx --password-stdin
-            docker compose pull
-            docker compose up -d --remove-orphans
-            docker image prune -f
+  # ── Job 2: Deploya på servern via self-hosted runner ───────────────────────
+  deploy:
+    runs-on: self-hosted
+    needs: build
+
+    steps:
+      - name: Dra ny image och starta om
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker pull ghcr.io/meridianxx/home-dashboard:latest
+          docker stop home-dashboard 2>/dev/null || true
+          docker rm   home-dashboard 2>/dev/null || true
+          docker run -d \
+            --name home-dashboard \
+            --restart unless-stopped \
+            -p 3457:3000 \
+            -e NODE_ENV=production \
+            -e NEXT_TELEMETRY_DISABLED=1 \
+            -l "com.centurylinklabs.watchtower.enable=false" \
+            ghcr.io/meridianxx/home-dashboard:latest
+          docker image prune -f
