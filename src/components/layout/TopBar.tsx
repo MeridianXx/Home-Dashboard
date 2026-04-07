@@ -41,12 +41,11 @@ const CONTEXT_META: Record<
 };
 
 // Mock 4-day forecast — replaced with SMHI / HA weather entity in Fas 2.
-// Dates are hardcoded relative to today (2026-04-07).
 const FORECAST = [
-  { day: "Idag", date: "7/4", icon: "ac_unit", temp: "-2°", color: "var(--color-primary)" },
-  { day: "Tis", date: "8/4", icon: "wb_cloudy", temp: "1°", color: "var(--color-on-surface-variant)" },
-  { day: "Ons", date: "9/4", icon: "rainy", temp: "3°", color: "var(--color-primary)" },
-  { day: "Tor", date: "10/4", icon: "wb_sunny", temp: "6°", color: "var(--color-tertiary)" },
+  { day: "Idag", icon: "ac_unit", temp: "-2°", color: "var(--color-primary)" },
+  { day: "Tis", icon: "wb_cloudy", temp: "1°", color: "var(--color-on-surface-variant)" },
+  { day: "Ons", icon: "rainy", temp: "3°", color: "var(--color-primary)" },
+  { day: "Tor", icon: "wb_sunny", temp: "6°", color: "var(--color-tertiary)" },
 ];
 
 function getContextKey(pathname: string): string {
@@ -128,49 +127,36 @@ export default function TopBar() {
         )}
       </div>
 
-      {/* 4-day weather forecast */}
-      <div className="hidden lg:flex items-center gap-1 mr-3">
-        {FORECAST.map(({ day, date, icon, temp, color }, i) => (
+      {/* Väderprognos — 4 dagar */}
+      <div
+        className="hidden md:flex items-stretch mr-2"
+        style={{ borderLeft: "1px solid rgba(187,185,178,0.2)" }}
+      >
+        {FORECAST.map(({ day, icon, temp, color }, i) => (
           <div
             key={day}
-            className="flex flex-col items-center px-2.5 py-1 rounded-xl"
+            className="flex flex-col items-center justify-center gap-0.5 px-3"
             style={{
               backgroundColor: i === 0 ? "var(--color-surface-container)" : "transparent",
-              minWidth: "48px",
             }}
           >
-            <span className="text-[10px] font-bold" style={{ color: "var(--color-on-surface-variant)" }}>
+            <span
+              className="text-[10px] font-bold"
+              style={{ color: i === 0 ? "var(--color-on-surface)" : "var(--color-on-surface-variant)" }}
+            >
               {day}
             </span>
-            <span className="text-[9px]" style={{ color: "var(--color-outline)" }}>
-              {date}
-            </span>
-            <span
-              className="material-symbols-outlined text-[16px] my-0.5"
-              style={{ color }}
-            >
+            <span className="material-symbols-outlined text-[18px]" style={{ color }}>
               {icon}
             </span>
-            <span className="text-xs font-bold" style={{ color: "var(--color-on-surface)" }}>
+            <span
+              className="text-xs font-bold"
+              style={{ color: "var(--color-on-surface)" }}
+            >
               {temp}
             </span>
           </div>
         ))}
-      </div>
-
-      {/* Kompakt chip — tablet (md–lg) */}
-      <div
-        className="hidden md:flex lg:hidden items-center gap-1.5 px-3 py-1.5 rounded-full mr-3"
-        style={{
-          backgroundColor: "var(--color-surface-container)",
-          color: "var(--color-on-surface)",
-        }}
-      >
-        <span className="material-symbols-outlined text-[16px]" style={{ color: "var(--color-primary)" }}>
-          ac_unit
-        </span>
-        <span className="text-sm font-bold">-2°</span>
-        <span className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>Idag</span>
       </div>
 
       {/* Right actions */}
