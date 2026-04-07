@@ -20,6 +20,7 @@ const CONTEXT_META: Record<
       { label: "Översikt", suffix: "" },
       { label: "Servrar", suffix: "/servers" },
       { label: "Containers", suffix: "/containers" },
+      { label: "Media", suffix: "/media" },
       { label: "Nätverk", suffix: "/network" },
     ],
   },
