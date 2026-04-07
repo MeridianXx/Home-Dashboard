@@ -288,36 +288,40 @@ function UnraidCard() {
           />
 
           {arr && (
-            <div className="mt-4">
+            <div className="mt-4 space-y-3">
               {/* Array */}
-              <div className="flex items-center justify-between mb-2">
-                <SectionLabel>Array</SectionLabel>
-                {arr.used_pct >= 85 && (
-                  <span className="flex items-center gap-1 mb-3 text-xs font-semibold" style={{ color: "var(--color-error)" }}>
-                    <span className="material-symbols-outlined text-[14px]">warning</span>
-                    {arr.used_pct}% fullt — {arr.free_tb} TB kvar
-                  </span>
-                )}
-              </div>
-              <div className="p-3 rounded-xl mb-2" style={{ backgroundColor: "var(--color-surface-container)" }}>
-                <div className="flex items-center justify-between text-xs mb-2">
-                  <span style={{ color: "var(--color-on-surface-variant)" }}>{arr.state}</span>
-                  <span className="font-bold" style={{ color: arr.used_pct >= 85 ? "var(--color-error)" : "var(--color-tertiary)" }}>
-                    {arr.used_tb}/{arr.total_tb} TB
-                  </span>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] font-bold uppercase tracking-widest"
+                    style={{ color: "var(--color-on-surface-variant)" }}>Array</p>
+                  {arr.used_pct >= 85 && (
+                    <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--color-error)" }}>
+                      <span className="material-symbols-outlined text-[14px]">warning</span>
+                      {arr.used_pct}% fullt — {arr.free_tb} TB kvar
+                    </span>
+                  )}
                 </div>
-                <StatBar pct={arr.used_pct} color={arr.used_pct >= 85 ? "var(--color-error)" : "var(--color-tertiary)"} />
-              </div>
-              <div className="space-y-1.5">
-                {arr.disks.map(d => <DiskRow key={d.name} disk={d} />)}
+                <div className="p-3 rounded-xl mb-2" style={{ backgroundColor: "var(--color-surface-container)" }}>
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span style={{ color: "var(--color-on-surface-variant)" }}>{arr.state}</span>
+                    <span className="font-bold" style={{ color: arr.used_pct >= 85 ? "var(--color-error)" : "var(--color-tertiary)" }}>
+                      {arr.used_tb}/{arr.total_tb} TB
+                    </span>
+                  </div>
+                  <StatBar pct={arr.used_pct} color={arr.used_pct >= 85 ? "var(--color-error)" : "var(--color-tertiary)"} />
+                </div>
+                <div className="space-y-1.5">
+                  {arr.disks.map(d => <DiskRow key={d.name} disk={d} />)}
+                </div>
               </div>
 
               {/* Cache pools */}
               {pools.map(pool => (
-                <div key={pool.name} className="mt-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <SectionLabel>{pool.name.replace(/_/g, " ").toUpperCase()}</SectionLabel>
-                  </div>
+                <div key={pool.name}>
+                  <p className="text-[11px] font-bold uppercase tracking-widest mb-2"
+                    style={{ color: "var(--color-on-surface-variant)" }}>
+                    {pool.name.replace(/_/g, " ")}
+                  </p>
                   <div className="p-3 rounded-xl mb-2" style={{ backgroundColor: "var(--color-surface-container)" }}>
                     <div className="flex items-center justify-between text-xs mb-2">
                       <span style={{ color: "var(--color-on-surface-variant)" }}>pool</span>
