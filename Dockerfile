@@ -16,6 +16,12 @@ COPY . .
 ARG NEXT_PUBLIC_APP_URL=https://dash.inicio.cloud
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
+# Kompilera Tailwind CSS (PostCSS/sandbox blockerar inbyggd pipeline — kör CLI direkt)
+RUN node node_modules/.bin/tailwindcss \
+      -i src/app/globals.css \
+      -o public/tw.css \
+      --minify
+
 RUN npm run build
 
 # ── Stage 3: Runtime ──────────────────────────────────────────────────────

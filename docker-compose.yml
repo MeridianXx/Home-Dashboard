@@ -1,0 +1,13 @@
+services:
+  web:
+    image: ghcr.io/meridianxx/home-dashboard:latest
+    container_name: home-dashboard
+    restart: unless-stopped
+    ports:
+      - "3457:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    labels:
+      # Hindra Watchtower från att hantera denna (GitHub Actions sköter deploys)
+      - "com.centurylinklabs.watchtower.enable=false"
