@@ -56,6 +56,11 @@ jobs:
             -p 3457:3000 \
             -e NODE_ENV=production \
             -e NEXT_TELEMETRY_DISABLED=1 \
+            -e PROXMOX_URL="${{ secrets.PROXMOX_URL }}" \
+            -e PROXMOX_TOKEN_ID="${{ secrets.PROXMOX_TOKEN_ID }}" \
+            -e PROXMOX_TOKEN_SECRET="${{ secrets.PROXMOX_TOKEN_SECRET }}" \
+            -e UNRAID_URL="${{ secrets.UNRAID_URL }}" \
+            -e UNRAID_API_KEY="${{ secrets.UNRAID_API_KEY }}" \
             -l "com.centurylinklabs.watchtower.enable=false" \
             ghcr.io/meridianxx/home-dashboard:latest
           docker image prune -f

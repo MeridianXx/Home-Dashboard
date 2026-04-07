@@ -8,6 +8,11 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
+      - PROXMOX_URL=${PROXMOX_URL:-https://192.168.1.20:8006}
+      - PROXMOX_TOKEN_ID=${PROXMOX_TOKEN_ID}
+      - PROXMOX_TOKEN_SECRET=${PROXMOX_TOKEN_SECRET}
+      - UNRAID_URL=${UNRAID_URL}
+      - UNRAID_API_KEY=${UNRAID_API_KEY}
     labels:
       # Hindra Watchtower från att hantera denna (GitHub Actions sköter deploys)
       - "com.centurylinklabs.watchtower.enable=false"
