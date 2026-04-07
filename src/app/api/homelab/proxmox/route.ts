@@ -1,22 +1,39 @@
-import { Agent } from "undici";
+// Proxmox API proxy — node:https för att hantera self-signed cert
+import https from "node:https";
 
 const BASE = process.env.PROXMOX_URL ?? "https://192.168.1.20:8006";
 const TOKEN_ID = process.env.PROXMOX_TOKEN_ID ?? "";
 const TOKEN_SECRET = process.env.PROXMOX_TOKEN_SECRET ?? "";
 
 // Self-signed cert on Proxmox — safe to skip verification on LAN
-const agent = new Agent({ connect: { rejectUnauthorized: false } });
-
-async function pveGet(path: string) {
-  const res = await fetch(`${BASE}/api2/json${path}`, {
-    headers: { Authorization: `PVEAPIToken=${TOKEN_ID}=${TOKEN_SECRET}` },
-    // @ts-expect-error undici dispatcher not in fetch types
-    dispatcher: agent,
-    next: { revalidate: 0 },
+function pveGet(path: string): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const url = new URL(`${BASE}/api2/json${path}`);
+    const req = https.request(
+      {
+        hostname: url.hostname,
+        port: url.port || 443,
+        path: url.pathname + url.search,
+        method: "GET",
+        headers: { Authorization: `PVEAPIToken=${TOKEN_ID}=${TOKEN_SECRET}` },
+        rejectUnauthorized: false,
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          try {
+            const json = JSON.parse(data) as { data: unknown };
+            resolve(json.data);
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+    );
+    req.on("error", reject);
+    req.end();
   });
-  if (!res.ok) throw new Error(`Proxmox ${path}: ${res.status}`);
-  const json = await res.json() as { data: unknown };
-  return json.data;
 }
 
 export async function GET() {
