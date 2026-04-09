@@ -698,10 +698,10 @@ export default function HomePage() {
             {/* Row 1: temp chips */}
             <ChipRow>
               <ExpandChip chip="indoor" icon="thermostat"
-                value={indoorTemp != null ? `${indoorTemp}°C` : "–"}
+                value={indoorTemp != null ? `${indoorTemp}°` : "–"}
                 label="Inomhus" color="var(--color-primary)" />
               <ExpandChip chip="outdoor" icon="device_thermostat"
-                value={sensors?.outdoor_temp != null ? `${sensors.outdoor_temp}°C` : "–"}
+                value={sensors?.outdoor_temp != null ? `${sensors.outdoor_temp}°` : "–"}
                 label="Utomhus" color="var(--color-tertiary)" />
             </ChipRow>
 
@@ -764,19 +764,6 @@ export default function HomePage() {
                     </span>
                   </div>
                 )}
-                {/* Frånluft */}
-                {hvacOk && hvac.flv.franluft_temp != null && (
-                  <div className="flex items-center justify-between py-2.5 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[15px]" style={{ color: "var(--color-on-surface-variant)" }}>air</span>
-                      <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>Frånluft</span>
-                    </div>
-                    <span className="flex items-center gap-0.5">
-                      <span className="material-symbols-outlined text-[12px]" style={{ color: "var(--color-on-surface-variant)" }}>thermometer</span>
-                      <span className="text-sm font-black" style={{ color: "var(--color-on-surface-variant)" }}>{hvac.flv.franluft_temp.toFixed(1)}°</span>
-                    </span>
-                  </div>
-                )}
                 {/* Växthus */}
                 {vaxthusArea && (
                   <div className="flex items-center justify-between py-2.5 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
@@ -794,6 +781,9 @@ export default function HomePage() {
                       <span className="flex items-center gap-0.5">
                         <span className="material-symbols-outlined text-[12px]" style={{ color: "var(--color-tertiary)" }}>thermometer</span>
                         <span className="text-sm font-black" style={{ color: "var(--color-tertiary)" }}>{vaxthusArea.temperature.toFixed(1)}°</span>
+                        {vaxthusArea.temperature > 30 && (
+                          <span className="material-symbols-outlined text-[14px] ml-0.5" style={{ color: "#e65100" }}>warning</span>
+                        )}
                       </span>
                     </div>
                   </div>
