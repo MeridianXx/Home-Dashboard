@@ -687,10 +687,7 @@ export default function HomePage() {
           );
         };
 
-        const PrimaryBadge = ({ color }: { color: string }) => (
-          <span className="text-[8px] px-1 py-px rounded-full font-bold shrink-0 leading-tight"
-            style={{ border: `1px solid ${color}`, color }}>primär</span>
-        );
+        const PrimaryBadge = (_: { color: string }) => null;
 
         return (
           <div className="rounded-2xl overflow-hidden" style={{
