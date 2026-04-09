@@ -182,93 +182,109 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
         </span>
       </div>
 
-      {/* Chip grid — more cols on wider screens */}
+      {/* Chip grid — expanded chip spans full width inline (grid-column: 1/-1) */}
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
         {data.areas.map(area => {
           const on = area.on_count > 0;
           const open = expandedId === area.area_id;
+
+          if (open) {
+            // ── Expanded: full-width card in the grid flow ──
+            return (
+              <div key={area.area_id} className="flex flex-col rounded-xl overflow-hidden"
+                style={{
+                  gridColumn: "1 / -1",
+                  backgroundColor: on ? "rgba(245,158,11,0.08)" : "var(--color-surface-container)",
+                  border: `1.5px solid ${on ? AMBER : "var(--color-outline-variant)"}`,
+                }}>
+                {/* Header */}
+                <div className="flex items-center justify-between px-3 py-2.5 gap-3">
+                  <Pressable onClick={() => handleToggleArea(area)}
+                    className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                    <span className="material-symbols-outlined text-[18px] shrink-0"
+                      style={{ color: on ? AMBER : "var(--color-outline)", fontVariationSettings: on ? "'FILL' 1" : "'FILL' 0" }}>
+                      {on ? "light_mode" : "light_off"}
+                    </span>
+                    <span className="text-sm font-semibold truncate" style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
+                    {area.total_count > 1 && (
+                      <span className="text-[10px] shrink-0" style={{ color: on ? AMBER : "var(--color-outline)" }}>
+                        {area.on_count}/{area.total_count}
+                      </span>
+                    )}
+                  </Pressable>
+                  <button onClick={() => setExpandedId(null)}
+                    className="material-symbols-outlined text-[16px] shrink-0"
+                    style={{ color: "var(--color-on-surface)", opacity: 0.45 }}>close</button>
+                </div>
+                {/* Individual lights */}
+                <div className="px-3 pb-3 pt-1 space-y-2 border-t"
+                  style={{ borderColor: on ? "rgba(245,158,11,0.2)" : "var(--color-outline-variant)" }}>
+                  {area.lights.map(light => (
+                    <div key={light.entity_id} className="flex items-center gap-2.5">
+                      <Pressable onClick={() => handleToggleLight(light)} className="shrink-0">
+                        <span className="material-symbols-outlined text-[18px]"
+                          style={{
+                            color: light.state === "on" ? AMBER : "var(--color-outline)",
+                            fontVariationSettings: light.state === "on" ? "'FILL' 1" : "'FILL' 0",
+                          }}>
+                          {light.state === "on" ? "light_mode" : "light_off"}
+                        </span>
+                      </Pressable>
+                      <span className="text-xs font-medium flex-1 min-w-0 truncate"
+                        style={{ color: "var(--color-on-surface)" }}>{light.name}</span>
+                      {light.dimmable && light.state === "on" && (
+                        <div className="flex items-center gap-2 shrink-0" style={{ width: 120 }}>
+                          <input type="range" min={1} max={100}
+                            defaultValue={light.brightness_pct ?? 100}
+                            className="w-full h-1 cursor-pointer"
+                            style={{ accentColor: AMBER }}
+                            onMouseUp={e => handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
+                            onTouchEnd={e => handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
+                          />
+                          <span className="text-[10px] w-6 text-right"
+                            style={{ color: "var(--color-outline)" }}>{light.brightness_pct ?? 100}%</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          // ── Collapsed: compact chip ──
           return (
             <div key={area.area_id} className="flex flex-col rounded-xl overflow-hidden"
               style={{
                 backgroundColor: on ? "rgba(245,158,11,0.1)" : "var(--color-surface-container)",
-                border: `1.5px solid ${on ? AMBER : open ? "var(--color-outline)" : "transparent"}`,
+                border: `1.5px solid ${on ? AMBER : "transparent"}`,
               }}>
-              {/* Toggle zone — consistent height via fixed layout */}
               <Pressable onClick={() => handleToggleArea(area)}
-                className="flex flex-col items-center py-3 px-1 text-center w-full" style={{ gap: 4 }}>
-                <span className="material-symbols-outlined text-[20px]"
+                className="flex flex-col items-center px-1 text-center w-full" style={{ gap: 3, paddingTop: 10, paddingBottom: 6 }}>
+                <span className="material-symbols-outlined text-[18px]"
                   style={{ color: on ? AMBER : "var(--color-outline)", fontVariationSettings: on ? "'FILL' 1" : "'FILL' 0" }}>
                   {on ? "light_mode" : "light_off"}
                 </span>
                 <span className="text-[10px] font-semibold leading-tight truncate w-full px-1"
                   style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
-                {/* Always rendered — invisible for single-light rooms to keep uniform height */}
                 <span className="text-[9px]"
                   style={{ color: on ? AMBER : "var(--color-outline)", visibility: area.total_count > 1 ? "visible" : "hidden" }}>
                   {area.on_count}/{area.total_count}
                 </span>
               </Pressable>
-              {/* Expand strip */}
-              <button onClick={() => setExpandedId(open ? null : area.area_id)}
-                className="w-full flex items-center justify-center py-1.5 border-t"
+              <button onClick={() => setExpandedId(area.area_id)}
+                className="w-full flex items-center justify-center border-t"
                 style={{
+                  paddingTop: 4, paddingBottom: 4,
                   borderColor: on ? "rgba(245,158,11,0.25)" : "var(--color-outline-variant)",
-                  backgroundColor: open ? "rgba(245,158,11,0.12)" : "transparent",
-                  color: open ? AMBER : "var(--color-on-surface-variant)",
-                  opacity: open ? 1 : 0.55,
-                  transition: "opacity 0.15s",
+                  color: "var(--color-on-surface-variant)", opacity: 0.5,
                 }}>
-                <span className="material-symbols-outlined"
-                  style={{ fontSize: 12, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-                  expand_more
-                </span>
+                <span className="material-symbols-outlined" style={{ fontSize: 11 }}>expand_more</span>
               </button>
             </div>
           );
         })}
       </div>
-
-      {/* Inline expand panel — appears below grid, stays open during toggles */}
-      {expandedArea && (
-        <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>{expandedArea.name}</p>
-            <button onClick={() => setExpandedId(null)}
-              className="material-symbols-outlined text-[18px]"
-              style={{ color: "var(--color-on-surface)", opacity: 0.5 }}>close</button>
-          </div>
-          <div className="space-y-2.5">
-            {expandedArea.lights.map(light => (
-              <div key={light.entity_id} className="flex items-center gap-3">
-                <Pressable onClick={() => handleToggleLight(light)} className="shrink-0 p-1">
-                  <span className="material-symbols-outlined text-[20px]"
-                    style={{
-                      color: light.state === "on" ? AMBER : "var(--color-outline)",
-                      fontVariationSettings: light.state === "on" ? "'FILL' 1" : "'FILL' 0",
-                    }}>
-                    {light.state === "on" ? "light_mode" : "light_off"}
-                  </span>
-                </Pressable>
-                <span className="text-xs font-semibold flex-1 min-w-0 truncate"
-                  style={{ color: "var(--color-on-surface)" }}>{light.name}</span>
-                {light.dimmable && light.state === "on" && (
-                  <div className="flex items-center gap-2 w-28 shrink-0">
-                    <input type="range" min={1} max={100}
-                      defaultValue={light.brightness_pct ?? 100}
-                      className="w-full h-1 cursor-pointer"
-                      style={{ accentColor: AMBER }}
-                      onMouseUp={e => handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
-                      onTouchEnd={e => handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
-                    />
-                    <span className="text-[10px] w-7 text-right shrink-0"
-                      style={{ color: "var(--color-outline)" }}>{light.brightness_pct ?? 100}%</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </Card>
   );
 }
