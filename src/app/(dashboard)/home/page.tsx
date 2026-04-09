@@ -862,7 +862,7 @@ export default function HomePage() {
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           <FavTile
             label="Kväll" icon="partly_cloudy_night"
-            color="#a855f7" active={lastScene === "kvall"}
+            color="#f59e0b" active={lastScene === "kvall"}
             loading={loadingKey === "scene-kvall"}
             onClick={() => runAction("scene-kvall", async () => {
               await callAction("scene", "turn_on", "scene.fasad");
@@ -880,7 +880,7 @@ export default function HomePage() {
           />
           <FavTile
             label="Alla av" icon="light_off"
-            color="#16a34a" active={allLightsOff}
+            color="#6b7280" active={allLightsOff}
             loading={loadingKey === "lights-off"}
             onClick={() => runAction("lights-off", async () => {
               setLastScene(null);
