@@ -145,16 +145,26 @@ function StatChip({ icon, value, label, color = "var(--color-primary)", onClick 
 
 
 
-// ─── Dimmer Popover ───────────────────────────────────────────────────────────
+// ─── Belysning ────────────────────────────────────────────────────────────────
 
-function DimmerPopover({ area, onClose, onRefresh }: {
-  area: LightArea;
-  onClose: () => void;
-  onRefresh: () => void;
-}) {
-  async function handleToggle(light: LightEntry) {
-    await callAction("light", light.state === "on" ? "turn_off" : "turn_on", light.entity_id);
+const AMBER = "#f59e0b";
+
+function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => void }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const totalOn  = data.areas.reduce((s, a) => s + a.on_count, 0);
+  const totalAll = data.areas.reduce((s, a) => s + a.total_count, 0);
+  const expandedArea = data.areas.find(a => a.area_id === expandedId) ?? null;
+
+  async function handleToggleArea(area: LightArea) {
+    const anyOn = area.on_count > 0;
+    await callAction("light", anyOn ? "turn_off" : "turn_on", area.lights.map(l => l.entity_id));
     onRefresh();
+  }
+
+  async function handleToggleLight(light: LightEntry) {
+    await callAction("light", light.state === "on" ? "turn_off" : "turn_on", light.entity_id);
+    onRefresh(); // panel stays open
   }
 
   async function handleBrightness(entity_id: string, pct: number) {
@@ -163,136 +173,103 @@ function DimmerPopover({ area, onClose, onRefresh }: {
   }
 
   return (
-    <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      {/* Panel — centered on all screen sizes */}
-      <div className="fixed z-50 rounded-2xl p-5 shadow-2xl"
-        style={{
-          left: "50%", top: "50%", transform: "translate(-50%, -50%)",
-          width: "min(calc(100vw - 2rem), 22rem)",
-          maxHeight: "80vh", overflowY: "auto",
-          backgroundColor: "var(--color-surface-container-lowest)",
-          border: "1px solid var(--color-outline-variant)",
-        }}>
-        <div className="flex items-center justify-between mb-4">
-          <p className="font-bold text-sm" style={{ color: "var(--color-on-surface)" }}>{area.name}</p>
-          <button onClick={onClose} className="material-symbols-outlined text-[20px] opacity-60 hover:opacity-100"
-            style={{ color: "var(--color-on-surface)" }}>close</button>
-        </div>
-        <div className="space-y-3">
-          {area.lights.map(light => (
-            <div key={light.entity_id} className="flex items-center gap-3">
-              <Pressable onClick={() => handleToggle(light)} className="shrink-0 p-1">
+    <Card className="md:col-span-2 xl:col-span-3">
+      <div className="flex items-center justify-between mb-3">
+        <SectionLabel>Belysning</SectionLabel>
+        <span className="text-xs font-bold -mt-3"
+          style={{ color: totalOn > 0 ? AMBER : "var(--color-outline)" }}>
+          {totalOn}/{totalAll} på
+        </span>
+      </div>
+
+      {/* Chip grid — more cols on wider screens */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+        {data.areas.map(area => {
+          const on = area.on_count > 0;
+          const open = expandedId === area.area_id;
+          return (
+            <div key={area.area_id} className="flex flex-col rounded-xl overflow-hidden"
+              style={{
+                backgroundColor: on ? "rgba(245,158,11,0.1)" : "var(--color-surface-container)",
+                border: `1.5px solid ${on ? AMBER : open ? "var(--color-outline)" : "transparent"}`,
+              }}>
+              {/* Toggle zone — consistent height via fixed layout */}
+              <Pressable onClick={() => handleToggleArea(area)}
+                className="flex flex-col items-center py-3 px-1 text-center w-full" style={{ gap: 4 }}>
                 <span className="material-symbols-outlined text-[20px]"
-                  style={{
-                    color: light.state === "on" ? "var(--color-secondary)" : "var(--color-outline)",
-                    fontVariationSettings: light.state === "on" ? "'FILL' 1" : "'FILL' 0",
-                  }}>
-                  {light.state === "on" ? "light_mode" : "light_off"}
+                  style={{ color: on ? AMBER : "var(--color-outline)", fontVariationSettings: on ? "'FILL' 1" : "'FILL' 0" }}>
+                  {on ? "light_mode" : "light_off"}
+                </span>
+                <span className="text-[10px] font-semibold leading-tight truncate w-full px-1"
+                  style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
+                {/* Always rendered — invisible for single-light rooms to keep uniform height */}
+                <span className="text-[9px]"
+                  style={{ color: on ? AMBER : "var(--color-outline)", visibility: area.total_count > 1 ? "visible" : "hidden" }}>
+                  {area.on_count}/{area.total_count}
                 </span>
               </Pressable>
-              <span className="text-xs font-semibold flex-1 min-w-0 truncate"
-                style={{ color: "var(--color-on-surface)" }}>{light.name}</span>
-              {light.dimmable && light.state === "on" && (
-                <div className="flex items-center gap-2 w-28 shrink-0">
-                  <input
-                    type="range" min={1} max={100}
-                    defaultValue={light.brightness_pct ?? 100}
-                    className="w-full h-1 accent-[var(--color-secondary)] cursor-pointer"
-                    onMouseUp={e => handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
-                    onTouchEnd={e => handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
-                  />
-                  <span className="text-[10px] w-7 text-right shrink-0"
-                    style={{ color: "var(--color-outline)" }}>
-                    {light.brightness_pct ?? 100}%
-                  </span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ─── Belysning ────────────────────────────────────────────────────────────────
-
-function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => void }) {
-  const [dimmerArea, setDimmerArea] = useState<LightArea | null>(null);
-
-  const totalOn  = data.areas.reduce((s, a) => s + a.on_count, 0);
-  const totalAll = data.areas.reduce((s, a) => s + a.total_count, 0);
-
-  async function handleToggleArea(area: LightArea) {
-    const anyOn = area.on_count > 0;
-    await callAction("light", anyOn ? "turn_off" : "turn_on", area.lights.map(l => l.entity_id));
-    onRefresh();
-  }
-
-  return (
-    <>
-      <Card>
-        <div className="flex items-center justify-between mb-3">
-          <SectionLabel>Belysning</SectionLabel>
-          <span className="text-xs font-bold -mt-3"
-            style={{ color: totalOn > 0 ? "var(--color-secondary)" : "var(--color-outline)" }}>
-            {totalOn}/{totalAll} på
-          </span>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {data.areas.map(area => {
-            const on = area.on_count > 0;
-            const AMBER = "#f59e0b";
-            return (
-              <div key={area.area_id} className="flex flex-col rounded-xl overflow-hidden"
+              {/* Expand strip */}
+              <button onClick={() => setExpandedId(open ? null : area.area_id)}
+                className="w-full flex items-center justify-center py-1.5 border-t"
                 style={{
-                  backgroundColor: on ? "rgba(245,158,11,0.1)" : "var(--color-surface-container)",
-                  border: `1.5px solid ${on ? AMBER : "transparent"}`,
+                  borderColor: on ? "rgba(245,158,11,0.25)" : "var(--color-outline-variant)",
+                  backgroundColor: open ? "rgba(245,158,11,0.12)" : "transparent",
+                  color: open ? AMBER : "var(--color-on-surface-variant)",
+                  opacity: open ? 1 : 0.55,
+                  transition: "opacity 0.15s",
                 }}>
-                {/* Toggle zone */}
-                <Pressable
-                  onClick={() => handleToggleArea(area)}
-                  className="flex flex-col items-center gap-1.5 py-3 px-1 text-center w-full">
+                <span className="material-symbols-outlined"
+                  style={{ fontSize: 12, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                  expand_more
+                </span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Inline expand panel — appears below grid, stays open during toggles */}
+      {expandedArea && (
+        <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>{expandedArea.name}</p>
+            <button onClick={() => setExpandedId(null)}
+              className="material-symbols-outlined text-[18px]"
+              style={{ color: "var(--color-on-surface)", opacity: 0.5 }}>close</button>
+          </div>
+          <div className="space-y-2.5">
+            {expandedArea.lights.map(light => (
+              <div key={light.entity_id} className="flex items-center gap-3">
+                <Pressable onClick={() => handleToggleLight(light)} className="shrink-0 p-1">
                   <span className="material-symbols-outlined text-[20px]"
                     style={{
-                      color: on ? AMBER : "var(--color-outline)",
-                      fontVariationSettings: on ? "'FILL' 1" : "'FILL' 0",
+                      color: light.state === "on" ? AMBER : "var(--color-outline)",
+                      fontVariationSettings: light.state === "on" ? "'FILL' 1" : "'FILL' 0",
                     }}>
-                    {on ? "light_mode" : "light_off"}
+                    {light.state === "on" ? "light_mode" : "light_off"}
                   </span>
-                  <span className="text-[10px] font-semibold leading-tight truncate w-full px-1"
-                    style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
-                  {area.total_count > 1 && (
-                    <span className="text-[9px]" style={{ color: on ? AMBER : "var(--color-outline)" }}>
-                      {area.on_count}/{area.total_count}
-                    </span>
-                  )}
                 </Pressable>
-                {/* Tune strip */}
-                <button onClick={() => setDimmerArea(area)}
-                  className="w-full flex items-center justify-center py-1.5 border-t"
-                  style={{
-                    borderColor: on ? "rgba(245,158,11,0.25)" : "var(--color-outline-variant)",
-                    color: "var(--color-on-surface-variant)", opacity: 0.65,
-                  }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 12 }}>tune</span>
-                </button>
+                <span className="text-xs font-semibold flex-1 min-w-0 truncate"
+                  style={{ color: "var(--color-on-surface)" }}>{light.name}</span>
+                {light.dimmable && light.state === "on" && (
+                  <div className="flex items-center gap-2 w-28 shrink-0">
+                    <input type="range" min={1} max={100}
+                      defaultValue={light.brightness_pct ?? 100}
+                      className="w-full h-1 cursor-pointer"
+                      style={{ accentColor: AMBER }}
+                      onMouseUp={e => handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
+                      onTouchEnd={e => handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
+                    />
+                    <span className="text-[10px] w-7 text-right shrink-0"
+                      style={{ color: "var(--color-outline)" }}>{light.brightness_pct ?? 100}%</span>
+                  </div>
+                )}
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      </Card>
-
-      {dimmerArea && (
-        <DimmerPopover
-          area={dimmerArea}
-          onClose={() => setDimmerArea(null)}
-          onRefresh={() => { onRefresh(); setDimmerArea(null); }}
-        />
       )}
-    </>
+    </Card>
   );
 }
 
