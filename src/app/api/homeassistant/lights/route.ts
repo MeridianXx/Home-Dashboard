@@ -7,12 +7,20 @@ export async function GET() {
       getStates("light"),
     ]);
 
+    // Excluded: old vardagsrum entities replaced by grouped light.vardagsrum_golvlampa,
+    // and lights listed as not connected/hidden in AGENTS.md
+    const EXCLUDED_LIGHTS = new Set([
+      "light.vardagsrum_upp", "light.vardagsrum_mitten", "light.vardagsrum_ner",
+      "light.vancouver", "light.fonster", "light.hall_2",
+    ]);
+
     const byArea: Record<string, Array<{
       entity_id: string; name: string; state: string;
       brightness_pct: number | null; dimmable: boolean;
     }>> = {};
 
     for (const s of states) {
+      if (EXCLUDED_LIGHTS.has(s.entity_id)) continue;
       if (s.state === "unavailable") continue;
       const aid = entityArea[s.entity_id];
       if (!aid) continue;

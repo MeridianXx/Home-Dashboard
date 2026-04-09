@@ -2,6 +2,9 @@ import { getState } from "@/lib/ha";
 
 const safe = (s: string) => { const v = parseFloat(s); return isNaN(v) ? null : v; };
 
+// In-memory cache — survives between requests, returns last known price when HA is unavailable
+let cachedPriceOre: number | null = null;
+
 export async function GET() {
   try {
     const [price, power, avgPower, minPower, maxPower, accKwh, accCost, monthlyCost, monthlyKwh] =
@@ -18,7 +21,9 @@ export async function GET() {
       ]);
 
     const priceValSek = safe(price.state);
-    const priceOre = priceValSek != null ? Math.round(priceValSek * 100) : null;
+    const freshOre = priceValSek != null ? Math.round(priceValSek * 100) : null;
+    if (freshOre != null) cachedPriceOre = freshOre;
+    const priceOre = freshOre ?? cachedPriceOre;
     const spot_level: "low" | "medium" | "high" | "unknown" =
       priceOre == null ? "unknown"
       : priceOre < 50  ? "low"

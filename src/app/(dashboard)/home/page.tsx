@@ -23,6 +23,7 @@ type HvacData     = {
   heat_pump: { entity_id: string; state: string; current_temp: number | null; target_temp: number | null; hvac_modes: string[] | null };
   flv: { outdoor_temp: number | null; hot_water_temp: number | null; fan_speed_pct: number | null; franluft_temp: number | null; alarm: boolean; kaminlage: boolean; more_hot_water: boolean; increased_ventilation: boolean };
 };
+type VacuumData   = { state: string; battery_pct: number | null; status: string | null; current_room: string | null; cleaned_area: number | null; charging: boolean; cleaning: boolean; do_not_disturb: boolean };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -97,6 +98,7 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
     <div className={`rounded-2xl p-5 ${className}`} style={{
       backgroundColor: "var(--color-surface-container-lowest)",
       boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
+      border: "1px solid var(--color-card-border)",
     }}>
       {children}
     </div>
@@ -226,45 +228,49 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
   return (
     <>
       <Card>
-        <SectionLabel>Belysning</SectionLabel>
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-2xl font-black" style={{ color: "var(--color-on-surface)" }}>
-            {totalOn} / {totalAll}
-          </span>
-          <span className="text-sm font-medium px-3 py-1 rounded-full"
-            style={{ backgroundColor: "var(--color-secondary-container)", color: "var(--color-secondary)" }}>
-            lampor på
+        <div className="flex items-center justify-between mb-3">
+          <SectionLabel>Belysning</SectionLabel>
+          <span className="text-xs font-bold -mt-3"
+            style={{ color: totalOn > 0 ? "var(--color-secondary)" : "var(--color-outline)" }}>
+            {totalOn}/{totalAll} på
           </span>
         </div>
-        <div className="space-y-1.5">
-          {data.areas.map(area => (
-            <div key={area.area_id}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
-              style={{ backgroundColor: area.on_count > 0 ? "rgba(0,116,62,0.08)" : "var(--color-surface-container)" }}>
-              {/* Toggle zone */}
-              <Pressable className="flex items-center gap-2 flex-1 min-w-0 text-left"
-                onClick={() => handleToggleArea(area)}>
-                <span className="material-symbols-outlined text-[18px] shrink-0"
+        <div className="grid grid-cols-3 gap-2">
+          {data.areas.map(area => {
+            const on = area.on_count > 0;
+            return (
+              <div key={area.area_id} className="relative">
+                <Pressable
+                  onClick={() => handleToggleArea(area)}
+                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl w-full text-center"
                   style={{
-                    color: area.on_count > 0 ? "var(--color-secondary)" : "var(--color-outline)",
-                    fontVariationSettings: area.on_count > 0 ? "'FILL' 1" : "'FILL' 0",
+                    backgroundColor: on ? "rgba(0,116,62,0.1)" : "var(--color-surface-container)",
+                    border: `1.5px solid ${on ? "var(--color-secondary)" : "transparent"}`,
                   }}>
-                  {area.on_count > 0 ? "light_mode" : "light_off"}
-                </span>
-                <span className="text-xs font-semibold truncate"
-                  style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
-                <span className="text-[10px] ml-auto shrink-0"
-                  style={{ color: "var(--color-outline)" }}>
-                  {area.on_count}/{area.total_count}
-                </span>
-              </Pressable>
-              {/* Dimmer button */}
-              <Pressable onClick={() => setDimmerArea(area)} className="shrink-0 p-1">
-                <span className="material-symbols-outlined text-[16px]"
-                  style={{ color: "var(--color-on-surface-variant)" }}>tune</span>
-              </Pressable>
-            </div>
-          ))}
+                  <span className="material-symbols-outlined text-[20px]"
+                    style={{
+                      color: on ? "var(--color-secondary)" : "var(--color-outline)",
+                      fontVariationSettings: on ? "'FILL' 1" : "'FILL' 0",
+                    }}>
+                    {on ? "light_mode" : "light_off"}
+                  </span>
+                  <span className="text-[10px] font-semibold leading-tight truncate w-full px-1"
+                    style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
+                  {area.total_count > 1 && (
+                    <span className="text-[9px]"
+                      style={{ color: on ? "var(--color-secondary)" : "var(--color-outline)" }}>
+                      {area.on_count}/{area.total_count}
+                    </span>
+                  )}
+                </Pressable>
+                <button onClick={() => setDimmerArea(area)}
+                  className="absolute top-1.5 right-1.5 leading-none"
+                  style={{ color: "var(--color-on-surface-variant)", opacity: 0.5 }}>
+                  <span className="material-symbols-outlined text-[13px]">tune</span>
+                </button>
+              </div>
+            );
+          })}
         </div>
       </Card>
 
@@ -279,99 +285,75 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
   );
 }
 
-// ─── Klimat ───────────────────────────────────────────────────────────────────
-
-function ClimateCard({ data }: { data: SensorsData }) {
-  return (
-    <Card>
-      <SectionLabel>Klimat</SectionLabel>
-      <div className="space-y-1.5">
-        {data.areas.map(area => (
-          <div key={area.area_id}
-            className="flex items-center justify-between px-3 py-2.5 rounded-xl"
-            style={{ backgroundColor: "var(--color-surface-container)" }}>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: "var(--color-secondary)" }} />
-              <span className="text-sm font-semibold"
-                style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-bold"
-                style={{ color: "var(--color-primary)" }}>{area.temperature.toFixed(1)}°C</span>
-              {area.humidity != null && (
-                <span className="text-xs" style={{ color: "var(--color-outline)" }}>
-                  {Math.round(area.humidity)}%
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
 
 // ─── Elbilar ─────────────────────────────────────────────────────────────────
+
+function carBattColor(car: Car): string {
+  if (car.charging) return "var(--color-secondary)";
+  if (car.soc < 20) return "var(--color-error)";
+  if (car.soc < 50) return "var(--color-tertiary)";
+  return "var(--color-primary)";
+}
 
 function CarsCard({ data }: { data: CarsData }) {
   return (
     <Card className="md:col-span-2">
       <SectionLabel>Elbilar &amp; laddning</SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {data.cars.map(car => (
-          <div key={car.id} className="p-4 rounded-xl"
-            style={{ backgroundColor: "var(--color-surface-container)" }}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px]"
-                  style={{ color: car.charging ? "var(--color-secondary)" : "var(--color-on-surface-variant)" }}>
-                  electric_car
+        {data.cars.map(car => {
+          const battColor = carBattColor(car);
+          return (
+            <div key={car.id} className="p-4 rounded-xl"
+              style={{ backgroundColor: "var(--color-surface-container)" }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[20px]"
+                    style={{ color: car.charging ? "var(--color-secondary)" : "var(--color-on-surface-variant)" }}>
+                    electric_car
+                  </span>
+                  <span className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>{car.name}</span>
+                </div>
+                <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: car.charging ? "var(--color-secondary-container)" : "var(--color-surface-container-high)",
+                    color: car.charging ? "var(--color-secondary)" : "var(--color-on-surface-variant)",
+                  }}>
+                  {car.charging && <span className="material-symbols-outlined text-[12px] spin-anim" style={{ animationDuration: "2s" }}>bolt</span>}
+                  {car.charging ? "Laddar" : car.plugged_in ? "Inkopplad" : "Klar"}
                 </span>
-                <span className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>{car.name}</span>
               </div>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: car.charging ? "var(--color-secondary-container)" : "var(--color-surface-container-high)",
-                  color: car.charging ? "var(--color-secondary)" : "var(--color-on-surface-variant)",
-                }}>
-                {car.charging ? "Laddar" : car.plugged_in ? "Inkopplad" : "Klar"}
-              </span>
-            </div>
 
-            {/* SOC bar */}
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-3xl font-black" style={{ color: "var(--color-on-surface)" }}>{car.soc}%</span>
-              <div className="flex-1">
-                <div className="h-2 rounded-full overflow-hidden"
-                  style={{ backgroundColor: "var(--color-surface-container-high)" }}>
-                  <div className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${car.soc}%`,
-                      backgroundColor: car.charging ? "var(--color-secondary)" : car.soc < 20 ? "var(--color-error)" : "var(--color-primary)",
-                    }} />
+              {/* SOC bar */}
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-3xl font-black" style={{ color: battColor }}>{car.soc}%</span>
+                <div className="flex-1">
+                  <div className="h-2 rounded-full overflow-hidden"
+                    style={{ backgroundColor: "var(--color-surface-container-high)" }}>
+                    <div className="h-full rounded-full transition-all"
+                      style={{ width: `${car.soc}%`, backgroundColor: battColor }} />
+                  </div>
+                  {car.target_soc < 100 && (
+                    <p className="text-[10px] mt-0.5" style={{ color: "var(--color-outline)" }}>
+                      Mål: {car.target_soc}%
+                    </p>
+                  )}
                 </div>
-                {car.target_soc < 100 && (
-                  <p className="text-[10px] mt-0.5" style={{ color: "var(--color-outline)" }}>
-                    Mål: {car.target_soc}%
-                  </p>
-                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  ["Räckvidd", `ca ${car.range_km} km`],
+                  ["Status", car.charging ? "Laddar" : car.plugged_in ? "Inkopplad" : "Ej inkopplad"],
+                ].map(([k, v]) => (
+                  <div key={k}>
+                    <p className="text-[10px] font-bold uppercase" style={{ color: "var(--color-outline)" }}>{k}</p>
+                    <p className="text-xs font-bold" style={{ color: "var(--color-on-surface)" }}>{v}</p>
+                  </div>
+                ))}
               </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                ["Räckvidd", `ca ${car.range_km} km`],
-                ["Status", car.plugged_in ? (car.charging ? "Laddar" : "Klar") : "Ej inkopplad"],
-              ].map(([k, v]) => (
-                <div key={k}>
-                  <p className="text-[10px] font-bold uppercase" style={{ color: "var(--color-outline)" }}>{k}</p>
-                  <p className="text-xs font-bold" style={{ color: "var(--color-on-surface)" }}>{v}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </Card>
   );
@@ -386,32 +368,94 @@ function EnergyCard({ data }: { data: EnergyData }) {
   return (
     <Card>
       <SectionLabel>Energi</SectionLabel>
-      <div className="space-y-3">
-        <div className="flex items-baseline gap-2 mb-1">
-          <span className="text-4xl font-black" style={{ color: "var(--color-on-surface)" }}>
-            {data.spot_price_ore != null ? data.spot_price_ore.toFixed(1) : "–"}
-          </span>
-          <span className="text-sm font-bold" style={{ color: "var(--color-on-surface-variant)" }}>öre/kWh</span>
-          <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full"
-            style={{ backgroundColor: `${spotColor}22`, color: spotColor }}>
-            {spotLabel}
-          </span>
-        </div>
-
+      {/* Price hero */}
+      <div className="flex items-baseline gap-2 mb-4">
+        <span className="text-4xl font-black" style={{ color: "var(--color-on-surface)" }}>
+          {data.spot_price_ore != null ? data.spot_price_ore.toFixed(1) : "–"}
+        </span>
+        <span className="text-sm font-bold" style={{ color: "var(--color-on-surface-variant)" }}>öre/kWh</span>
+        <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full"
+          style={{ backgroundColor: `${spotColor}22`, color: spotColor }}>
+          {spotLabel}
+        </span>
+      </div>
+      {/* 2×2 stat grid */}
+      <div className="grid grid-cols-2 gap-2">
         {[
-          { label: "Aktuell effekt",  value: `${data.current_power_w} W`,                        icon: "bolt" },
-          { label: "Idag",            value: `${data.accumulated_kwh.toFixed(2)} kWh · ${data.accumulated_cost_sek.toFixed(2)} kr`, icon: "today" },
-          { label: "Månadskostnad",   value: `${data.monthly_cost_sek.toFixed(0)} kr`,            icon: "receipt" },
-          { label: "Månadsförbrukning", value: `${data.monthly_kwh.toFixed(0)} kWh`,              icon: "electric_meter" },
-        ].map(({ label, value, icon }) => (
-          <div key={label} className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px]"
-                style={{ color: "var(--color-outline)" }}>{icon}</span>
-              <span className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>{label}</span>
+          { icon: "bolt",           label: "Aktuell effekt", value: `${data.current_power_w} W`,                                                            color: "var(--color-secondary)" },
+          { icon: "today",          label: "Idag",           value: `${data.accumulated_kwh.toFixed(1)} kWh · ${data.accumulated_cost_sek.toFixed(0)} kr`,   color: "var(--color-outline)" },
+          { icon: "receipt",        label: "Månadskostnad",  value: `${data.monthly_cost_sek.toFixed(0)} kr`,                                                color: "var(--color-outline)" },
+          { icon: "electric_meter", label: "Månadsförbrukn.",value: `${data.monthly_kwh.toFixed(0)} kWh`,                                                    color: "var(--color-outline)" },
+        ].map(({ icon, label, value, color }) => (
+          <div key={label} className="p-3 rounded-xl" style={{ backgroundColor: "var(--color-surface-container)" }}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="material-symbols-outlined text-[14px]" style={{ color }}>{icon}</span>
+              <span className="text-[10px] font-semibold" style={{ color: "var(--color-on-surface-variant)" }}>{label}</span>
             </div>
-            <span className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>{value}</span>
+            <p className="text-sm font-black" style={{ color: "var(--color-on-surface)" }}>{value}</p>
           </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ─── Dammsugare ───────────────────────────────────────────────────────────────
+
+function VacuumCard({ data, onRefresh }: { data: VacuumData; onRefresh: () => void }) {
+  const statusLabel = data.cleaning
+    ? (data.current_room ? `Städar · ${data.current_room}` : "Städar")
+    : data.charging ? "Laddar"
+    : data.state === "docked" ? "Hemma · Dockat"
+    : data.state === "idle" ? "Vilar"
+    : data.state ?? "–";
+
+  const statusColor = data.cleaning
+    ? "var(--color-secondary)"
+    : data.charging
+    ? "var(--color-tertiary)"
+    : "var(--color-on-surface-variant)";
+
+  return (
+    <Card>
+      <SectionLabel>Dammsugare</SectionLabel>
+      {/* Status row */}
+      <div className="flex items-center gap-3 mb-4">
+        <span className="material-symbols-outlined text-[24px]" style={{ color: statusColor }}>
+          {data.cleaning ? "robot_2" : "dock"}
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>Chomper</p>
+          <p className="text-xs" style={{ color: statusColor }}>{statusLabel}</p>
+        </div>
+        <div className="flex items-center gap-1 text-xs font-bold"
+          style={{ color: data.charging ? "var(--color-tertiary)" : "var(--color-on-surface-variant)" }}>
+          <span className="material-symbols-outlined text-[15px]">battery_horiz_075</span>
+          {data.battery_pct != null ? `${data.battery_pct}%` : "–"}
+        </div>
+        {data.cleaning && data.cleaned_area != null && (
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+            style={{ backgroundColor: "var(--color-secondary-container)", color: "var(--color-secondary)" }}>
+            {data.cleaned_area.toFixed(0)} m²
+          </span>
+        )}
+      </div>
+      {/* Action buttons */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: "Efter maten",  icon: "restaurant",        action: () => callAction("button", "press", "button.chomper_after_meals") },
+          { label: "Damm + Mopp", icon: "cleaning_services",  action: () => callAction("button", "press", "button.chomper_vac_followed_by_mop") },
+          { label: "Till docka",  icon: "home",               action: () => callAction("vacuum", "return_to_base", "vacuum.chomper") },
+        ].map(({ label, icon, action }) => (
+          <Pressable key={label}
+            onClick={async () => { await action(); onRefresh(); }}
+            className="flex flex-col items-center gap-1.5 py-3 rounded-xl text-center"
+            style={{ backgroundColor: "var(--color-surface-container)" }}>
+            <span className="material-symbols-outlined text-[20px]"
+              style={{ color: "var(--color-on-surface-variant)" }}>{icon}</span>
+            <span className="text-[10px] font-semibold leading-tight"
+              style={{ color: "var(--color-on-surface)" }}>{label}</span>
+          </Pressable>
         ))}
       </div>
     </Card>
@@ -633,11 +677,13 @@ export default function HomePage() {
   const { data: energy }                     = useSWR<EnergyData>  ("/api/homeassistant/energy",  fetcher, { refreshInterval:  3_000 });
   const { data: cars }                       = useSWR<CarsData>    ("/api/homeassistant/cars",    fetcher, { refreshInterval: 60_000 });
   const { data: hvac,    mutate: mHvac    } = useSWR<HvacData>    ("/api/homeassistant/hvac",    fetcher, { refreshInterval: 15_000 });
+  const { data: vacuum,  mutate: mVacuum  } = useSWR<VacuumData>  ("/api/homeassistant/vacuum",  fetcher, { refreshInterval: 10_000 });
 
   // Awaitable refresh — waits for HA to process the command before revalidating
   const delay = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
-  const refreshLights = useCallback(async () => { await delay(600);  await mLights(); }, [mLights]);
-  const refreshHvac   = useCallback(async () => { await delay(1000); await mHvac();   }, [mHvac]);
+  const refreshLights  = useCallback(async () => { await delay(600);  await mLights();  }, [mLights]);
+  const refreshHvac    = useCallback(async () => { await delay(1000); await mHvac();   }, [mHvac]);
+  const refreshVacuum  = useCallback(async () => { await delay(800);  await mVacuum(); }, [mVacuum]);
 
   // Expanded chip state (inline expand-from-chip)
   const [expandedChip, setExpandedChip] = useState<"indoor" | "outdoor" | null>(null);
@@ -731,6 +777,7 @@ export default function HomePage() {
           <div className="rounded-2xl overflow-hidden" style={{
             backgroundColor: "var(--color-surface-container)",
             boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
+            border: "1px solid var(--color-card-border)",
           }}>
             {/* Row 1: temp chips */}
             <ChipRow>
@@ -945,18 +992,18 @@ export default function HomePage() {
           <Card><SectionLabel>Belysning</SectionLabel><Skeleton className="h-40" /></Card>
         )}
 
-        {/* Klimat */}
-        {sensorsOk ? (
-          <ClimateCard data={sensors} />
-        ) : (
-          <Card><SectionLabel>Klimat</SectionLabel><Skeleton className="h-40" /></Card>
-        )}
-
         {/* Energi */}
         {energy && "accumulated_kwh" in energy ? (
           <EnergyCard data={energy} />
         ) : (
           <Card><SectionLabel>Energi</SectionLabel><Skeleton className="h-48" /></Card>
+        )}
+
+        {/* Dammsugare */}
+        {vacuum && "state" in vacuum ? (
+          <VacuumCard data={vacuum} onRefresh={refreshVacuum} />
+        ) : (
+          <Card><SectionLabel>Dammsugare</SectionLabel><Skeleton className="h-36" /></Card>
         )}
 
         {/* Elbilar */}

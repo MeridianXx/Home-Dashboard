@@ -74,6 +74,9 @@
   --font-label:    var(--font-inter), "Inter", sans-serif;
   --font-sans:     var(--font-inter), "Inter", sans-serif;
 
+  /* Card border — transparent in light, overridden in dark */
+  --color-card-border: transparent;
+
   /* Border radius */
   --radius:    1rem;    /* 16px default */
   --radius-lg: 1.25rem; /* 20px */
@@ -147,18 +150,20 @@ body {
   :root {
     --color-surface:                   #0e0e0c;
     --color-surface-bright:            #151512;
-    --color-surface-container-lowest:  #0e0e0c;
-    --color-surface-container-low:     #151512;
-    --color-surface-container:         #1c1c19;
-    --color-surface-container-high:    #232320;
-    --color-surface-container-highest: #2a2a26;
+    --color-surface-container-lowest:  #131311;
+    --color-surface-container-low:     #181816;
+    --color-surface-container:         #252521;
+    --color-surface-container-high:    #2e2e2a;
+    --color-surface-container-highest: #363632;
     --color-background:                #0e0e0c;
     --color-on-surface:                #e6e3dc;
     --color-on-surface-variant:        #bbb9b2;
     --color-on-background:             #e6e3dc;
     --color-inverse-surface:           #fffcf7;
     --color-inverse-on-surface:        #383833;
-    --color-outline-variant:           #46463f;
+    --color-outline-variant:           #3e3e38;
     --color-outline:                   #919188;
+    /* Card border visible only in dark mode */
+    --color-card-border:               #3e3e38;
   }
 }

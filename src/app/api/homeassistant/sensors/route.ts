@@ -10,7 +10,11 @@ export async function GET() {
     // One entry per area: last-write-wins per device_class
     const byArea: Record<string, { temp?: number; humidity?: number }> = {};
 
+    // Prefer sensor.vardagsrum_temperatur over hero_rumstemperatur
+    const EXCLUDED_SENSORS = new Set(["sensor.hero_rumstemperatur"]);
+
     for (const s of states) {
+      if (EXCLUDED_SENSORS.has(s.entity_id)) continue;
       if (s.state === "unavailable" || s.state === "unknown") continue;
       const aid = entityArea[s.entity_id];
       if (!aid) continue;

@@ -9,13 +9,13 @@ export async function GET() {
       getState("sensor.enyaq_batteriniva"),
       getState("sensor.enyaq_laddningsgrans"),
       getState("sensor.enyaq_rackvidd"),
-      getState("binary_sensor.enyaq_kontakt"),
-      getState("binary_sensor.enyaq_laddning"),
+      getState("binary_sensor.vanster_kontakt"),   // Enyaq = vänster laddbox
+      getState("binary_sensor.vanster_laddning"),
       getState("sensor.polestar_batteriniva"),
       getState("sensor.polestar_laddningsgrans"),
       getState("sensor.polestar_rackvidd"),
-      getState("binary_sensor.polestar_kontakt"),
-      getState("binary_sensor.polestar_laddning"),
+      getState("binary_sensor.hoger_kontakt"),     // Polestar = höger laddbox
+      getState("binary_sensor.hoger_laddning"),
     ]);
 
     return Response.json({
