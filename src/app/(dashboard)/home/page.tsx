@@ -688,7 +688,7 @@ export default function HomePage() {
         };
 
         const PrimaryBadge = ({ color }: { color: string }) => (
-          <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0"
+          <span className="text-[8px] px-1 py-px rounded-full font-bold shrink-0 leading-tight"
             style={{ border: `1px solid ${color}`, color }}>primär</span>
         );
 
@@ -718,8 +718,9 @@ export default function HomePage() {
                       <span className="text-sm font-semibold truncate" style={{ color: "var(--color-on-surface)" }}>Innetemperatur</span>
                       <PrimaryBadge color="var(--color-primary)" />
                     </div>
-                    <span className="text-sm font-black ml-3 shrink-0" style={{ color: "var(--color-primary)" }}>
-                      {sensors.nibe_indoor_temp.toFixed(1)}°C
+                    <span className="flex items-center gap-1 ml-3 shrink-0">
+                      <span className="material-symbols-outlined text-[13px]" style={{ color: "var(--color-primary)" }}>thermometer</span>
+                      <span className="text-sm font-black" style={{ color: "var(--color-primary)" }}>{sensors.nibe_indoor_temp.toFixed(1)}°</span>
                     </span>
                   </div>
                 )}
@@ -733,12 +734,15 @@ export default function HomePage() {
                     </div>
                     <div className="flex items-center gap-2.5">
                       {area.humidity != null && (
-                        <span className="flex items-center gap-0.5 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                          <span className="material-symbols-outlined text-[11px]">water_drop</span>
+                        <span className="flex items-center gap-1 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                          <span className="material-symbols-outlined text-[10px]">water_drop</span>
                           {Math.round(area.humidity)}%
                         </span>
                       )}
-                      <span className="text-sm font-black" style={{ color: "var(--color-on-surface)" }}>{area.temperature.toFixed(1)}°C</span>
+                      <span className="flex items-center gap-0.5">
+                        <span className="material-symbols-outlined text-[12px]" style={{ color: "var(--color-on-surface-variant)" }}>thermometer</span>
+                        <span className="text-sm font-black" style={{ color: "var(--color-on-surface)" }}>{area.temperature.toFixed(1)}°</span>
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -756,8 +760,9 @@ export default function HomePage() {
                       <span className="text-sm font-semibold truncate" style={{ color: "var(--color-on-surface)" }}>Utetemperatur</span>
                       <PrimaryBadge color="var(--color-tertiary)" />
                     </div>
-                    <span className="text-sm font-black ml-3 shrink-0" style={{ color: "var(--color-tertiary)" }}>
-                      {sensors.outdoor_temp.toFixed(1)}°C
+                    <span className="flex items-center gap-1 ml-3 shrink-0">
+                      <span className="material-symbols-outlined text-[13px]" style={{ color: "var(--color-tertiary)" }}>thermometer</span>
+                      <span className="text-sm font-black" style={{ color: "var(--color-tertiary)" }}>{sensors.outdoor_temp.toFixed(1)}°</span>
                     </span>
                   </div>
                 )}
@@ -768,7 +773,10 @@ export default function HomePage() {
                       <span className="material-symbols-outlined text-[15px]" style={{ color: "var(--color-on-surface-variant)" }}>air</span>
                       <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>Frånluft</span>
                     </div>
-                    <span className="text-sm font-black" style={{ color: "var(--color-on-surface-variant)" }}>{hvac.flv.franluft_temp.toFixed(1)}°C</span>
+                    <span className="flex items-center gap-0.5">
+                      <span className="material-symbols-outlined text-[12px]" style={{ color: "var(--color-on-surface-variant)" }}>thermometer</span>
+                      <span className="text-sm font-black" style={{ color: "var(--color-on-surface-variant)" }}>{hvac.flv.franluft_temp.toFixed(1)}°</span>
+                    </span>
                   </div>
                 )}
                 {/* Växthus */}
@@ -780,12 +788,15 @@ export default function HomePage() {
                     </div>
                     <div className="flex items-center gap-2.5">
                       {vaxthusArea.humidity != null && (
-                        <span className="flex items-center gap-0.5 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                          <span className="material-symbols-outlined text-[11px]">water_drop</span>
+                        <span className="flex items-center gap-1 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                          <span className="material-symbols-outlined text-[10px]">water_drop</span>
                           {Math.round(vaxthusArea.humidity)}%
                         </span>
                       )}
-                      <span className="text-sm font-black" style={{ color: "var(--color-tertiary)" }}>{vaxthusArea.temperature.toFixed(1)}°C</span>
+                      <span className="flex items-center gap-0.5">
+                        <span className="material-symbols-outlined text-[12px]" style={{ color: "var(--color-tertiary)" }}>thermometer</span>
+                        <span className="text-sm font-black" style={{ color: "var(--color-tertiary)" }}>{vaxthusArea.temperature.toFixed(1)}°</span>
+                      </span>
                     </div>
                   </div>
                 )}
