@@ -21,7 +21,7 @@ type CarsData     = { cars: Car[] };
 type EnergyData   = { spot_price_ore: number | null; spot_level: string; current_power_w: number; accumulated_kwh: number; accumulated_cost_sek: number; monthly_cost_sek: number; monthly_kwh: number; hot_water_temp: number | null };
 type HvacData     = {
   heat_pump: { entity_id: string; state: string; current_temp: number | null; target_temp: number | null; hvac_modes: string[] | null };
-  flv: { outdoor_temp: number | null; supply_temp: number | null; return_temp: number | null; hot_water_temp: number | null; fan_speed_pct: number | null; franluft_temp: number | null; alarm: boolean; more_hot_water: boolean; increased_ventilation: boolean };
+  flv: { outdoor_temp: number | null; hot_water_temp: number | null; fan_speed_pct: number | null; franluft_temp: number | null; alarm: boolean; kaminlage: boolean; more_hot_water: boolean; increased_ventilation: boolean };
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -394,12 +394,17 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
   }
 
   async function handleMoreHotWater(current: boolean) {
-    await callAction("switch", current ? "turn_off" : "turn_on", "switch.villa_bjorkdalen_more_hot_water");
+    await callAction("switch", current ? "turn_off" : "turn_on", "switch.nibe_mer_varmvatten");
     onRefresh();
   }
 
   async function handleFan(current: boolean) {
-    await callAction("switch", current ? "turn_off" : "turn_on", "switch.villa_bjorkdalen_increased_ventilation_1");
+    await callAction("switch", current ? "turn_off" : "turn_on", "switch.nibe_okad_ventilation");
+    onRefresh();
+  }
+
+  async function handleKaminlage(current: boolean) {
+    await callAction("switch", current ? "turn_off" : "turn_on", "switch.nibe_kaminlage");
     onRefresh();
   }
 
@@ -467,11 +472,10 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mb-3 text-xs">
             {[
-              ["Framledning",  flv.supply_temp   != null ? `${flv.supply_temp}°C` : "–"],
-            ["Returledning", flv.return_temp   != null ? `${flv.return_temp}°C` : "–"],
-              ["Varmvatten",   flv.hot_water_temp != null ? `${flv.hot_water_temp}°C` : "–"],
-              ["Fläkt",        flv.fan_speed_pct  != null ? `${flv.fan_speed_pct}%` : "–"],
-              ["Frånluft",     flv.franluft_temp  != null ? `${flv.franluft_temp}°C` : "–"],
+              ["Varmvatten",  flv.hot_water_temp != null ? `${flv.hot_water_temp}°C` : "–"],
+              ["Fläkt",       flv.fan_speed_pct  != null ? `${flv.fan_speed_pct}%`   : "–"],
+              ["Frånluft",    flv.franluft_temp  != null ? `${flv.franluft_temp}°C`  : "–"],
+              ["Utomhus",     flv.outdoor_temp   != null ? `${flv.outdoor_temp}°C`   : "–"],
             ].map(([k, v]) => (
               <div key={k}>
                 <span style={{ color: "var(--color-outline)" }}>{k} </span>
@@ -481,25 +485,22 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
           </div>
 
           {/* Quick controls */}
-          <div className="flex gap-2">
-            <button onClick={() => handleMoreHotWater(flv.more_hot_water)}
-              className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex-1 justify-center transition-colors"
-              style={{
-                backgroundColor: flv.more_hot_water ? "rgba(71,91,194,0.15)" : "var(--color-surface-container-high)",
-                color: flv.more_hot_water ? "var(--color-primary)" : "var(--color-on-surface-variant)",
-              }}>
-              <span className="material-symbols-outlined text-[14px]">water_drop</span>
-              Mer varmvatten
-            </button>
-            <button onClick={() => handleFan(flv.increased_ventilation)}
-              className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex-1 justify-center transition-colors"
-              style={{
-                backgroundColor: flv.increased_ventilation ? "rgba(71,91,194,0.15)" : "var(--color-surface-container-high)",
-                color: flv.increased_ventilation ? "var(--color-primary)" : "var(--color-on-surface-variant)",
-              }}>
-              <span className="material-symbols-outlined text-[14px]">mode_fan</span>
-              Ökad ventilation
-            </button>
+          <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { label: "Mer varmvatten", icon: "water_drop",    active: flv.more_hot_water,        onToggle: () => handleMoreHotWater(flv.more_hot_water) },
+              { label: "Ökad ventil.",   icon: "mode_fan",       active: flv.increased_ventilation, onToggle: () => handleFan(flv.increased_ventilation) },
+              { label: "Kaminläge",      icon: "local_fire_department", active: flv.kaminlage,     onToggle: () => handleKaminlage(flv.kaminlage) },
+            ].map(({ label, icon, active, onToggle }) => (
+              <button key={label} onClick={onToggle}
+                className="flex flex-col items-center gap-1 text-[10px] font-bold px-2 py-2 rounded-lg transition-colors"
+                style={{
+                  backgroundColor: active ? "rgba(71,91,194,0.15)" : "var(--color-surface-container-high)",
+                  color: active ? "var(--color-primary)" : "var(--color-on-surface-variant)",
+                }}>
+                <span className="material-symbols-outlined text-[16px]">{icon}</span>
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -612,8 +613,8 @@ export default function HomePage() {
               { label: "Alla ljus av",     icon: "light_off",              color: "var(--color-on-surface-variant)", action: () => callAction("light", "turn_off", "all").then(refreshLights) },
               { label: "God natt",         icon: "bedtime",                color: "var(--color-primary)",            action: () => callAction("scene", "turn_on", "scene.fasad_nattlage") },
               { label: "Fasad",            icon: "outdoor_grill",          color: "var(--color-tertiary)",           action: () => callAction("scene", "turn_on", "scene.fasad") },
-              { label: "Boost varmvatten", icon: "water_drop",             color: "var(--color-secondary)",          action: () => callAction("switch", "turn_on", "switch.villa_bjorkdalen_more_hot_water").then(refreshHvac) },
-              { label: "Fläkt av",         icon: "mode_fan_off",           color: "var(--color-outline)",            action: () => callAction("switch", "turn_off", "switch.villa_bjorkdalen_increased_ventilation_1").then(refreshHvac) },
+              { label: "Boost varmvatten", icon: "water_drop",             color: "var(--color-secondary)",          action: () => callAction("switch", "turn_on",  "switch.nibe_mer_varmvatten").then(refreshHvac) },
+              { label: "Kaminläge",        icon: "local_fire_department",  color: "var(--color-tertiary)",           action: () => callAction("switch", "turn_on",  "switch.nibe_kaminlage").then(refreshHvac) },
             ].map(({ label, icon, color, action }) => (
               <button key={label} onClick={action}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all hover:scale-[0.97] active:scale-95"
