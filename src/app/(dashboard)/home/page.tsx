@@ -18,7 +18,7 @@ type SensorsData  = { areas: SensorArea[]; outdoor_temp: number | null; avg_indo
 type LightsData   = { areas: LightArea[] };
 type Car          = { id: string; name: string; soc: number; target_soc: number; range_km: number; plugged_in: boolean; charging: boolean };
 type CarsData     = { cars: Car[] };
-type EnergyData   = { spot_price_ore: number | null; spot_level: string; current_power_w: number; accumulated_kwh: number; accumulated_cost_sek: number; monthly_cost_sek: number; monthly_kwh: number; hot_water_temp: number | null };
+type EnergyData   = { spot_price_ore: number | null; spot_level: string; current_power_w: number; avg_power_w: number; min_power_w: number; max_power_w: number; accumulated_kwh: number; accumulated_cost_sek: number; monthly_cost_sek: number; monthly_kwh: number };
 type HvacData     = {
   heat_pump: { entity_id: string; state: string; current_temp: number | null; target_temp: number | null; hvac_modes: string[] | null };
   flv: { outdoor_temp: number | null; hot_water_temp: number | null; fan_speed_pct: number | null; franluft_temp: number | null; alarm: boolean; kaminlage: boolean; more_hot_water: boolean; increased_ventilation: boolean };
@@ -354,9 +354,6 @@ function EnergyCard({ data }: { data: EnergyData }) {
           { label: "Idag",            value: `${data.accumulated_kwh.toFixed(2)} kWh · ${data.accumulated_cost_sek.toFixed(2)} kr`, icon: "today" },
           { label: "Månadskostnad",   value: `${data.monthly_cost_sek.toFixed(0)} kr`,            icon: "receipt" },
           { label: "Månadsförbrukning", value: `${data.monthly_kwh.toFixed(0)} kWh`,              icon: "electric_meter" },
-          ...(data.hot_water_temp != null
-            ? [{ label: "Varmvatten", value: `${data.hot_water_temp}°C`,                         icon: "water_drop" }]
-            : []),
         ].map(({ label, value, icon }) => (
           <div key={label} className="flex items-center justify-between">
             <div className="flex items-center gap-2">
