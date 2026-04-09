@@ -16,7 +16,7 @@ export async function GET() {
       getState("sensor.nibe_franluft"),
       getState("binary_sensor.nibe_larm"),
       getState("switch.nibe_kaminlage"),
-      getState("switch.nibe_mer_varmvatten"),
+      getState("select.villa_bjorkdalen_more_hot_water"),
       getState("switch.nibe_okad_ventilation"),
     ]);
 
@@ -35,7 +35,7 @@ export async function GET() {
         franluft_temp:         safe(nibeFranluft.state),
         alarm:                 nibeAlarm.state        === "on",
         kaminlage:             nibeKaminlage.state    === "on",
-        more_hot_water:        nibeMoreHotWater.state === "on",
+        more_hot_water:        nibeMoreHotWater.state !== "Off",
         increased_ventilation: nibeIncreasedVent.state === "on",
       },
     });

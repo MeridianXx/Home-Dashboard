@@ -23,10 +23,11 @@ export async function GET() {
       if (dc === "humidity")    byArea[aid].humidity = val;
     }
 
-    // Outdoor temp from Nibe (most reliable)
+    // Nibe outdoor (BT1) and indoor (BT50) — most reliable physical sensors
     const nibeOutdoor = states.find(s => s.entity_id === "sensor.nibe_utomhustemperatur_bt1");
-    const outdoor_temp = nibeOutdoor && nibeOutdoor.state !== "unknown"
-      ? parseFloat(nibeOutdoor.state) : null;
+    const nibeIndoor  = states.find(s => s.entity_id === "sensor.nibe_inomhustemperatur_bt50");
+    const outdoor_temp  = nibeOutdoor?.state && nibeOutdoor.state !== "unknown" ? parseFloat(nibeOutdoor.state) : null;
+    const nibe_indoor_temp = nibeIndoor?.state && nibeIndoor.state !== "unknown" ? parseFloat(nibeIndoor.state) : null;
 
     const result = Object.entries(byArea)
       .filter(([, v]) => v.temp != null)
@@ -42,7 +43,7 @@ export async function GET() {
       ? +(result.reduce((s, r) => s + r.temperature, 0) / result.length).toFixed(1)
       : null;
 
-    return Response.json({ areas: result, outdoor_temp, avg_indoor });
+    return Response.json({ areas: result, outdoor_temp, avg_indoor, nibe_indoor_temp });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 502 });
   }
