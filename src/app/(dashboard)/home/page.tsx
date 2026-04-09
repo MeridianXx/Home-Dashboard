@@ -574,7 +574,7 @@ function FavTile({ label, icon, color, active, loading, onClick }: {
       }}
     >
       {loading ? (
-        <svg className="animate-spin" viewBox="0 0 24 24" fill="none"
+        <svg className="spin-anim" viewBox="0 0 24 24" fill="none"
           style={{ color, width: 26, height: 26, flexShrink: 0 }}>
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25"/>
           <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
