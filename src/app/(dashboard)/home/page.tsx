@@ -58,10 +58,11 @@ async function callAction(domain: string, service: string, entity_id: string | s
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 
 /** Cross-platform press button — uses pointer events so it works on iOS Safari */
-function Pressable({ children, onClick, disabled = false, className = "", style = {} }: {
+function Pressable({ children, onClick, disabled = false, loading = false, className = "", style = {} }: {
   children: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
+  loading?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }) {
@@ -69,19 +70,20 @@ function Pressable({ children, onClick, disabled = false, className = "", style 
   return (
     <button
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || loading}
       onPointerDown={() => setPressed(true)}
       onPointerUp={() => setPressed(false)}
       onPointerLeave={() => setPressed(false)}
       onPointerCancel={() => setPressed(false)}
       className={`select-none ${className}`}
       style={{
-        transform: pressed && !disabled ? "scale(0.93)" : "scale(1)",
+        transform: pressed && !disabled && !loading ? "scale(0.93)" : "scale(1)",
         transition: "transform 0.08s ease, opacity 0.08s ease",
-        opacity: disabled ? 0.6 : pressed ? 0.85 : 1,
+        // loading keeps full opacity so spinner is clearly visible
+        opacity: loading ? 1 : disabled ? 0.6 : pressed ? 0.85 : 1,
         WebkitTapHighlightColor: "transparent",
         touchAction: "manipulation",
-        cursor: "pointer",
+        cursor: loading ? "default" : "pointer",
         ...style,
       }}
     >
@@ -562,21 +564,25 @@ function FavTile({ label, icon, color, active, loading, onClick }: {
   return (
     <Pressable
       onClick={onClick}
-      disabled={loading}
+      loading={loading}
       className="flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl text-center w-full"
       style={{
-        backgroundColor: active ? `color-mix(in srgb, ${color} 12%, var(--color-surface-container))` : "var(--color-surface-container)",
-        border: `1.5px solid ${active ? color : "transparent"}`,
+        // No color-mix() — use border + label color for active indication (works in all browsers)
+        backgroundColor: "var(--color-surface-container)",
+        border: `2px solid ${active && !loading ? color : "transparent"}`,
+        boxShadow: active && !loading ? `inset 0 0 0 99px ${color}14` : "none",
       }}
     >
       {loading ? (
-        <span className="material-symbols-outlined text-[26px] animate-spin" style={{ color }}>progress_activity</span>
+        // Pure CSS ring spinner — always visible and clearly animated
+        <div className="animate-spin rounded-full w-[26px] h-[26px] border-[2.5px] border-transparent"
+          style={{ borderTopColor: color, borderRightColor: `${color}55` }} />
       ) : (
         <span className="material-symbols-outlined text-[26px]"
           style={{ color, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{icon}</span>
       )}
       <span className="text-[11px] font-semibold leading-tight w-full truncate px-1"
-        style={{ color: "var(--color-on-surface)" }}>{label}</span>
+        style={{ color: active && !loading ? color : "var(--color-on-surface)" }}>{label}</span>
     </Pressable>
   );
 }
