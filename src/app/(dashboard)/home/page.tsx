@@ -568,35 +568,35 @@ export default function HomePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
 
         {/* Belysning */}
-        {lights ? (
+        {lights && "areas" in lights ? (
           <LightingCard data={lights} onRefresh={refreshLights} />
         ) : (
           <Card><SectionLabel>Belysning</SectionLabel><Skeleton className="h-40" /></Card>
         )}
 
         {/* Klimat */}
-        {sensors ? (
+        {sensors && "areas" in sensors ? (
           <ClimateCard data={sensors} />
         ) : (
           <Card><SectionLabel>Klimat</SectionLabel><Skeleton className="h-40" /></Card>
         )}
 
         {/* Energi */}
-        {energy ? (
+        {energy && "accumulated_kwh" in energy ? (
           <EnergyCard data={energy} />
         ) : (
           <Card><SectionLabel>Energi</SectionLabel><Skeleton className="h-48" /></Card>
         )}
 
         {/* Elbilar */}
-        {cars ? (
+        {cars && "cars" in cars ? (
           <CarsCard data={cars} />
         ) : (
           <Card className="md:col-span-2"><SectionLabel>Elbilar &amp; laddning</SectionLabel><Skeleton className="h-36" /></Card>
         )}
 
         {/* Värmepumpar */}
-        {hvac ? (
+        {hvac && "heat_pump" in hvac ? (
           <HvacCard data={hvac} onRefresh={refreshHvac} />
         ) : (
           <Card className="md:col-span-2"><SectionLabel>Värmepumpar</SectionLabel><Skeleton className="h-36" /></Card>
