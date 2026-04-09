@@ -12,7 +12,7 @@ export async function GET() {
         getState("sensor.tibber_pulse_villa_bjorkdalen_min_effekt"),
         getState("sensor.tibber_pulse_villa_bjorkdalen_max_effekt"),
         getState("sensor.tibber_pulse_villa_bjorkdalen_ackumulerad_forbrukning"),
-        getState("sensor.tibber_pulse_villa_bjorkdalen_ackumulerad_kostnad"),
+        getState("sensor.villa_bjorkdalen_ackumulerad_kostnad"),
         getState("sensor.tibber_pulse_villa_bjorkdalen_manadskostnad"),
         getState("sensor.villa_bjorkdalen_manatlig_nettoforbrukning"),
       ]);

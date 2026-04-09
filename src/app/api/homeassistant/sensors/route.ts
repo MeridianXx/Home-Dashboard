@@ -24,7 +24,7 @@ export async function GET() {
     }
 
     // Outdoor temp from Nibe (most reliable)
-    const nibeOutdoor = states.find(s => s.entity_id === "sensor.villa_bjorkdalen_current_outdoor_temperature_bt1");
+    const nibeOutdoor = states.find(s => s.entity_id === "sensor.nibe_utomhustemperatur_bt1");
     const outdoor_temp = nibeOutdoor && nibeOutdoor.state !== "unknown"
       ? parseFloat(nibeOutdoor.state) : null;
 

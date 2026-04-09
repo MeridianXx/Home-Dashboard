@@ -558,7 +558,7 @@ export default function HomePage() {
         />
         <StatChip
           icon="electric_meter"
-          value={energy ? `${energy.current_power_w} W` : "–"}
+          value={energy && "current_power_w" in energy ? `${energy.current_power_w} W` : "–"}
           label="Aktuell effekt"
           color="var(--color-secondary)"
         />

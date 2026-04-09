@@ -115,7 +115,7 @@ sensor.tibber_pulse_villa_bjorkdalen_genomsnittlig_effekt        Genomsnittlig e
 sensor.tibber_pulse_villa_bjorkdalen_min_effekt                  Min effekt (W)
 sensor.tibber_pulse_villa_bjorkdalen_max_effekt                  Max effekt (W)
 sensor.tibber_pulse_villa_bjorkdalen_ackumulerad_forbrukning     Ackumulerad förbrukning idag (kWh)
-sensor.tibber_pulse_villa_bjorkdalen_ackumulerad_kostnad         Ackumulerad kostnad idag (SEK)
+sensor.villa_bjorkdalen_ackumulerad_kostnad                      Ackumulerad kostnad idag (SEK)
 ```
 
 ---
