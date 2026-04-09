@@ -876,7 +876,7 @@ export default function HomePage() {
             onClick={() => runAction("lights-off", async () => { await callAction("light", "turn_off", "all"); await refreshLights(); })}
           />
           {/* AC + Värme — two mini tiles sharing one grid slot */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex gap-1.5">
             <MiniTile
               label="AC" icon={acState === "cool" ? "mode_cool" : "mode_cool_off"}
               color="#475bc2"
