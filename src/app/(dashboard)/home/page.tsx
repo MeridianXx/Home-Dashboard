@@ -57,6 +57,39 @@ async function callAction(domain: string, service: string, entity_id: string | s
 
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 
+/** Cross-platform press button — uses pointer events so it works on iOS Safari */
+function Pressable({ children, onClick, disabled = false, className = "", style = {} }: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const [pressed, setPressed] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onPointerDown={() => setPressed(true)}
+      onPointerUp={() => setPressed(false)}
+      onPointerLeave={() => setPressed(false)}
+      onPointerCancel={() => setPressed(false)}
+      className={`select-none ${className}`}
+      style={{
+        transform: pressed && !disabled ? "scale(0.93)" : "scale(1)",
+        transition: "transform 0.08s ease, opacity 0.08s ease",
+        opacity: disabled ? 0.6 : pressed ? 0.85 : 1,
+        WebkitTapHighlightColor: "transparent",
+        touchAction: "manipulation",
+        cursor: "pointer",
+        ...style,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={`rounded-2xl p-5 ${className}`} style={{
@@ -83,13 +116,8 @@ function Skeleton({ className = "" }: { className?: string }) {
 function StatChip({ icon, value, label, color = "var(--color-primary)", onClick }: {
   icon: string; value: string; label: string; color?: string; onClick?: () => void;
 }) {
-  const Tag = onClick ? "button" : "div";
-  return (
-    <Tag
-      onClick={onClick}
-      className={`flex items-center gap-3 p-4 rounded-xl w-full text-left transition-all duration-100 ${onClick ? "active:scale-[0.97] active:brightness-95 cursor-pointer" : ""}`}
-      style={{ backgroundColor: "var(--color-surface-container)" }}
-    >
+  const inner = (
+    <>
       <span className="material-symbols-outlined text-[22px]" style={{ color }}>{icon}</span>
       <div className="min-w-0">
         <p className="text-lg font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>{value}</p>
@@ -99,7 +127,15 @@ function StatChip({ icon, value, label, color = "var(--color-primary)", onClick 
         <span className="material-symbols-outlined text-[16px] ml-auto shrink-0 opacity-40"
           style={{ color: "var(--color-on-surface)" }}>expand_more</span>
       )}
-    </Tag>
+    </>
+  );
+  if (!onClick) return (
+    <div className="flex items-center gap-3 p-4 rounded-xl"
+      style={{ backgroundColor: "var(--color-surface-container)" }}>{inner}</div>
+  );
+  return (
+    <Pressable onClick={onClick} className="flex items-center gap-3 p-4 rounded-xl w-full text-left"
+      style={{ backgroundColor: "var(--color-surface-container)" }}>{inner}</Pressable>
   );
 }
 
@@ -233,7 +269,7 @@ function DimmerPopover({ area, onClose, onRefresh }: {
         <div className="space-y-3">
           {area.lights.map(light => (
             <div key={light.entity_id} className="flex items-center gap-3">
-              <button onClick={() => handleToggle(light)} className="shrink-0">
+              <Pressable onClick={() => handleToggle(light)} className="shrink-0 p-1">
                 <span className="material-symbols-outlined text-[20px]"
                   style={{
                     color: light.state === "on" ? "var(--color-secondary)" : "var(--color-outline)",
@@ -241,7 +277,7 @@ function DimmerPopover({ area, onClose, onRefresh }: {
                   }}>
                   {light.state === "on" ? "light_mode" : "light_off"}
                 </span>
-              </button>
+              </Pressable>
               <span className="text-xs font-semibold flex-1 min-w-0 truncate"
                 style={{ color: "var(--color-on-surface)" }}>{light.name}</span>
               {light.dimmable && light.state === "on" && (
@@ -300,7 +336,7 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
               className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
               style={{ backgroundColor: area.on_count > 0 ? "rgba(0,116,62,0.08)" : "var(--color-surface-container)" }}>
               {/* Toggle zone */}
-              <button className="flex items-center gap-2 flex-1 min-w-0 text-left"
+              <Pressable className="flex items-center gap-2 flex-1 min-w-0 text-left"
                 onClick={() => handleToggleArea(area)}>
                 <span className="material-symbols-outlined text-[18px] shrink-0"
                   style={{
@@ -315,13 +351,12 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
                   style={{ color: "var(--color-outline)" }}>
                   {area.on_count}/{area.total_count}
                 </span>
-              </button>
+              </Pressable>
               {/* Dimmer button */}
-              <button onClick={() => setDimmerArea(area)}
-                className="shrink-0 opacity-40 hover:opacity-100 transition-opacity">
+              <Pressable onClick={() => setDimmerArea(area)} className="shrink-0 p-1">
                 <span className="material-symbols-outlined text-[16px]"
                   style={{ color: "var(--color-on-surface-variant)" }}>tune</span>
-              </button>
+              </Pressable>
             </div>
           ))}
         </div>
@@ -545,15 +580,15 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
           {hp.hvac_modes && (
             <div className="flex flex-wrap gap-1.5">
               {hp.hvac_modes.map(mode => (
-                <button key={mode} onClick={() => handleHeatPumpMode(mode)}
-                  className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg transition-colors"
+                <Pressable key={mode} onClick={() => handleHeatPumpMode(mode)}
+                  className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg"
                   style={{
                     backgroundColor: hp.state === mode ? `${hpColor}22` : "var(--color-surface-container-high)",
                     color: hp.state === mode ? hpColor : "var(--color-on-surface-variant)",
                   }}>
                   <span className="material-symbols-outlined text-[12px]">{HVAC_MODE_ICONS[mode] ?? "thermostat"}</span>
                   {HVAC_MODE_LABELS[mode] ?? mode}
-                </button>
+                </Pressable>
               ))}
             </div>
           )}
@@ -596,15 +631,15 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
               { label: "Ökad ventil.",   icon: "mode_fan",       active: flv.increased_ventilation, onToggle: () => handleFan(flv.increased_ventilation) },
               { label: "Kaminläge",      icon: "local_fire_department", active: flv.kaminlage,     onToggle: () => handleKaminlage(flv.kaminlage) },
             ].map(({ label, icon, active, onToggle }) => (
-              <button key={label} onClick={onToggle}
-                className="flex flex-col items-center gap-1 text-[10px] font-bold px-2 py-2 rounded-lg transition-colors"
+              <Pressable key={label} onClick={onToggle}
+                className="flex flex-col items-center gap-1 text-[10px] font-bold px-2 py-2 rounded-lg"
                 style={{
                   backgroundColor: active ? "rgba(71,91,194,0.15)" : "var(--color-surface-container-high)",
                   color: active ? "var(--color-primary)" : "var(--color-on-surface-variant)",
                 }}>
                 <span className="material-symbols-outlined text-[16px]">{icon}</span>
                 {label}
-              </button>
+              </Pressable>
             ))}
           </div>
         </div>
@@ -621,10 +656,10 @@ function FavTile({ label, icon, color, active, loading, onClick }: {
   active: boolean; loading: boolean; onClick: () => void;
 }) {
   return (
-    <button
+    <Pressable
       onClick={onClick}
       disabled={loading}
-      className="flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl text-center transition-all duration-100 active:scale-[0.93] active:brightness-90 select-none"
+      className="flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl text-center w-full"
       style={{
         backgroundColor: active ? `color-mix(in srgb, ${color} 12%, var(--color-surface-container))` : "var(--color-surface-container)",
         border: `1.5px solid ${active ? color : "transparent"}`,
@@ -638,7 +673,7 @@ function FavTile({ label, icon, color, active, loading, onClick }: {
       )}
       <span className="text-[11px] font-semibold leading-tight w-full truncate px-1"
         style={{ color: "var(--color-on-surface)" }}>{label}</span>
-    </button>
+    </Pressable>
   );
 }
 
