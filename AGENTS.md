@@ -107,8 +107,9 @@ sensor.vaxthus_temperatur       sensor.vaxthus_luftfuktighet
 ## Energi — Tibber Pulse
 
 ```
-sensor.villa_bjorkdalen_elpris                                   Spotpris (SEK/kWh)
-sensor.villa_bjorkdalen_manadskostnad                            Månadskostnad (SEK)
+sensor.tibber_pulse_villa_bjorkdalen_elpris                      Spotpris (SEK/kWh) — multiplicera ×100 för öre
+sensor.tibber_pulse_villa_bjorkdalen_manadskostnad               Månadskostnad (SEK)
+sensor.villa_bjorkdalen_manatlig_nettoforbrukning                Månatlig nettoförbrukning (kWh)
 sensor.tibber_pulse_villa_bjorkdalen_effekt                      Aktuell effekt (W)
 sensor.tibber_pulse_villa_bjorkdalen_genomsnittlig_effekt        Genomsnittlig effekt (W)
 sensor.tibber_pulse_villa_bjorkdalen_min_effekt                  Min effekt (W)
