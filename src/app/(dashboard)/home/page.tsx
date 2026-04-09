@@ -592,8 +592,10 @@ export default function HomePage() {
   const { data: cars }                       = useSWR<CarsData>    ("/api/homeassistant/cars",    fetcher, { refreshInterval: 60_000 });
   const { data: hvac,    mutate: mHvac    } = useSWR<HvacData>    ("/api/homeassistant/hvac",    fetcher, { refreshInterval: 15_000 });
 
-  const refreshLights = useCallback(() => { void mLights(); }, [mLights]);
-  const refreshHvac   = useCallback(() => { void mHvac(); },   [mHvac]);
+  // Awaitable refresh — waits for HA to process the command before revalidating
+  const delay = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+  const refreshLights = useCallback(async () => { await delay(600);  await mLights(); }, [mLights]);
+  const refreshHvac   = useCallback(async () => { await delay(1000); await mHvac();   }, [mHvac]);
 
   // Expanded chip state (inline expand-from-chip)
   const [expandedChip, setExpandedChip] = useState<"indoor" | "outdoor" | null>(null);
@@ -793,7 +795,7 @@ export default function HomePage() {
             label="Alla av" icon="light_off"
             color="var(--color-on-surface-variant)" active={false}
             loading={loadingKey === "lights-off"}
-            onClick={() => runAction("lights-off", async () => { await callAction("light", "turn_off", "all"); refreshLights(); })}
+            onClick={() => runAction("lights-off", async () => { await callAction("light", "turn_off", "all"); await refreshLights(); })}
           />
           <FavTile
             label={acOn ? `Kyla · på` : "Kyla"} icon={acOn && acState === "cool" ? "mode_cool" : "mode_cool_off"}
@@ -802,7 +804,7 @@ export default function HomePage() {
             onClick={() => runAction("ac", async () => {
               await callAction("climate", "set_hvac_mode", "climate.vardagsrum_luftvarmepump",
                 { hvac_mode: acState === "cool" ? "off" : "cool" });
-              void mHvac();
+              await refreshHvac();
             })}
           />
           <FavTile
@@ -812,7 +814,7 @@ export default function HomePage() {
             onClick={() => runAction("boost", async () => {
               await callAction("select", "select_option", "select.villa_bjorkdalen_more_hot_water",
                 { option: boostOn ? "Off" : "One-time incr." });
-              refreshHvac();
+              await refreshHvac();
             })}
           />
           <FavTile
@@ -821,7 +823,7 @@ export default function HomePage() {
             loading={loadingKey === "kamin"}
             onClick={() => runAction("kamin", async () => {
               await callAction("switch", kaminOn ? "turn_off" : "turn_on", "switch.nibe_kaminlage");
-              refreshHvac();
+              await refreshHvac();
             })}
           />
         </div>
