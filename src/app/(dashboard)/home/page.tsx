@@ -555,6 +555,39 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
   );
 }
 
+// ─── Mini tile (two tiles share one grid slot) ────────────────────────────────
+
+function MiniTile({ label, icon, color, active, loading, onClick }: {
+  label: string; icon: string; color: string;
+  active: boolean; loading: boolean; onClick: () => void;
+}) {
+  return (
+    <Pressable
+      onClick={onClick}
+      loading={loading}
+      className="flex flex-col items-center justify-center gap-1.5 py-3 px-1 rounded-xl text-center w-full"
+      style={{
+        backgroundColor: "var(--color-surface-container)",
+        border: `2px solid ${active && !loading ? color : "transparent"}`,
+        boxShadow: active && !loading ? `inset 0 0 0 99px ${color}18` : "none",
+      }}
+    >
+      {loading ? (
+        <svg className="spin-anim" viewBox="0 0 24 24" fill="none"
+          style={{ color, width: 20, height: 20, flexShrink: 0 }}>
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25"/>
+          <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+      ) : (
+        <span className="material-symbols-outlined text-[20px]"
+          style={{ color, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{icon}</span>
+      )}
+      <span className="text-[10px] font-semibold leading-tight w-full truncate"
+        style={{ color: active && !loading ? color : "var(--color-on-surface)" }}>{label}</span>
+    </Pressable>
+  );
+}
+
 // ─── Favorit tile ─────────────────────────────────────────────────────────────
 
 function FavTile({ label, icon, color, active, loading, onClick }: {
@@ -842,16 +875,31 @@ export default function HomePage() {
             loading={loadingKey === "lights-off"}
             onClick={() => runAction("lights-off", async () => { await callAction("light", "turn_off", "all"); await refreshLights(); })}
           />
-          <FavTile
-            label={acOn ? `Kyla · på` : "Kyla"} icon={acOn && acState === "cool" ? "mode_cool" : "mode_cool_off"}
-            color={acOn && acState === "cool" ? "var(--color-secondary)" : "var(--color-outline)"} active={acOn && acState === "cool"}
-            loading={loadingKey === "ac"}
-            onClick={() => runAction("ac", async () => {
-              await callAction("climate", "set_hvac_mode", "climate.vardagsrum_luftvarmepump",
-                { hvac_mode: acState === "cool" ? "off" : "cool" });
-              await refreshHvac();
-            })}
-          />
+          {/* AC + Värme — two mini tiles sharing one grid slot */}
+          <div className="flex flex-col gap-1.5">
+            <MiniTile
+              label="AC" icon={acState === "cool" ? "mode_cool" : "mode_cool_off"}
+              color="#475bc2"
+              active={acState === "cool"}
+              loading={loadingKey === "ac"}
+              onClick={() => runAction("ac", async () => {
+                await callAction("climate", "set_hvac_mode", "climate.vardagsrum_luftvarmepump",
+                  { hvac_mode: acState === "cool" ? "off" : "cool" });
+                await refreshHvac();
+              })}
+            />
+            <MiniTile
+              label="Värme" icon={acState === "heat" ? "mode_heat" : "mode_heat_off"}
+              color="#c0392b"
+              active={acState === "heat"}
+              loading={loadingKey === "heat"}
+              onClick={() => runAction("heat", async () => {
+                await callAction("climate", "set_hvac_mode", "climate.vardagsrum_luftvarmepump",
+                  { hvac_mode: acState === "heat" ? "off" : "heat" });
+                await refreshHvac();
+              })}
+            />
+          </div>
           <FavTile
             label="Boost VV" icon="water_drop"
             color={boostOn ? "var(--color-secondary)" : "var(--color-outline)"} active={boostOn}
