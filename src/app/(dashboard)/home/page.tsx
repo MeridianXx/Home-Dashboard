@@ -626,6 +626,7 @@ function FavTile({ label, icon, color, active, loading, onClick }: {
 
 export default function HomePage() {
   const hydrated = useHydrated();
+  const [lastScene, setLastScene] = useState<"kvall" | "natt" | null>(null);
 
   const { data: lights,  mutate: mLights  } = useSWR<LightsData>  ("/api/homeassistant/lights",  fetcher, { refreshInterval:  2_000 });
   const { data: sensors }                    = useSWR<SensorsData> ("/api/homeassistant/sensors", fetcher, { refreshInterval: 30_000 });
@@ -658,12 +659,14 @@ export default function HomePage() {
   if (!hydrated) return null;
 
   // Derive live states for stateful favorites
-  const hvacOk    = hvac && "heat_pump" in hvac;
-  const acState   = hvacOk ? hvac.heat_pump.state : "off";
-  const acOn      = acState !== "off";
-  const acLabel   = acOn ? ({ heat: "Värme", cool: "Kyla", heat_cool: "Auto", fan_only: "Fläkt", dry: "Torr" }[acState] ?? acState) : "AC";
-  const kaminOn   = hvacOk ? hvac.flv.kaminlage      : false;
-  const boostOn   = hvacOk ? hvac.flv.more_hot_water : false;
+  const hvacOk      = hvac && "heat_pump" in hvac;
+  const acState     = hvacOk ? hvac.heat_pump.state : "off";
+  const acOn        = acState !== "off";
+  const acLabel     = acOn ? ({ heat: "Värme", cool: "Kyla", heat_cool: "Auto", fan_only: "Fläkt", dry: "Torr" }[acState] ?? acState) : "AC";
+  const kaminOn     = hvacOk ? hvac.flv.kaminlage      : false;
+  const boostOn     = hvacOk ? hvac.flv.more_hot_water : false;
+  const lightsOk    = lights && "areas" in lights;
+  const allLightsOff = lightsOk ? lights.areas.every(a => a.on_count === 0) : false;
   const sensorsOk = sensors && "areas" in sensors;
 
   // Primary indoor temp: Nibe BT50, fallback to avg
@@ -859,21 +862,31 @@ export default function HomePage() {
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           <FavTile
             label="Kväll" icon="partly_cloudy_night"
-            color="var(--color-primary)" active={false}
+            color="#a855f7" active={lastScene === "kvall"}
             loading={loadingKey === "scene-kvall"}
-            onClick={() => runAction("scene-kvall", () => callAction("scene", "turn_on", "scene.fasad"))}
+            onClick={() => runAction("scene-kvall", async () => {
+              await callAction("scene", "turn_on", "scene.fasad");
+              setLastScene("kvall");
+            })}
           />
           <FavTile
             label="Natt" icon="bedtime"
-            color="var(--color-primary)" active={false}
+            color="#1d4ed8" active={lastScene === "natt"}
             loading={loadingKey === "scene-natt"}
-            onClick={() => runAction("scene-natt", () => callAction("scene", "turn_on", "scene.fasad_nattlage"))}
+            onClick={() => runAction("scene-natt", async () => {
+              await callAction("scene", "turn_on", "scene.fasad_nattlage");
+              setLastScene("natt");
+            })}
           />
           <FavTile
             label="Alla av" icon="light_off"
-            color="var(--color-on-surface-variant)" active={false}
+            color="#16a34a" active={allLightsOff}
             loading={loadingKey === "lights-off"}
-            onClick={() => runAction("lights-off", async () => { await callAction("light", "turn_off", "all"); await refreshLights(); })}
+            onClick={() => runAction("lights-off", async () => {
+              setLastScene(null);
+              await callAction("light", "turn_off", "all");
+              await refreshLights();
+            })}
           />
           {/* AC + Värme — two mini tiles sharing one grid slot */}
           <div className="flex gap-1.5">
@@ -902,7 +915,7 @@ export default function HomePage() {
           </div>
           <FavTile
             label="Boost VV" icon="water_drop"
-            color={boostOn ? "var(--color-secondary)" : "var(--color-outline)"} active={boostOn}
+            color={boostOn ? "#0ea5e9" : "var(--color-outline)"} active={boostOn}
             loading={loadingKey === "boost"}
             onClick={() => runAction("boost", async () => {
               await callAction("select", "select_option", "select.villa_bjorkdalen_more_hot_water",
@@ -912,7 +925,7 @@ export default function HomePage() {
           />
           <FavTile
             label="Kaminläge" icon="local_fire_department"
-            color={kaminOn ? "var(--color-tertiary)" : "var(--color-outline)"} active={kaminOn}
+            color={kaminOn ? "#f97316" : "var(--color-outline)"} active={kaminOn}
             loading={loadingKey === "kamin"}
             onClick={() => runAction("kamin", async () => {
               await callAction("switch", kaminOn ? "turn_off" : "turn_on", "switch.nibe_kaminlage");
