@@ -651,135 +651,174 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Status strip — chips + inline expand panels */}
-      <div className="rounded-2xl overflow-hidden" style={{
-        backgroundColor: "var(--color-surface-container)",
-        boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
-      }}>
-        {/* Chip row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4">
-          {/* Indoor */}
-          <Pressable
-            onClick={sensorsOk ? () => toggleChip("indoor") : undefined}
-            className="flex items-center gap-3 p-4 text-left"
-            style={{
-              backgroundColor: expandedChip === "indoor" ? "color-mix(in srgb, var(--color-primary) 10%, var(--color-surface-container))" : "transparent",
-              borderBottom: expandedChip === "indoor" ? "2px solid var(--color-primary)" : "2px solid transparent",
-            }}
-          >
-            <span className="material-symbols-outlined text-[22px]"
-              style={{ color: "var(--color-primary)", fontVariationSettings: expandedChip === "indoor" ? "'FILL' 1" : "'FILL' 0" }}>thermostat</span>
-            <div className="min-w-0">
-              <p className="text-lg font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>
-                {indoorTemp != null ? `${indoorTemp}°C` : "–"}
-              </p>
-              <p className="text-[11px] font-medium" style={{ color: "var(--color-on-surface-variant)" }}>Inomhus</p>
-            </div>
-            {sensorsOk && <span className="material-symbols-outlined text-[16px] ml-auto shrink-0 opacity-40 transition-transform duration-200"
-              style={{ color: "var(--color-on-surface)", transform: expandedChip === "indoor" ? "rotate(180deg)" : "rotate(0deg)" }}>expand_more</span>}
-          </Pressable>
+      {/* Status strip — split into temp row (expandable) + energy row */}
+      {(() => {
+        // Separate växthus from indoor areas
+        const indoorAreas = sensorsOk ? sensors.areas.filter(a => a.name.toLowerCase() !== "växthus") : [];
+        const vaxthusArea = sensorsOk ? sensors.areas.find(a => a.name.toLowerCase() === "växthus") : null;
 
-          {/* Outdoor */}
-          <Pressable
-            onClick={sensorsOk ? () => toggleChip("outdoor") : undefined}
-            className="flex items-center gap-3 p-4 text-left"
-            style={{
-              backgroundColor: expandedChip === "outdoor" ? "color-mix(in srgb, var(--color-tertiary) 10%, var(--color-surface-container))" : "transparent",
-              borderBottom: expandedChip === "outdoor" ? "2px solid var(--color-tertiary)" : "2px solid transparent",
-            }}
-          >
-            <span className="material-symbols-outlined text-[22px]"
-              style={{ color: "var(--color-tertiary)", fontVariationSettings: expandedChip === "outdoor" ? "'FILL' 1" : "'FILL' 0" }}>device_thermostat</span>
-            <div className="min-w-0">
-              <p className="text-lg font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>
-                {sensors?.outdoor_temp != null ? `${sensors.outdoor_temp}°C` : "–"}
-              </p>
-              <p className="text-[11px] font-medium" style={{ color: "var(--color-on-surface-variant)" }}>Utomhus</p>
-            </div>
-            {sensorsOk && <span className="material-symbols-outlined text-[16px] ml-auto shrink-0 opacity-40 transition-transform duration-200"
-              style={{ color: "var(--color-on-surface)", transform: expandedChip === "outdoor" ? "rotate(180deg)" : "rotate(0deg)" }}>expand_more</span>}
-          </Pressable>
+        const ChipRow = ({ children }: { children: React.ReactNode }) => (
+          <div className="grid grid-cols-2">{children}</div>
+        );
 
-          {/* Spotpris */}
-          <div className="flex items-center gap-3 p-4">
-            <span className="material-symbols-outlined text-[22px]" style={{ color: "var(--color-secondary)" }}>bolt</span>
-            <div className="min-w-0">
-              <p className="text-lg font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>
-                {energy?.spot_price_ore != null ? `${energy.spot_price_ore.toFixed(1)} öre` : "–"}
-              </p>
-              <p className="text-[11px] font-medium" style={{ color: "var(--color-on-surface-variant)" }}>Spotpris</p>
-            </div>
-          </div>
-
-          {/* Aktuell effekt */}
-          <div className="flex items-center gap-3 p-4">
-            <span className="material-symbols-outlined text-[22px]" style={{ color: "var(--color-secondary)" }}>electric_meter</span>
-            <div className="min-w-0">
-              <p className="text-lg font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>
-                {energy && "current_power_w" in energy ? `${energy.current_power_w} W` : "–"}
-              </p>
-              <p className="text-[11px] font-medium" style={{ color: "var(--color-on-surface-variant)" }}>Aktuell effekt</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Indoor expand panel */}
-        {expandedChip === "indoor" && sensorsOk && (
-          <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: "color-mix(in srgb, var(--color-primary) 20%, transparent)" }}>
-            <div className="space-y-1">
-              {/* BT50 primary */}
-              {sensors.nibe_indoor_temp != null && (
-                <div className="flex items-center justify-between py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[16px]" style={{ color: "var(--color-primary)" }}>thermostat</span>
-                    <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>Nibe BT50</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ backgroundColor: "color-mix(in srgb, var(--color-primary) 15%, transparent)", color: "var(--color-primary)" }}>primär</span>
-                  </div>
-                  <span className="text-sm font-black" style={{ color: "var(--color-primary)" }}>{sensors.nibe_indoor_temp.toFixed(1)}°C</span>
-                </div>
+        const ExpandChip = ({ chip, icon, value, label, color }: {
+          chip: "indoor" | "outdoor"; icon: string; value: string; label: string; color: string;
+        }) => {
+          const open = expandedChip === chip;
+          return (
+            <Pressable
+              onClick={sensorsOk ? () => toggleChip(chip) : undefined}
+              className="flex items-center gap-3 p-4 text-left"
+              style={{ borderBottom: open ? `2px solid ${color}` : "2px solid transparent" }}
+            >
+              <span className="material-symbols-outlined text-[22px]"
+                style={{ color, fontVariationSettings: open ? "'FILL' 1" : "'FILL' 0" }}>{icon}</span>
+              <div className="min-w-0">
+                <p className="text-lg font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>{value}</p>
+                <p className="text-[11px] font-medium" style={{ color: "var(--color-on-surface-variant)" }}>{label}</p>
+              </div>
+              {sensorsOk && (
+                <span className="material-symbols-outlined text-[16px] ml-auto shrink-0 opacity-40"
+                  style={{ color: "var(--color-on-surface)", transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
+                  expand_more
+                </span>
               )}
-              {/* Per-area sensors */}
-              {sensors.areas.map(area => (
-                <div key={area.area_id} className="flex items-center justify-between py-2 border-t"
-                  style={{ borderColor: "var(--color-outline-variant)" }}>
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "var(--color-primary)" }} />
-                    <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {area.humidity != null && (
-                      <span className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>{area.humidity}%</span>
-                    )}
-                    <span className="text-sm font-black" style={{ color: "var(--color-on-surface)" }}>{area.temperature.toFixed(1)}°C</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+            </Pressable>
+          );
+        };
 
-        {/* Outdoor expand panel */}
-        {expandedChip === "outdoor" && sensorsOk && (
-          <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: "color-mix(in srgb, var(--color-tertiary) 20%, transparent)" }}>
-            <div className="space-y-1">
-              {[
-                { label: "Utetemperatur (BT1)", value: sensors.outdoor_temp,          icon: "device_thermostat", color: "var(--color-tertiary)" },
-                { label: "Frånluft",            value: hvacOk ? hvac.flv.franluft_temp : null, icon: "air",          color: "var(--color-on-surface-variant)" },
-                { label: "Varmvatten",          value: hvacOk ? hvac.flv.hot_water_temp : null, icon: "water_drop",  color: "var(--color-secondary)" },
-              ].filter(r => r.value != null).map((row, i) => (
-                <div key={row.label} className={`flex items-center justify-between py-2 ${i > 0 ? "border-t" : ""}`}
-                  style={{ borderColor: "var(--color-outline-variant)" }}>
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[16px]" style={{ color: row.color }}>{row.icon}</span>
-                    <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>{row.label}</span>
+        const PrimaryBadge = ({ color }: { color: string }) => (
+          <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0"
+            style={{ border: `1px solid ${color}`, color }}>primär</span>
+        );
+
+        return (
+          <div className="rounded-2xl overflow-hidden" style={{
+            backgroundColor: "var(--color-surface-container)",
+            boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
+          }}>
+            {/* Row 1: temp chips */}
+            <ChipRow>
+              <ExpandChip chip="indoor" icon="thermostat"
+                value={indoorTemp != null ? `${indoorTemp}°C` : "–"}
+                label="Inomhus" color="var(--color-primary)" />
+              <ExpandChip chip="outdoor" icon="device_thermostat"
+                value={sensors?.outdoor_temp != null ? `${sensors.outdoor_temp}°C` : "–"}
+                label="Utomhus" color="var(--color-tertiary)" />
+            </ChipRow>
+
+            {/* Indoor expand panel */}
+            {expandedChip === "indoor" && sensorsOk && (
+              <div className="px-4 pb-4 pt-1 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
+                {/* BT50 primary row */}
+                {sensors.nibe_indoor_temp != null && (
+                  <div className="flex items-center justify-between py-2.5">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="material-symbols-outlined text-[15px] shrink-0" style={{ color: "var(--color-primary)" }}>thermostat</span>
+                      <span className="text-sm font-semibold truncate" style={{ color: "var(--color-on-surface)" }}>Innetemperatur</span>
+                      <PrimaryBadge color="var(--color-primary)" />
+                    </div>
+                    <span className="text-sm font-black ml-3 shrink-0" style={{ color: "var(--color-primary)" }}>
+                      {sensors.nibe_indoor_temp.toFixed(1)}°C
+                    </span>
                   </div>
-                  <span className="text-sm font-black" style={{ color: row.color }}>{(row.value as number).toFixed(1)}°C</span>
+                )}
+                {/* Per-area (excluding växthus) */}
+                {indoorAreas.map(area => (
+                  <div key={area.area_id} className="flex items-center justify-between py-2.5 border-t"
+                    style={{ borderColor: "var(--color-outline-variant)" }}>
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "var(--color-primary)" }} />
+                      <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      {area.humidity != null && (
+                        <span className="flex items-center gap-0.5 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                          <span className="material-symbols-outlined text-[11px]">water_drop</span>
+                          {Math.round(area.humidity)}%
+                        </span>
+                      )}
+                      <span className="text-sm font-black" style={{ color: "var(--color-on-surface)" }}>{area.temperature.toFixed(1)}°C</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Outdoor expand panel */}
+            {expandedChip === "outdoor" && sensorsOk && (
+              <div className="px-4 pb-4 pt-1 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
+                {/* BT1 primary row */}
+                {sensors.outdoor_temp != null && (
+                  <div className="flex items-center justify-between py-2.5">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="material-symbols-outlined text-[15px] shrink-0" style={{ color: "var(--color-tertiary)" }}>device_thermostat</span>
+                      <span className="text-sm font-semibold truncate" style={{ color: "var(--color-on-surface)" }}>Utetemperatur</span>
+                      <PrimaryBadge color="var(--color-tertiary)" />
+                    </div>
+                    <span className="text-sm font-black ml-3 shrink-0" style={{ color: "var(--color-tertiary)" }}>
+                      {sensors.outdoor_temp.toFixed(1)}°C
+                    </span>
+                  </div>
+                )}
+                {/* Frånluft */}
+                {hvacOk && hvac.flv.franluft_temp != null && (
+                  <div className="flex items-center justify-between py-2.5 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[15px]" style={{ color: "var(--color-on-surface-variant)" }}>air</span>
+                      <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>Frånluft</span>
+                    </div>
+                    <span className="text-sm font-black" style={{ color: "var(--color-on-surface-variant)" }}>{hvac.flv.franluft_temp.toFixed(1)}°C</span>
+                  </div>
+                )}
+                {/* Växthus */}
+                {vaxthusArea && (
+                  <div className="flex items-center justify-between py-2.5 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[15px]" style={{ color: "var(--color-tertiary)" }}>potted_plant</span>
+                      <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>Växthus</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      {vaxthusArea.humidity != null && (
+                        <span className="flex items-center gap-0.5 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                          <span className="material-symbols-outlined text-[11px]">water_drop</span>
+                          {Math.round(vaxthusArea.humidity)}%
+                        </span>
+                      )}
+                      <span className="text-sm font-black" style={{ color: "var(--color-tertiary)" }}>{vaxthusArea.temperature.toFixed(1)}°C</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Divider between temp and energy rows */}
+            <div className="h-px mx-4" style={{ backgroundColor: "var(--color-outline-variant)" }} />
+
+            {/* Row 2: energy chips (never expandable) */}
+            <ChipRow>
+              <div className="flex items-center gap-3 p-4">
+                <span className="material-symbols-outlined text-[22px]" style={{ color: "var(--color-secondary)" }}>bolt</span>
+                <div className="min-w-0">
+                  <p className="text-lg font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>
+                    {energy?.spot_price_ore != null ? `${energy.spot_price_ore.toFixed(1)} öre` : "–"}
+                  </p>
+                  <p className="text-[11px] font-medium" style={{ color: "var(--color-on-surface-variant)" }}>Spotpris</p>
                 </div>
-              ))}
-            </div>
+              </div>
+              <div className="flex items-center gap-3 p-4">
+                <span className="material-symbols-outlined text-[22px]" style={{ color: "var(--color-secondary)" }}>electric_meter</span>
+                <div className="min-w-0">
+                  <p className="text-lg font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>
+                    {energy && "current_power_w" in energy ? `${energy.current_power_w} W` : "–"}
+                  </p>
+                  <p className="text-[11px] font-medium" style={{ color: "var(--color-on-surface-variant)" }}>Aktuell effekt</p>
+                </div>
+              </div>
+            </ChipRow>
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Favoriter */}
       <Card>
