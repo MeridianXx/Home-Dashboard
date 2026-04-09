@@ -166,9 +166,15 @@ function DimmerPopover({ area, onClose, onRefresh }: {
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      {/* Panel */}
-      <div className="fixed inset-x-4 bottom-4 z-50 rounded-2xl p-5 shadow-2xl md:inset-auto md:right-8 md:bottom-8 md:w-80"
-        style={{ backgroundColor: "var(--color-surface-container-lowest)", border: "1px solid var(--color-outline-variant)" }}>
+      {/* Panel — centered on all screen sizes */}
+      <div className="fixed z-50 rounded-2xl p-5 shadow-2xl"
+        style={{
+          left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+          width: "min(calc(100vw - 2rem), 22rem)",
+          maxHeight: "80vh", overflowY: "auto",
+          backgroundColor: "var(--color-surface-container-lowest)",
+          border: "1px solid var(--color-outline-variant)",
+        }}>
         <div className="flex items-center justify-between mb-4">
           <p className="font-bold text-sm" style={{ color: "var(--color-on-surface)" }}>{area.name}</p>
           <button onClick={onClose} className="material-symbols-outlined text-[20px] opacity-60 hover:opacity-100"
@@ -238,18 +244,20 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
         <div className="grid grid-cols-3 gap-2">
           {data.areas.map(area => {
             const on = area.on_count > 0;
+            const AMBER = "#f59e0b";
             return (
-              <div key={area.area_id} className="relative">
+              <div key={area.area_id} className="flex flex-col rounded-xl overflow-hidden"
+                style={{
+                  backgroundColor: on ? "rgba(245,158,11,0.1)" : "var(--color-surface-container)",
+                  border: `1.5px solid ${on ? AMBER : "transparent"}`,
+                }}>
+                {/* Toggle zone */}
                 <Pressable
                   onClick={() => handleToggleArea(area)}
-                  className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl w-full text-center"
-                  style={{
-                    backgroundColor: on ? "rgba(0,116,62,0.1)" : "var(--color-surface-container)",
-                    border: `1.5px solid ${on ? "var(--color-secondary)" : "transparent"}`,
-                  }}>
+                  className="flex flex-col items-center gap-1.5 py-3 px-1 text-center w-full">
                   <span className="material-symbols-outlined text-[20px]"
                     style={{
-                      color: on ? "var(--color-secondary)" : "var(--color-outline)",
+                      color: on ? AMBER : "var(--color-outline)",
                       fontVariationSettings: on ? "'FILL' 1" : "'FILL' 0",
                     }}>
                     {on ? "light_mode" : "light_off"}
@@ -257,16 +265,19 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
                   <span className="text-[10px] font-semibold leading-tight truncate w-full px-1"
                     style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
                   {area.total_count > 1 && (
-                    <span className="text-[9px]"
-                      style={{ color: on ? "var(--color-secondary)" : "var(--color-outline)" }}>
+                    <span className="text-[9px]" style={{ color: on ? AMBER : "var(--color-outline)" }}>
                       {area.on_count}/{area.total_count}
                     </span>
                   )}
                 </Pressable>
+                {/* Tune strip */}
                 <button onClick={() => setDimmerArea(area)}
-                  className="absolute top-1.5 right-1.5 leading-none"
-                  style={{ color: "var(--color-on-surface-variant)", opacity: 0.5 }}>
-                  <span className="material-symbols-outlined text-[13px]">tune</span>
+                  className="w-full flex items-center justify-center py-1.5 border-t"
+                  style={{
+                    borderColor: on ? "rgba(245,158,11,0.25)" : "var(--color-outline-variant)",
+                    color: "var(--color-on-surface-variant)", opacity: 0.65,
+                  }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 12 }}>tune</span>
                 </button>
               </div>
             );
@@ -288,38 +299,29 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
 
 // ─── Elbilar ─────────────────────────────────────────────────────────────────
 
-function carBattColor(car: Car): string {
-  if (car.charging) return "var(--color-secondary)";
-  if (car.soc < 20) return "var(--color-error)";
-  if (car.soc < 50) return "var(--color-tertiary)";
-  return "var(--color-primary)";
-}
-
 function CarsCard({ data }: { data: CarsData }) {
   return (
     <Card className="md:col-span-2">
       <SectionLabel>Elbilar &amp; laddning</SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {data.cars.map(car => {
-          const battColor = carBattColor(car);
+          const battColor = car.soc < 20 ? "var(--color-error)" : "var(--color-primary)";
           return (
             <div key={car.id} className="p-4 rounded-xl"
               style={{ backgroundColor: "var(--color-surface-container)" }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-[20px]"
-                    style={{ color: car.charging ? "var(--color-secondary)" : "var(--color-on-surface-variant)" }}>
-                    electric_car
-                  </span>
+                    style={{ color: "var(--color-on-surface-variant)" }}>electric_car</span>
                   <span className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>{car.name}</span>
                 </div>
-                <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
+                {/* Badge: kontakt (binary_sensor.vanster/hoger_kontakt) */}
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full"
                   style={{
-                    backgroundColor: car.charging ? "var(--color-secondary-container)" : "var(--color-surface-container-high)",
-                    color: car.charging ? "var(--color-secondary)" : "var(--color-on-surface-variant)",
+                    backgroundColor: "var(--color-surface-container-high)",
+                    color: car.plugged_in ? "var(--color-on-surface)" : "var(--color-outline)",
                   }}>
-                  {car.charging && <span className="material-symbols-outlined text-[12px] spin-anim" style={{ animationDuration: "2s" }}>bolt</span>}
-                  {car.charging ? "Laddar" : car.plugged_in ? "Inkopplad" : "Klar"}
+                  {car.plugged_in ? "Inkopplad" : "Ej inkopplad"}
                 </span>
               </div>
 
@@ -342,8 +344,9 @@ function CarsCard({ data }: { data: CarsData }) {
 
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  ["Räckvidd", `ca ${car.range_km} km`],
-                  ["Status", car.charging ? "Laddar" : car.plugged_in ? "Inkopplad" : "Ej inkopplad"],
+                  ["Räckvidd",  `ca ${car.range_km} km`],
+                  /* Laddning: binary_sensor.vanster/hoger_laddning */
+                  ["Laddning",  car.charging ? "Aktiv" : "Inaktiv"],
                 ].map(([k, v]) => (
                   <div key={k}>
                     <p className="text-[10px] font-bold uppercase" style={{ color: "var(--color-outline)" }}>{k}</p>
@@ -992,21 +995,7 @@ export default function HomePage() {
           <Card><SectionLabel>Belysning</SectionLabel><Skeleton className="h-40" /></Card>
         )}
 
-        {/* Energi */}
-        {energy && "accumulated_kwh" in energy ? (
-          <EnergyCard data={energy} />
-        ) : (
-          <Card><SectionLabel>Energi</SectionLabel><Skeleton className="h-48" /></Card>
-        )}
-
-        {/* Dammsugare */}
-        {vacuum && "state" in vacuum ? (
-          <VacuumCard data={vacuum} onRefresh={refreshVacuum} />
-        ) : (
-          <Card><SectionLabel>Dammsugare</SectionLabel><Skeleton className="h-36" /></Card>
-        )}
-
-        {/* Elbilar */}
+        {/* Elbilar — placeras tidigt i flödet, tar 2 kolumner på desktop */}
         {cars && "cars" in cars ? (
           <CarsCard data={cars} />
         ) : (
@@ -1018,6 +1007,20 @@ export default function HomePage() {
           <HvacCard data={hvac} onRefresh={refreshHvac} />
         ) : (
           <Card className="md:col-span-2"><SectionLabel>Värmepumpar</SectionLabel><Skeleton className="h-36" /></Card>
+        )}
+
+        {/* Energi — under elbilar */}
+        {energy && "accumulated_kwh" in energy ? (
+          <EnergyCard data={energy} />
+        ) : (
+          <Card><SectionLabel>Energi</SectionLabel><Skeleton className="h-48" /></Card>
+        )}
+
+        {/* Dammsugare — bredvid energi */}
+        {vacuum && "state" in vacuum ? (
+          <VacuumCard data={vacuum} onRefresh={refreshVacuum} />
+        ) : (
+          <Card><SectionLabel>Dammsugare</SectionLabel><Skeleton className="h-36" /></Card>
         )}
 
       </div>

@@ -145,9 +145,9 @@ body {
   animation: status-pulse 2s ease-in-out infinite;
 }
 
-/* Dark mode overrides via system preference */
+/* ── Dark token set ── (used by both media-query auto and explicit data-theme="dark") */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --color-surface:                   #0e0e0c;
     --color-surface-bright:            #151512;
     --color-surface-container-lowest:  #131311;
@@ -163,7 +163,26 @@ body {
     --color-inverse-on-surface:        #383833;
     --color-outline-variant:           #3e3e38;
     --color-outline:                   #919188;
-    /* Card border visible only in dark mode */
     --color-card-border:               #3e3e38;
   }
+}
+
+/* Explicit dark — always applies regardless of system preference */
+[data-theme="dark"] {
+  --color-surface:                   #0e0e0c;
+  --color-surface-bright:            #151512;
+  --color-surface-container-lowest:  #131311;
+  --color-surface-container-low:     #181816;
+  --color-surface-container:         #252521;
+  --color-surface-container-high:    #2e2e2a;
+  --color-surface-container-highest: #363632;
+  --color-background:                #0e0e0c;
+  --color-on-surface:                #e6e3dc;
+  --color-on-surface-variant:        #bbb9b2;
+  --color-on-background:             #e6e3dc;
+  --color-inverse-surface:           #fffcf7;
+  --color-inverse-on-surface:        #383833;
+  --color-outline-variant:           #3e3e38;
+  --color-outline:                   #919188;
+  --color-card-border:               #3e3e38;
 }

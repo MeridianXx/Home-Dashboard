@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
+import { useTheme } from "@/lib/theme";
+
+const THEME_ICONS: Record<string, string>  = { auto: "brightness_auto", light: "light_mode", dark: "dark_mode" };
+const THEME_LABELS: Record<string, string> = { auto: "Auto", light: "Ljust", dark: "Mörkt" };
 
 const CONTEXTS = [
   { icon: "home", label: "Hem", href: "/home" },
@@ -23,6 +27,7 @@ export default function Sidebar() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const isCollapsed = mounted && collapsed;
+  const { theme, cycleTheme } = useTheme();
 
   return (
     <aside
@@ -83,7 +88,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Secondary links */}
+      {/* Secondary links + theme toggle */}
       <div className={`${isCollapsed ? "px-1" : "px-2"} mb-4 space-y-0.5`}>
         {SECONDARY.map(({ icon, label, href }) => (
           <Link
@@ -99,6 +104,19 @@ export default function Sidebar() {
             {!isCollapsed && <span className="text-sm font-medium">{label}</span>}
           </Link>
         ))}
+
+        {/* Theme toggle */}
+        <button
+          onClick={cycleTheme}
+          title={isCollapsed ? `Tema: ${THEME_LABELS[theme]}` : undefined}
+          className={`w-full flex items-center gap-3 rounded-xl transition-all opacity-50 hover:opacity-80 ${
+            isCollapsed ? "justify-center px-0 py-3" : "px-3 py-2"
+          }`}
+          style={{ color: "var(--color-on-surface)" }}
+        >
+          <span className="material-symbols-outlined text-[20px]">{THEME_ICONS[theme]}</span>
+          {!isCollapsed && <span className="text-sm font-medium">{THEME_LABELS[theme]}</span>}
+        </button>
       </div>
     </aside>
   );
