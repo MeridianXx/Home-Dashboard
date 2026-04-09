@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import useSWR from "swr";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -80,16 +80,124 @@ function Skeleton({ className = "" }: { className?: string }) {
     style={{ backgroundColor: "var(--color-surface-container)" }} />;
 }
 
-function StatChip({ icon, value, label, color = "var(--color-primary)" }: { icon: string; value: string; label: string; color?: string }) {
+function StatChip({ icon, value, label, color = "var(--color-primary)", onClick }: {
+  icon: string; value: string; label: string; color?: string; onClick?: () => void;
+}) {
+  const Tag = onClick ? "button" : "div";
   return (
-    <div className="flex items-center gap-3 p-4 rounded-xl"
-      style={{ backgroundColor: "var(--color-surface-container)" }}>
+    <Tag
+      onClick={onClick}
+      className={`flex items-center gap-3 p-4 rounded-xl w-full text-left transition-all duration-100 ${onClick ? "active:scale-[0.97] active:brightness-95 cursor-pointer" : ""}`}
+      style={{ backgroundColor: "var(--color-surface-container)" }}
+    >
       <span className="material-symbols-outlined text-[22px]" style={{ color }}>{icon}</span>
-      <div>
+      <div className="min-w-0">
         <p className="text-lg font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>{value}</p>
         <p className="text-[11px] font-medium" style={{ color: "var(--color-on-surface-variant)" }}>{label}</p>
       </div>
+      {onClick && (
+        <span className="material-symbols-outlined text-[16px] ml-auto shrink-0 opacity-40"
+          style={{ color: "var(--color-on-surface)" }}>expand_more</span>
+      )}
+    </Tag>
+  );
+}
+
+// ─── Bottom Sheet ─────────────────────────────────────────────────────────────
+
+function BottomSheet({ title, onClose, children }: {
+  title: string; onClose: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center md:justify-center">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      {/* Sheet */}
+      <div className="relative z-10 w-full md:max-w-sm rounded-t-3xl md:rounded-2xl p-6 shadow-2xl"
+        style={{ backgroundColor: "var(--color-surface-container-lowest)", border: "1px solid var(--color-outline-variant)" }}>
+        {/* Drag handle (mobile) */}
+        <div className="w-10 h-1 rounded-full mx-auto mb-5 md:hidden"
+          style={{ backgroundColor: "var(--color-outline-variant)" }} />
+        <div className="flex items-center justify-between mb-5">
+          <p className="font-bold text-base" style={{ color: "var(--color-on-surface)" }}>{title}</p>
+          <button onClick={onClose}
+            className="material-symbols-outlined text-[20px] opacity-50 hover:opacity-100 transition-opacity"
+            style={{ color: "var(--color-on-surface)" }}>close</button>
+        </div>
+        {children}
+      </div>
     </div>
+  );
+}
+
+// ─── Indoor temp modal ────────────────────────────────────────────────────────
+
+function IndoorTempSheet({ data, onClose }: { data: SensorsData; onClose: () => void }) {
+  return (
+    <BottomSheet title="Temperaturer inomhus" onClose={onClose}>
+      <div className="space-y-1">
+        {data.areas.map(area => (
+          <div key={area.area_id}
+            className="flex items-center justify-between py-3 border-b"
+            style={{ borderColor: "var(--color-outline-variant)" }}>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--color-primary)" }} />
+              <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              {area.humidity != null && (
+                <span className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
+                  {area.humidity}%
+                </span>
+              )}
+              <span className="text-sm font-black" style={{ color: "var(--color-primary)" }}>
+                {area.temperature.toFixed(1)}°C
+              </span>
+            </div>
+          </div>
+        ))}
+        {data.avg_indoor != null && (
+          <div className="flex items-center justify-between pt-3">
+            <span className="text-xs font-bold uppercase tracking-wider"
+              style={{ color: "var(--color-on-surface-variant)" }}>Snitt</span>
+            <span className="text-sm font-black" style={{ color: "var(--color-on-surface)" }}>
+              {data.avg_indoor.toFixed(1)}°C
+            </span>
+          </div>
+        )}
+      </div>
+    </BottomSheet>
+  );
+}
+
+// ─── Outdoor temp modal ───────────────────────────────────────────────────────
+
+function OutdoorTempSheet({ sensors, hvac, onClose }: {
+  sensors: SensorsData; hvac: HvacData | undefined; onClose: () => void;
+}) {
+  const rows: { label: string; value: string | null; icon: string }[] = [
+    { label: "Utomhus (Nibe BT1)", value: sensors.outdoor_temp != null ? `${sensors.outdoor_temp.toFixed(1)}°C` : null, icon: "device_thermostat" },
+    { label: "Frånluft",           value: hvac?.flv.franluft_temp != null ? `${hvac.flv.franluft_temp.toFixed(1)}°C` : null, icon: "air" },
+    { label: "Varmvatten",         value: hvac?.flv.hot_water_temp != null ? `${hvac.flv.hot_water_temp.toFixed(1)}°C` : null, icon: "water_drop" },
+  ].filter(r => r.value != null);
+
+  return (
+    <BottomSheet title="Klimat utomhus" onClose={onClose}>
+      <div className="space-y-1">
+        {rows.map(row => (
+          <div key={row.label}
+            className="flex items-center justify-between py-3 border-b"
+            style={{ borderColor: "var(--color-outline-variant)" }}>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]"
+                style={{ color: "var(--color-tertiary)" }}>{row.icon}</span>
+              <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>{row.label}</span>
+            </div>
+            <span className="text-sm font-black" style={{ color: "var(--color-tertiary)" }}>{row.value}</span>
+          </div>
+        ))}
+      </div>
+    </BottomSheet>
   );
 }
 
@@ -506,6 +614,34 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
   );
 }
 
+// ─── Favorit tile ─────────────────────────────────────────────────────────────
+
+function FavTile({ label, icon, color, active, loading, onClick }: {
+  label: string; icon: string; color: string;
+  active: boolean; loading: boolean; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className="flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl text-center transition-all duration-100 active:scale-[0.93] active:brightness-90 select-none"
+      style={{
+        backgroundColor: active ? `color-mix(in srgb, ${color} 12%, var(--color-surface-container))` : "var(--color-surface-container)",
+        border: `1.5px solid ${active ? color : "transparent"}`,
+      }}
+    >
+      {loading ? (
+        <span className="material-symbols-outlined text-[26px] animate-spin" style={{ color }}>progress_activity</span>
+      ) : (
+        <span className="material-symbols-outlined text-[26px]"
+          style={{ color, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{icon}</span>
+      )}
+      <span className="text-[11px] font-semibold leading-tight w-full truncate px-1"
+        style={{ color: "var(--color-on-surface)" }}>{label}</span>
+    </button>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -520,10 +656,44 @@ export default function HomePage() {
   const refreshLights = useCallback(() => { void mLights(); }, [mLights]);
   const refreshHvac   = useCallback(() => { void mHvac(); },   [mHvac]);
 
+  // Modal state
+  const [showIndoor,  setShowIndoor]  = useState(false);
+  const [showOutdoor, setShowOutdoor] = useState(false);
+
+  // Action loading — tracks which key is in-flight
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const loadingRef = useRef<string | null>(null);
+
+  const runAction = useCallback(async (key: string, fn: () => Promise<void>) => {
+    if (loadingRef.current) return;
+    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(10);
+    loadingRef.current = key;
+    setLoadingKey(key);
+    try { await fn(); } finally { loadingRef.current = null; setLoadingKey(null); }
+  }, []);
+
   if (!hydrated) return null;
 
+  // Derive live states for stateful favorites
+  const hvacOk    = hvac && "heat_pump" in hvac;
+  const acState   = hvacOk ? hvac.heat_pump.state : "off";
+  const acOn      = acState !== "off";
+  const acLabel   = acOn ? ({ heat: "Värme", cool: "Kyla", heat_cool: "Auto", fan_only: "Fläkt", dry: "Torr" }[acState] ?? acState) : "AC";
+  const kaminOn   = hvacOk ? hvac.flv.kaminlage      : false;
+  const boostOn   = hvacOk ? hvac.flv.more_hot_water : false;
+  const sensorsOk = sensors && "areas" in sensors;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+
+      {/* Modals */}
+      {showIndoor && sensorsOk && (
+        <IndoorTempSheet data={sensors} onClose={() => setShowIndoor(false)} />
+      )}
+      {showOutdoor && sensorsOk && (
+        <OutdoorTempSheet sensors={sensors} hvac={hvacOk ? hvac : undefined} onClose={() => setShowOutdoor(false)} />
+      )}
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight font-headline"
@@ -536,19 +706,21 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Top stat row */}
+      {/* Status strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatChip
           icon="thermostat"
           value={sensors?.avg_indoor != null ? `${sensors.avg_indoor}°C` : "–"}
           label="Inomhus snitt"
           color="var(--color-primary)"
+          onClick={sensorsOk ? () => setShowIndoor(true) : undefined}
         />
         <StatChip
           icon="device_thermostat"
           value={sensors?.outdoor_temp != null ? `${sensors.outdoor_temp}°C` : "–"}
           label="Utomhus"
           color="var(--color-tertiary)"
+          onClick={sensorsOk ? () => setShowOutdoor(true) : undefined}
         />
         <StatChip
           icon="bolt"
@@ -564,6 +736,58 @@ export default function HomePage() {
         />
       </div>
 
+      {/* Favoriter */}
+      <Card>
+        <SectionLabel>Favoriter</SectionLabel>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          <FavTile
+            label="Kväll" icon="partly_cloudy_night"
+            color="var(--color-primary)" active={false}
+            loading={loadingKey === "scene-kvall"}
+            onClick={() => runAction("scene-kvall", () => callAction("scene", "turn_on", "scene.fasad"))}
+          />
+          <FavTile
+            label="Natt" icon="bedtime"
+            color="var(--color-primary)" active={false}
+            loading={loadingKey === "scene-natt"}
+            onClick={() => runAction("scene-natt", () => callAction("scene", "turn_on", "scene.fasad_nattlage"))}
+          />
+          <FavTile
+            label="Alla av" icon="light_off"
+            color="var(--color-on-surface-variant)" active={false}
+            loading={loadingKey === "lights-off"}
+            onClick={() => runAction("lights-off", async () => { await callAction("light", "turn_off", "all"); refreshLights(); })}
+          />
+          <FavTile
+            label={acLabel} icon={acOn ? "mode_cool" : "mode_cool_off"}
+            color={acOn ? "var(--color-secondary)" : "var(--color-outline)"} active={acOn}
+            loading={loadingKey === "ac"}
+            onClick={() => runAction("ac", async () => {
+              await callAction("climate", "set_hvac_mode", "climate.vardagsrum_luftvarmepump", { hvac_mode: acOn ? "off" : "heat" });
+              void mHvac();
+            })}
+          />
+          <FavTile
+            label="Boost VV" icon="water_drop"
+            color={boostOn ? "var(--color-secondary)" : "var(--color-outline)"} active={boostOn}
+            loading={loadingKey === "boost"}
+            onClick={() => runAction("boost", async () => {
+              await callAction("switch", boostOn ? "turn_off" : "turn_on", "switch.nibe_mer_varmvatten");
+              refreshHvac();
+            })}
+          />
+          <FavTile
+            label="Kaminläge" icon="local_fire_department"
+            color={kaminOn ? "var(--color-tertiary)" : "var(--color-outline)"} active={kaminOn}
+            loading={loadingKey === "kamin"}
+            onClick={() => runAction("kamin", async () => {
+              await callAction("switch", kaminOn ? "turn_off" : "turn_on", "switch.nibe_kaminlage");
+              refreshHvac();
+            })}
+          />
+        </div>
+      </Card>
+
       {/* Main grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
 
@@ -575,7 +799,7 @@ export default function HomePage() {
         )}
 
         {/* Klimat */}
-        {sensors && "areas" in sensors ? (
+        {sensorsOk ? (
           <ClimateCard data={sensors} />
         ) : (
           <Card><SectionLabel>Klimat</SectionLabel><Skeleton className="h-40" /></Card>
@@ -596,32 +820,11 @@ export default function HomePage() {
         )}
 
         {/* Värmepumpar */}
-        {hvac && "heat_pump" in hvac ? (
+        {hvacOk ? (
           <HvacCard data={hvac} onRefresh={refreshHvac} />
         ) : (
           <Card className="md:col-span-2"><SectionLabel>Värmepumpar</SectionLabel><Skeleton className="h-36" /></Card>
         )}
-
-        {/* Snabbåtgärder */}
-        <Card className="md:col-span-2 xl:col-span-3">
-          <SectionLabel>Snabbåtgärder</SectionLabel>
-          <div className="flex flex-wrap gap-3">
-            {[
-              { label: "Alla ljus av",     icon: "light_off",              color: "var(--color-on-surface-variant)", action: () => callAction("light", "turn_off", "all").then(refreshLights) },
-              { label: "God natt",         icon: "bedtime",                color: "var(--color-primary)",            action: () => callAction("scene", "turn_on", "scene.fasad_nattlage") },
-              { label: "Fasad",            icon: "outdoor_grill",          color: "var(--color-tertiary)",           action: () => callAction("scene", "turn_on", "scene.fasad") },
-              { label: "Boost varmvatten", icon: "water_drop",             color: "var(--color-secondary)",          action: () => callAction("switch", "turn_on",  "switch.nibe_mer_varmvatten").then(refreshHvac) },
-              { label: "Kaminläge",        icon: "local_fire_department",  color: "var(--color-tertiary)",           action: () => callAction("switch", "turn_on",  "switch.nibe_kaminlage").then(refreshHvac) },
-            ].map(({ label, icon, color, action }) => (
-              <button key={label} onClick={action}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all hover:scale-[0.97] active:scale-95"
-                style={{ backgroundColor: "var(--color-surface-container)", color: "var(--color-on-surface)" }}>
-                <span className="material-symbols-outlined text-[18px]" style={{ color }}>{icon}</span>
-                {label}
-              </button>
-            ))}
-          </div>
-        </Card>
 
       </div>
     </div>
