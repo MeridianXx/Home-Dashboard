@@ -16,13 +16,13 @@ export default function MobileNav() {
   return (
     <nav className="md:hidden fixed z-50" style={{ bottom: "20px", left: "50%", transform: "translateX(-50%)" }}>
       <div
-        className="flex items-center gap-0.5 px-2 py-2 rounded-full"
+        className="flex items-center gap-1 px-2 py-2 rounded-full"
         style={{
-          backgroundColor: "var(--color-surface-container-highest)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 0 0 1.5px rgba(187,185,178,0.25)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          border: "1px solid var(--color-outline-variant)",
+          backgroundColor: "var(--nav-glass-bg)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(0,0,0,0.1)",
+          backdropFilter: "blur(32px) saturate(180%)",
+          WebkitBackdropFilter: "blur(32px) saturate(180%)",
+          border: "1px solid var(--nav-glass-border)",
         }}
       >
         {ITEMS.map(({ icon, label, href }) => {
@@ -31,12 +31,13 @@ export default function MobileNav() {
             <Link
               key={href}
               href={href}
-              className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-full transition-all"
-              style={
-                active
+              className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-full transition-all"
+              style={{
+                width: 76,
+                ...(active
                   ? { backgroundColor: "var(--color-inverse-surface)", color: "var(--color-surface)" }
-                  : { color: "var(--color-on-surface-variant)" }
-              }
+                  : { color: "var(--color-on-surface-variant)" }),
+              }}
             >
               <span
                 className="material-symbols-outlined"

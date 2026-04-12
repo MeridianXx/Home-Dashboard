@@ -55,7 +55,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <TopBar />
       <Sidebar />
       <main
-        className={`pt-16 pb-28 md:pb-0 min-h-screen transition-all duration-300 ${sidebarWidth}`}
+        className={`pt-16 min-h-screen transition-all duration-300 ${sidebarWidth}`}
+        style={{ paddingBottom: "140px" }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >

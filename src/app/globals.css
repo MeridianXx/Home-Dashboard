@@ -148,6 +148,8 @@ body {
 /* ── Dark token set ── (used by both media-query auto and explicit data-theme="dark") */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --nav-glass-bg:                    rgba(22,22,20,0.60);
+    --nav-glass-border:                rgba(255,255,255,0.10);
     --color-surface:                   #0e0e0c;
     --color-surface-bright:            #151512;
     --color-surface-container-lowest:  #131311;
@@ -169,6 +171,8 @@ body {
 
 /* Explicit light — always applies regardless of system preference */
 :root[data-theme="light"] {
+  --nav-glass-bg:                    rgba(240,238,230,0.82);
+  --nav-glass-border:                rgba(0,0,0,0.08);
   --color-surface:                   #fffcf7;
   --color-surface-bright:            #fffcf7;
   --color-surface-dim:               #e4e2da;
@@ -191,6 +195,8 @@ body {
 
 /* Explicit dark — always applies regardless of system preference */
 [data-theme="dark"] {
+  --nav-glass-bg:                    rgba(22,22,20,0.60);
+  --nav-glass-border:                rgba(255,255,255,0.10);
   --color-surface:                   #0e0e0c;
   --color-surface-bright:            #151512;
   --color-surface-container-lowest:  #131311;
