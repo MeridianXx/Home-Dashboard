@@ -281,7 +281,8 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
                               defaultValue={light.brightness_pct ?? (lon ? 100 : 0)}
                               disabled={!lon}
                               className="flex-1 cursor-pointer"
-                              style={{ opacity: lon ? 1 : 0.25 }}
+                              style={{ opacity: lon ? 1 : 0.25, "--fill": `${light.brightness_pct ?? (lon ? 100 : 0)}%` } as React.CSSProperties}
+                              onInput={e => { const t = e.currentTarget; t.style.setProperty("--fill", `${t.value}%`); }}
                               onMouseUp={e => lon && handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                               onTouchEnd={e => lon && handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                             />

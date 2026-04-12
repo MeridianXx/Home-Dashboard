@@ -113,6 +113,8 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
                     <input type="range" min={1} max={100}
                       defaultValue={light.brightness_pct ?? 100}
                       className="flex-1"
+                      style={{ "--fill": `${light.brightness_pct ?? 100}%` } as React.CSSProperties}
+                      onInput={e => { const t = e.currentTarget; t.style.setProperty("--fill", `${t.value}%`); }}
                       onMouseUp={e => onBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                       onTouchEnd={e => onBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                     />

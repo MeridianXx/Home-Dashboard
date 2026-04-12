@@ -206,7 +206,11 @@ input[type="range"] {
 input[type="range"]:disabled { cursor: not-allowed; }
 
 input[type="range"]::-webkit-slider-runnable-track {
-  background: rgba(128,128,120,0.25);
+  background: linear-gradient(
+    to right,
+    #f59e0b var(--fill, 0%),
+    rgba(128,128,120,0.25) var(--fill, 0%)
+  );
   height: 4px;
   border-radius: 2px;
 }
@@ -215,15 +219,23 @@ input[type="range"]::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #f59e0b;
+  background: #ffffff;
+  border: 1.5px solid rgba(0,0,0,0.15);
   margin-top: -7px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 input[type="range"]:disabled::-webkit-slider-thumb {
-  background: rgba(128,128,120,0.4);
+  background: rgba(200,200,196,0.6);
+  border-color: transparent;
+  box-shadow: none;
 }
 input[type="range"]::-moz-range-track {
   background: rgba(128,128,120,0.25);
+  height: 4px;
+  border-radius: 2px;
+}
+input[type="range"]::-moz-range-progress {
+  background: #f59e0b;
   height: 4px;
   border-radius: 2px;
 }
@@ -231,8 +243,9 @@ input[type="range"]::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #f59e0b;
-  border: none;
+  background: #ffffff;
+  border: 1.5px solid rgba(0,0,0,0.15);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 /* Explicit dark — always applies regardless of system preference */
