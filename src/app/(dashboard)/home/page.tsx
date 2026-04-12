@@ -169,105 +169,12 @@ function LightToggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   );
 }
 
-function LightControlModal({ area, onClose, onToggleLight, onBrightness }: {
-  area: LightArea; onClose: () => void;
-  onToggleLight: (l: LightEntry) => void;
-  onBrightness: (entity_id: string, pct: number) => void;
-}) {
-  return (
-    <div onClick={onClose} style={{
-      position: "fixed", inset: 0, zIndex: 50,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      backgroundColor: "rgba(0,0,0,0.55)", padding: 16,
-    }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        width: "100%", maxWidth: 480, maxHeight: "80vh", overflowY: "auto",
-        backgroundColor: "var(--color-surface-container-lowest)",
-        borderRadius: 24, padding: 24,
-        boxShadow: "0 24px 64px rgba(0,0,0,0.35)",
-      }}>
-        {/* Header */}
-        <div className="flex items-start justify-between mb-5">
-          <div>
-            <h2 className="text-xl font-bold" style={{ color: "var(--color-on-surface)" }}>
-              {area.name}
-            </h2>
-            <p className="text-sm mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>
-              Hantera individuella lampor
-            </p>
-          </div>
-          <button onClick={onClose} className="material-symbols-outlined"
-            style={{ fontSize: 22, color: "var(--color-on-surface-variant)", opacity: 0.5, marginTop: 2 }}>
-            close
-          </button>
-        </div>
-
-        {/* Per-light controls */}
-        <div className="space-y-5">
-          {area.lights.map(light => {
-            const lon = light.state === "on";
-            return (
-              <div key={light.entity_id}>
-                <div className="flex items-center gap-3">
-                  {/* Circle icon */}
-                  <div style={{
-                    width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
-                    backgroundColor: lon ? `${AMBER}22` : "var(--color-surface-container)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <span className="material-symbols-outlined"
-                      style={{ fontSize: 22, color: lon ? AMBER : "var(--color-outline)", fontVariationSettings: lon ? "'FILL' 1" : "'FILL' 0" }}>
-                      {lon ? "light_mode" : "light_off"}
-                    </span>
-                  </div>
-                  <span className="flex-1 text-sm font-semibold min-w-0 truncate"
-                    style={{ color: "var(--color-on-surface)" }}>{light.name}</span>
-                  <LightToggle on={lon} onChange={() => onToggleLight(light)} />
-                </div>
-                {/* Brightness row — always visible when dimmable */}
-                {light.dimmable && (
-                  <div className="flex items-center gap-3 mt-2.5 pl-14">
-                    <span className="material-symbols-outlined shrink-0"
-                      style={{ fontSize: 14, color: "var(--color-outline)" }}>brightness_low</span>
-                    <input type="range" min={1} max={100}
-                      defaultValue={light.brightness_pct ?? (lon ? 100 : 0)}
-                      disabled={!lon}
-                      className="flex-1 cursor-pointer"
-                      style={{ accentColor: AMBER, height: 4, opacity: lon ? 1 : 0.35 }}
-                      onMouseUp={e => lon && onBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
-                      onTouchEnd={e => lon && onBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
-                    />
-                    <span className="text-[11px] font-medium w-8 text-right shrink-0"
-                      style={{ color: "var(--color-on-surface-variant)" }}>
-                      {lon ? `${light.brightness_pct ?? 100}%` : "0%"}
-                    </span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end mt-6">
-          <button onClick={onClose}
-            className="px-6 py-2.5 rounded-full text-sm font-semibold"
-            style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}>
-            Stäng
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => void }) {
-  const [modalAreaId, setModalAreaId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const totalOn  = data.areas.reduce((s, a) => s + a.on_count, 0);
   const totalAll = data.areas.reduce((s, a) => s + a.total_count, 0);
   const favorites = data.areas.filter(a => FAVORITE_ROOMS.has(a.name));
-  const modalArea = data.areas.find(a => a.area_id === modalAreaId) ?? null;
 
   async function handleToggleArea(area: LightArea) {
     await callAction("light", area.on_count > 0 ? "turn_off" : "turn_on", area.lights.map(l => l.entity_id));
@@ -283,28 +190,30 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
   }
 
   return (
-    <>
-      <Card className="md:col-span-2 xl:col-span-3">
-        <div className="flex items-center justify-between mb-3">
-          <SectionLabel>Belysning</SectionLabel>
-          <span className="text-xs font-bold -mt-3" style={{ color: totalOn > 0 ? AMBER : "var(--color-outline)" }}>
-            {totalOn}/{totalAll} på
-          </span>
-        </div>
-        <div className="space-y-2">
-          {favorites.map(area => {
-            const on = area.on_count > 0;
-            return (
-              <div key={area.area_id} className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-                style={{
-                  backgroundColor: "var(--color-surface-container)",
-                  border: `1.5px solid ${on ? AMBER : "transparent"}`,
-                  boxShadow: on ? `inset 0 0 0 99px ${AMBER}09` : "none",
-                }}>
+    <Card className="md:col-span-2 xl:col-span-3">
+      <div className="flex items-center justify-between mb-3">
+        <SectionLabel>Belysning</SectionLabel>
+        <span className="text-xs font-bold -mt-3" style={{ color: totalOn > 0 ? AMBER : "var(--color-outline)" }}>
+          {totalOn}/{totalAll} på
+        </span>
+      </div>
+      <div className="space-y-2">
+        {favorites.map(area => {
+          const on = area.on_count > 0;
+          const open = expandedId === area.area_id;
+          return (
+            <div key={area.area_id} className="flex flex-col rounded-2xl overflow-hidden"
+              style={{
+                backgroundColor: "var(--color-surface-container)",
+                border: `1.5px solid ${on ? AMBER : "transparent"}`,
+                boxShadow: on ? `inset 0 0 0 99px ${AMBER}09` : "none",
+              }}>
+              {/* Row header */}
+              <div className="flex items-center gap-3 px-4 py-3">
                 {/* Circle icon — tapping toggles room */}
                 <Pressable onClick={() => handleToggleArea(area)} className="shrink-0">
                   <div style={{
-                    width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                    width: 40, height: 40, borderRadius: "50%",
                     backgroundColor: on ? `${AMBER}22` : "var(--color-surface-container-high)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}>
@@ -321,33 +230,69 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
                     {area.total_count > 1 ? `${area.on_count}/${area.total_count} på` : (on ? "På" : "Av")}
                   </p>
                 </Pressable>
-                {/* Expand → modal */}
-                <button onClick={() => setModalAreaId(area.area_id)}
+                {/* Expand inline */}
+                <button onClick={() => setExpandedId(open ? null : area.area_id)}
                   className="material-symbols-outlined shrink-0"
                   style={{ fontSize: 20, color: "var(--color-on-surface-variant)", opacity: 0.4 }}>
-                  expand_more
+                  {open ? "expand_less" : "expand_more"}
                 </button>
               </div>
-            );
-          })}
-        </div>
-        <a href="/home/lighting"
-          className="flex items-center justify-center gap-1 mt-3 text-xs font-semibold"
-          style={{ color: "var(--color-primary)", opacity: 0.7 }}>
-          <span>Alla rum</span>
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_forward</span>
-        </a>
-      </Card>
 
-      {modalArea && (
-        <LightControlModal
-          area={modalArea}
-          onClose={() => setModalAreaId(null)}
-          onToggleLight={handleToggleLight}
-          onBrightness={handleBrightness}
-        />
-      )}
-    </>
+              {/* Inline expanded: per-light controls */}
+              {open && (
+                <div className="px-4 pb-4 pt-2 space-y-4 border-t"
+                  style={{ borderColor: on ? `${AMBER}30` : "var(--color-outline-variant)" }}>
+                  {area.lights.map(light => {
+                    const lon = light.state === "on";
+                    return (
+                      <div key={light.entity_id}>
+                        <div className="flex items-center gap-3">
+                          <div style={{
+                            width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                            backgroundColor: lon ? `${AMBER}22` : "var(--color-surface-container-high)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            <span className="material-symbols-outlined"
+                              style={{ fontSize: 18, color: lon ? AMBER : "var(--color-outline)", fontVariationSettings: lon ? "'FILL' 1" : "'FILL' 0" }}>
+                              {lon ? "light_mode" : "light_off"}
+                            </span>
+                          </div>
+                          <span className="flex-1 text-sm font-medium min-w-0 truncate"
+                            style={{ color: "var(--color-on-surface)" }}>{light.name}</span>
+                          <LightToggle on={lon} onChange={() => handleToggleLight(light)} />
+                        </div>
+                        {light.dimmable && (
+                          <div className="flex items-center gap-3 mt-2 pl-12">
+                            <input type="range" min={1} max={100}
+                              defaultValue={light.brightness_pct ?? (lon ? 100 : 0)}
+                              disabled={!lon}
+                              className="flex-1 cursor-pointer"
+                              style={{ accentColor: AMBER, height: 4, opacity: lon ? 1 : 0.3 }}
+                              onMouseUp={e => lon && handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
+                              onTouchEnd={e => lon && handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
+                            />
+                            <span className="text-[11px] font-medium w-8 text-right shrink-0"
+                              style={{ color: "var(--color-on-surface-variant)" }}>
+                              {lon ? `${light.brightness_pct ?? 100}%` : "0%"}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <a href="/home/lighting"
+        className="flex items-center justify-center gap-1.5 mt-4 text-sm font-semibold"
+        style={{ color: "var(--color-primary)", opacity: 0.8 }}>
+        <span>Visa alla rum</span>
+        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+      </a>
+    </Card>
   );
 }
 
