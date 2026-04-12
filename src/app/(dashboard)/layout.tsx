@@ -29,6 +29,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('input[type="range"], input[type="text"], input[type="number"], textarea, select')) {
+      touchStart.current = null;
+      return;
+    }
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   }, []);
 
