@@ -11,6 +11,7 @@ const CONTEXT_META: Record<
     label: "Hem",
     tabs: [
       { label: "Översikt", suffix: "" },
+      { label: "Belysning", suffix: "/lighting" },
       { label: "Automationer", suffix: "/automations" },
     ],
   },
