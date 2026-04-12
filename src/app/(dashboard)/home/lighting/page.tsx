@@ -94,7 +94,7 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
       {/* Expanded: per-light controls */}
       {expanded && (
         <div className="border-t px-4 pb-4 pt-3 space-y-3"
-          style={{ borderColor: on ? `${AMBER}33` : "var(--color-outline-variant)" }}>
+          style={{ borderColor: on ? `${AMBER}33` : "var(--color-outline-variant)", backgroundColor: "var(--color-surface-container)" }}>
           {area.lights.map(light => {
             const lon = light.state === "on";
             return (

@@ -249,7 +249,7 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
               {/* Inline expanded: per-light controls */}
               {open && (
                 <div className="pt-1 pb-2 border-t"
-                  style={{ borderColor: on ? `${AMBER}22` : "var(--color-outline-variant)" }}>
+                  style={{ borderColor: on ? `${AMBER}22` : "var(--color-outline-variant)", backgroundColor: "var(--color-surface-container)" }}>
                   {area.lights.map(light => {
                     const lon = light.state === "on";
                     return (
