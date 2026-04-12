@@ -193,6 +193,48 @@ body {
   --color-card-border:               transparent;
 }
 
+/* ── Range input — custom cross-browser track + thumb ── */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+input[type="range"]:disabled { cursor: not-allowed; }
+
+input[type="range"]::-webkit-slider-runnable-track {
+  background: rgba(128,128,120,0.25);
+  height: 4px;
+  border-radius: 2px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f59e0b;
+  margin-top: -7px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background: rgba(128,128,120,0.4);
+}
+input[type="range"]::-moz-range-track {
+  background: rgba(128,128,120,0.25);
+  height: 4px;
+  border-radius: 2px;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f59e0b;
+  border: none;
+}
+
 /* Explicit dark — always applies regardless of system preference */
 [data-theme="dark"] {
   --nav-glass-bg:                    rgba(22,22,20,0.60);

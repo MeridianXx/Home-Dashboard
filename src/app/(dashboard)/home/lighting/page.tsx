@@ -112,8 +112,7 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
                   <div className="flex items-center gap-3 pl-6">
                     <input type="range" min={1} max={100}
                       defaultValue={light.brightness_pct ?? 100}
-                      className="flex-1 h-1 cursor-pointer"
-                      style={{ accentColor: AMBER, background: "transparent", WebkitAppearance: "none", appearance: "none" }}
+                      className="flex-1"
                       onMouseUp={e => onBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                       onTouchEnd={e => onBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                     />
