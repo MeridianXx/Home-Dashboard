@@ -167,6 +167,28 @@ body {
   }
 }
 
+/* Explicit light — always applies regardless of system preference */
+:root[data-theme="light"] {
+  --color-surface:                   #fffcf7;
+  --color-surface-bright:            #fffcf7;
+  --color-surface-dim:               #e4e2da;
+  --color-surface-container-lowest:  #ffffff;
+  --color-surface-container-low:     #fcf9f3;
+  --color-surface-container:         #f6f3ec;
+  --color-surface-container-high:    #f0eee6;
+  --color-surface-container-highest: #eae8e0;
+  --color-surface-variant:           #eae8e0;
+  --color-background:                #fffcf7;
+  --color-on-surface:                #383833;
+  --color-on-surface-variant:        #65655e;
+  --color-on-background:             #383833;
+  --color-inverse-surface:           #0e0e0c;
+  --color-inverse-on-surface:        #9e9d98;
+  --color-outline-variant:           #bbb9b2;
+  --color-outline:                   #81817a;
+  --color-card-border:               transparent;
+}
+
 /* Explicit dark — always applies regardless of system preference */
 [data-theme="dark"] {
   --color-surface:                   #0e0e0c;

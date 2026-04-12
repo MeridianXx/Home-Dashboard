@@ -4,46 +4,51 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
-  { icon: "home", label: "Hem", href: "/home" },
-  { icon: "dns", label: "Homelab", href: "/homelab" },
-  { icon: "fitness_center", label: "Fitness", href: "/fitness" },
-  { icon: "yard", label: "Trädgård", href: "/garden" },
+  { icon: "home",          label: "Hem",      href: "/home" },
+  { icon: "dns",           label: "Homelab",  href: "/homelab" },
+  { icon: "fitness_center",label: "Fitness",  href: "/fitness" },
+  { icon: "yard",          label: "Trädgård", href: "/garden" },
 ] as const;
 
 export default function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around h-16 safe-area-pb"
-      style={{
-        backgroundColor: "var(--color-surface-container)",
-        borderTop: "1px solid rgba(187,185,178,0.15)",
-      }}
-    >
-      {ITEMS.map(({ icon, label, href }) => {
-        const active = pathname === href || pathname.startsWith(href + "/");
-        return (
-          <Link
-            key={href}
-            href={href}
-            className="flex flex-col items-center gap-0.5 py-1 px-4 transition-all"
-            style={{
-              color: active
-                ? "var(--color-primary)"
-                : "var(--color-on-surface-variant)",
-            }}
-          >
-            <span
-              className="material-symbols-outlined text-[24px]"
-              style={active ? { fontVariationSettings: "'FILL' 1" } : {}}
+    <nav className="md:hidden fixed z-50" style={{ bottom: "20px", left: "50%", transform: "translateX(-50%)" }}>
+      <div
+        className="flex items-center gap-0.5 px-2 py-2 rounded-full"
+        style={{
+          backgroundColor: "var(--color-surface-container-highest)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 0 0 1.5px rgba(187,185,178,0.25)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          border: "1px solid var(--color-outline-variant)",
+        }}
+      >
+        {ITEMS.map(({ icon, label, href }) => {
+          const active = pathname === href || pathname.startsWith(href + "/");
+          return (
+            <Link
+              key={href}
+              href={href}
+              className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-full transition-all"
+              style={
+                active
+                  ? { backgroundColor: "var(--color-inverse-surface)", color: "var(--color-surface)" }
+                  : { color: "var(--color-on-surface-variant)" }
+              }
             >
-              {icon}
-            </span>
-            <span className="text-[10px] font-semibold">{label}</span>
-          </Link>
-        );
-      })}
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 22, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}
+              >
+                {icon}
+              </span>
+              <span className="text-[10px] font-bold whitespace-nowrap">{label}</span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }

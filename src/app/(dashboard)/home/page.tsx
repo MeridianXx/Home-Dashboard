@@ -21,7 +21,13 @@ type CarsData     = { cars: Car[] };
 type EnergyData   = { spot_price_ore: number | null; spot_level: string; current_power_w: number; avg_power_w: number; min_power_w: number; max_power_w: number; accumulated_kwh: number; accumulated_cost_sek: number; monthly_cost_sek: number; monthly_kwh: number };
 type HvacData     = {
   heat_pump: { entity_id: string; state: string; current_temp: number | null; target_temp: number | null; hvac_modes: string[] | null };
-  flv: { outdoor_temp: number | null; hot_water_temp: number | null; fan_speed_pct: number | null; franluft_temp: number | null; alarm: boolean; kaminlage: boolean; more_hot_water: boolean; increased_ventilation: boolean };
+  nibe: {
+    outdoor_temp: number | null; hot_water_temp: number | null; fan_speed_pct: number | null;
+    alarm: boolean; kaminlage: boolean; nattsvalka: boolean;
+    system_power_kw: number | null; compressor_hz: number | null; heater_kw: number | null;
+    hot_water_boost: string; hot_water_boost_options: string[];
+    ventilation_mode: string; ventilation_options: string[];
+  };
 };
 type VacuumData   = { state: string; battery_pct: number | null; status: string | null; current_room: string | null; cleaned_area: number | null; charging: boolean; cleaning: boolean; do_not_disturb: boolean };
 
@@ -148,7 +154,7 @@ function StatChip({ icon, value, label, color = "var(--color-primary)", onClick 
 // ─── Belysning ────────────────────────────────────────────────────────────────
 
 const AMBER = "#f59e0b";
-const FAVORITE_ROOMS = new Set(["Vardagsrum", "Sovrum", "Allrum", "Kök", "Elvira", "Adrian"]);
+const FAVORITE_ROOM_ORDER = ["Vardagsrum", "Kök", "Allrum", "Sovrum", "Adrian", "Elvira"];
 
 function LightToggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   return (
@@ -174,7 +180,9 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
 
   const totalOn  = data.areas.reduce((s, a) => s + a.on_count, 0);
   const totalAll = data.areas.reduce((s, a) => s + a.total_count, 0);
-  const favorites = data.areas.filter(a => FAVORITE_ROOMS.has(a.name));
+  const favorites = FAVORITE_ROOM_ORDER
+    .map(name => data.areas.find(a => a.name === name))
+    .filter((a): a is LightArea => a != null);
 
   async function handleToggleArea(area: LightArea) {
     await callAction("light", area.on_count > 0 ? "turn_off" : "turn_on", area.lights.map(l => l.entity_id));
@@ -219,7 +227,7 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
                   }}>
                     <span className="material-symbols-outlined"
                       style={{ fontSize: 20, color: on ? AMBER : "var(--color-outline)", fontVariationSettings: on ? "'FILL' 1" : "'FILL' 0" }}>
-                      {on ? "light_mode" : "light_off"}
+                      lightbulb
                     </span>
                   </div>
                 </Pressable>
@@ -240,39 +248,49 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
 
               {/* Inline expanded: per-light controls */}
               {open && (
-                <div className="px-4 pb-4 pt-2 space-y-4 border-t"
-                  style={{ borderColor: on ? `${AMBER}30` : "var(--color-outline-variant)" }}>
+                <div className="pt-1 pb-2 border-t"
+                  style={{ borderColor: on ? `${AMBER}22` : "var(--color-outline-variant)" }}>
                   {area.lights.map(light => {
                     const lon = light.state === "on";
                     return (
-                      <div key={light.entity_id}>
+                      <div key={light.entity_id} className="px-4 py-3">
+                        {/* Light row */}
                         <div className="flex items-center gap-3">
                           <div style={{
-                            width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-                            backgroundColor: lon ? `${AMBER}22` : "var(--color-surface-container-high)",
+                            width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                            backgroundColor: lon ? `${AMBER}18` : "rgba(255,255,255,0.05)",
                             display: "flex", alignItems: "center", justifyContent: "center",
                           }}>
                             <span className="material-symbols-outlined"
-                              style={{ fontSize: 18, color: lon ? AMBER : "var(--color-outline)", fontVariationSettings: lon ? "'FILL' 1" : "'FILL' 0" }}>
-                              {lon ? "light_mode" : "light_off"}
+                              style={{ fontSize: 17, color: lon ? AMBER : "var(--color-outline)", fontVariationSettings: lon ? "'FILL' 1" : "'FILL' 0" }}>
+                              lightbulb
                             </span>
                           </div>
-                          <span className="flex-1 text-sm font-medium min-w-0 truncate"
-                            style={{ color: "var(--color-on-surface)" }}>{light.name}</span>
+                          <span className="flex-1 text-sm font-semibold min-w-0 truncate"
+                            style={{ color: lon ? "var(--color-on-surface)" : "var(--color-outline)" }}>{light.name}</span>
                           <LightToggle on={lon} onChange={() => handleToggleLight(light)} />
                         </div>
+                        {/* Brightness slider */}
                         {light.dimmable && (
-                          <div className="flex items-center gap-3 mt-2 pl-12">
+                          <div className="flex items-center gap-3 mt-3 pl-1 pr-1">
+                            <span className="material-symbols-outlined shrink-0"
+                              style={{ fontSize: 14, color: "var(--color-outline)", opacity: lon ? 0.6 : 0.25 }}>
+                              sunny
+                            </span>
                             <input type="range" min={1} max={100}
                               defaultValue={light.brightness_pct ?? (lon ? 100 : 0)}
                               disabled={!lon}
                               className="flex-1 cursor-pointer"
-                              style={{ accentColor: AMBER, height: 4, opacity: lon ? 1 : 0.3 }}
+                              style={{ accentColor: AMBER, height: 4, opacity: lon ? 1 : 0.25 }}
                               onMouseUp={e => lon && handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                               onTouchEnd={e => lon && handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                             />
-                            <span className="text-[11px] font-medium w-8 text-right shrink-0"
-                              style={{ color: "var(--color-on-surface-variant)" }}>
+                            <span className="text-[11px] font-medium shrink-0"
+                              style={{
+                                minWidth: 34, textAlign: "right",
+                                color: lon ? "var(--color-on-surface-variant)" : "var(--color-outline)",
+                                opacity: lon ? 1 : 0.4,
+                              }}>
                               {lon ? `${light.brightness_pct ?? 100}%` : "0%"}
                             </span>
                           </div>
@@ -288,7 +306,7 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
       </div>
       <a href="/home/lighting"
         className="flex items-center justify-center gap-1.5 mt-4 text-sm font-semibold"
-        style={{ color: "var(--color-primary)", opacity: 0.8 }}>
+        style={{ color: AMBER, opacity: 0.7 }}>
         <span>Visa alla rum</span>
         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
       </a>
@@ -476,121 +494,219 @@ const HVAC_MODE_ICONS: Record<string, string> = {
   cool: "ac_unit", heat_cool: "thermostat_auto", fan_only: "mode_fan", dry: "water_drop",
 };
 
+const HERO_MODES = ["off", "heat", "cool", "heat_cool"];
+
 function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }) {
-  const hp  = data.heat_pump;
-  const flv = data.flv;
+  const hp   = data.heat_pump;
+  const nibe = data.nibe;
+  const [expandedSelect, setExpandedSelect] = useState<"hot_water" | "ventilation" | null>(null);
 
   async function handleHeatPumpMode(mode: string) {
     await callAction("climate", mode === "off" ? "turn_off" : "set_hvac_mode", hp.entity_id,
       mode === "off" ? undefined : { hvac_mode: mode });
     onRefresh();
   }
-
-  async function handleMoreHotWater(current: boolean) {
-    await callAction("switch", current ? "turn_off" : "turn_on", "switch.nibe_mer_varmvatten");
+  async function handleHotWaterBoost(option: string) {
+    await callAction("select", "select_option", "select.villa_bjorkdalen_more_hot_water", { option });
     onRefresh();
   }
-
-  async function handleFan(current: boolean) {
-    await callAction("switch", current ? "turn_off" : "turn_on", "switch.nibe_okad_ventilation");
+  async function handleVentilationMode(option: string) {
+    await callAction("select", "select_option", "select.villa_bjorkdalen_ventilation_mode", { option });
     onRefresh();
   }
-
+  async function handleNattsvalka(current: boolean) {
+    await callAction("switch", current ? "turn_off" : "turn_on", "switch.nibe_nattsvalka");
+    onRefresh();
+  }
   async function handleKaminlage(current: boolean) {
     await callAction("switch", current ? "turn_off" : "turn_on", "switch.nibe_kaminlage");
     onRefresh();
   }
 
-  const hpIcon  = HVAC_MODE_ICONS[hp.state] ?? "thermostat";
-  const hpLabel = HVAC_MODE_LABELS[hp.state] ?? hp.state;
   const hpColor = hp.state === "off" ? "var(--color-outline)"
     : hp.state === "cool" ? "var(--color-primary)"
     : "var(--color-tertiary)";
+  const modes = HERO_MODES.filter(m => !hp.hvac_modes || hp.hvac_modes.includes(m));
 
   return (
     <Card className="md:col-span-2">
       <SectionLabel>Värmepumpar</SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-        {/* Hero — luftvärmepump */}
-        <div className="p-4 rounded-xl" style={{ backgroundColor: "var(--color-surface-container)" }}>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="material-symbols-outlined text-[20px]" style={{ color: hpColor }}>
-              {hpIcon}
-            </span>
-            <span className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>Luftvärmepump</span>
+        {/* ── Mitsubishi Hero — luftvärmepump ── */}
+        <div className="p-4 rounded-2xl space-y-4" style={{ backgroundColor: "var(--color-surface-container)" }}>
+          {/* Header */}
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: "rgba(136,92,0,0.15)" }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 22, color: "var(--color-tertiary)" }}>heat_pump</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold leading-tight" style={{ color: "var(--color-on-surface)" }}>Mitsubishi Hero</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>
+                Luftvärmepump{hp.target_temp != null ? ` · mål ${hp.target_temp}°` : ""}
+              </p>
+            </div>
             {hp.current_temp != null && (
-              <span className="ml-auto text-sm font-bold" style={{ color: "var(--color-primary)" }}>
-                {hp.current_temp}°C
-              </span>
+              <span className="text-2xl font-black shrink-0" style={{ color: "var(--color-tertiary)" }}>{hp.current_temp}°</span>
             )}
           </div>
-          <p className="text-xs mb-3" style={{ color: "var(--color-on-surface-variant)" }}>
-            Läge: <span className="font-bold" style={{ color: "var(--color-on-surface)" }}>{hpLabel}</span>
-            {hp.target_temp != null && ` · Mål ${hp.target_temp}°C`}
-          </p>
+
           {/* Mode buttons */}
-          {hp.hvac_modes && (
-            <div className="flex flex-wrap gap-1.5">
-              {hp.hvac_modes.map(mode => (
+          <div className="grid grid-cols-4 gap-1.5">
+            {modes.map(mode => {
+              const active = hp.state === mode;
+              const mColor = mode === "off" ? "var(--color-outline)"
+                : mode === "cool" ? "var(--color-primary)"
+                : "var(--color-tertiary)";
+              return (
                 <Pressable key={mode} onClick={() => handleHeatPumpMode(mode)}
-                  className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg"
+                  className="flex flex-col items-center gap-1.5 py-2.5 rounded-xl"
                   style={{
-                    backgroundColor: hp.state === mode ? `${hpColor}22` : "var(--color-surface-container-high)",
-                    color: hp.state === mode ? hpColor : "var(--color-on-surface-variant)",
+                    backgroundColor: active ? (mode === "off" ? "rgba(129,129,122,0.15)" : mode === "cool" ? "rgba(71,91,194,0.15)" : "rgba(136,92,0,0.15)") : "var(--color-surface-container-high)",
+                    color: active ? mColor : "var(--color-on-surface-variant)",
                   }}>
-                  <span className="material-symbols-outlined text-[12px]">{HVAC_MODE_ICONS[mode] ?? "thermostat"}</span>
-                  {HVAC_MODE_LABELS[mode] ?? mode}
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>
+                    {HVAC_MODE_ICONS[mode]}
+                  </span>
+                  <span className="text-[10px] font-bold">{HVAC_MODE_LABELS[mode]}</span>
                 </Pressable>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
 
-        {/* Nibe S735 — frånluftsvärmepump */}
-        <div className="p-4 rounded-xl" style={{ backgroundColor: "var(--color-surface-container)" }}>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="material-symbols-outlined text-[20px]"
-              style={{ color: flv.alarm ? "var(--color-error)" : "var(--color-tertiary)" }}>
-              {flv.alarm ? "error" : "heat_pump"}
-            </span>
-            <span className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>Nibe S735</span>
-            {flv.outdoor_temp != null && (
-              <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: "var(--color-surface-container-high)", color: "var(--color-on-surface-variant)" }}>
-                Ute: {flv.outdoor_temp}°C
+        {/* ── Nibe S735 — bergvärmepump ── */}
+        <div className="p-4 rounded-2xl space-y-4" style={{ backgroundColor: "var(--color-surface-container)" }}>
+          {/* Header */}
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: nibe.alarm ? "rgba(175,59,80,0.15)" : "rgba(136,92,0,0.15)" }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 22, color: nibe.alarm ? "var(--color-error)" : "var(--color-tertiary)" }}>
+                {nibe.alarm ? "error" : "heat_pump"}
               </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold leading-tight" style={{ color: "var(--color-on-surface)" }}>Nibe S735</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>Frånluftsvärmepump</p>
+            </div>
+            {nibe.outdoor_temp != null && (
+              <span className="text-2xl font-black shrink-0" style={{ color: "var(--color-tertiary)" }}>{Math.round(nibe.outdoor_temp)}°</span>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mb-3 text-xs">
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-2">
             {[
-              ["Varmvatten",  flv.hot_water_temp != null ? `${flv.hot_water_temp}°C` : "–"],
-              ["Fläkt",       flv.fan_speed_pct  != null ? `${flv.fan_speed_pct}%`   : "–"],
-              ["Frånluft",    flv.franluft_temp  != null ? `${flv.franluft_temp}°C`  : "–"],
-              ["Utomhus",     flv.outdoor_temp   != null ? `${flv.outdoor_temp}°C`   : "–"],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <span style={{ color: "var(--color-outline)" }}>{k} </span>
-                <span className="font-bold" style={{ color: "var(--color-on-surface)" }}>{v}</span>
+              { icon: "water_drop", label: "Varmvatten", value: nibe.hot_water_temp   != null ? `${nibe.hot_water_temp}°C`              : "–" },
+              { icon: "mode_fan",   label: "Fläkt",      value: nibe.fan_speed_pct    != null ? `${nibe.fan_speed_pct}%`                : "–" },
+              { icon: "power",      label: "Effekt",     value: nibe.system_power_kw  != null ? `${nibe.system_power_kw.toFixed(1)}kW`  : "–" },
+            ].map(({ icon, label, value }) => (
+              <div key={label} className="flex items-center justify-center gap-2 py-2.5 rounded-xl"
+                style={{ backgroundColor: "var(--color-surface-container-high)" }}>
+                <span className="material-symbols-outlined shrink-0" style={{ fontSize: 16, color: "var(--color-primary)" }}>{icon}</span>
+                <div className="min-w-0">
+                  <p className="text-[10px] leading-none mb-0.5" style={{ color: "var(--color-outline)" }}>{label}</p>
+                  <p className="text-sm font-bold leading-tight" style={{ color: "var(--color-on-surface)" }}>{value}</p>
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Quick controls */}
-          <div className="grid grid-cols-3 gap-1.5">
+          {/* Status pills */}
+          <div className="grid grid-cols-2 gap-1.5">
             {[
-              { label: "Mer varmvatten", icon: "water_drop",    active: flv.more_hot_water,        onToggle: () => handleMoreHotWater(flv.more_hot_water) },
-              { label: "Ökad ventil.",   icon: "mode_fan",       active: flv.increased_ventilation, onToggle: () => handleFan(flv.increased_ventilation) },
-              { label: "Kaminläge",      icon: "local_fire_department", active: flv.kaminlage,     onToggle: () => handleKaminlage(flv.kaminlage) },
-            ].map(({ label, icon, active, onToggle }) => (
-              <Pressable key={label} onClick={onToggle}
-                className="flex flex-col items-center gap-1 text-[10px] font-bold px-2 py-2 rounded-lg"
+              { icon: "compress", label: "Kompressor", value: nibe.compressor_hz != null ? `${nibe.compressor_hz}Hz`          : "–" },
+              { icon: "bolt",     label: "Elpatron",   value: nibe.heater_kw    != null ? `${nibe.heater_kw.toFixed(1)}kW`    : "–" },
+            ].map(({ icon, label, value }) => (
+              <span key={label} className="flex items-center justify-center gap-1 text-[11px] font-semibold px-2 py-1.5 rounded-full"
                 style={{
-                  backgroundColor: active ? "rgba(71,91,194,0.15)" : "var(--color-surface-container-high)",
-                  color: active ? "var(--color-primary)" : "var(--color-on-surface-variant)",
+                  backgroundColor: "var(--color-surface-container-high)",
+                  color: "var(--color-on-surface-variant)",
                 }}>
-                <span className="material-symbols-outlined text-[16px]">{icon}</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>{icon}</span>
+                {label} {value}
+              </span>
+            ))}
+          </div>
+
+          {/* Expandable selects */}
+          <div className="space-y-1.5">
+            {/* Varmvattenboost */}
+            <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "var(--color-surface-container-high)" }}>
+              <button onClick={() => setExpandedSelect(expandedSelect === "hot_water" ? null : "hot_water")}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5">
+                <span className="material-symbols-outlined shrink-0"
+                  style={{ fontSize: 16, color: "var(--color-primary)", fontVariationSettings: nibe.hot_water_boost !== "Off" ? "'FILL' 1" : "'FILL' 0" }}>
+                  water_drop
+                </span>
+                <span className="flex-1 text-sm font-semibold text-left" style={{ color: "var(--color-on-surface)" }}>Varmvattenboost</span>
+                <span className="text-xs font-medium mr-1" style={{ color: nibe.hot_water_boost !== "Off" ? "var(--color-primary)" : "var(--color-on-surface-variant)" }}>
+                  {nibe.hot_water_boost}
+                </span>
+                <span className="material-symbols-outlined shrink-0" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>
+                  {expandedSelect === "hot_water" ? "expand_less" : "expand_more"}
+                </span>
+              </button>
+              {expandedSelect === "hot_water" && (
+                <div className="px-3 pb-3 flex flex-wrap gap-1.5">
+                  {nibe.hot_water_boost_options.map(opt => (
+                    <Pressable key={opt} onClick={() => { handleHotWaterBoost(opt); setExpandedSelect(null); }}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                      style={{
+                        backgroundColor: nibe.hot_water_boost === opt ? "var(--color-primary)" : "var(--color-surface-container)",
+                        color: nibe.hot_water_boost === opt ? "var(--color-on-primary)" : "var(--color-on-surface-variant)",
+                      }}>
+                      {opt}
+                    </Pressable>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Ventilation */}
+            <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "var(--color-surface-container-high)" }}>
+              <button onClick={() => setExpandedSelect(expandedSelect === "ventilation" ? null : "ventilation")}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5">
+                <span className="material-symbols-outlined shrink-0" style={{ fontSize: 16, color: "var(--color-primary)" }}>mode_fan</span>
+                <span className="flex-1 text-sm font-semibold text-left" style={{ color: "var(--color-on-surface)" }}>Ventilation</span>
+                <span className="text-xs font-medium mr-1" style={{ color: "var(--color-on-surface-variant)" }}>
+                  {nibe.ventilation_mode}
+                </span>
+                <span className="material-symbols-outlined shrink-0" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>
+                  {expandedSelect === "ventilation" ? "expand_less" : "expand_more"}
+                </span>
+              </button>
+              {expandedSelect === "ventilation" && (
+                <div className="px-3 pb-3 flex flex-wrap gap-1.5">
+                  {nibe.ventilation_options.map(opt => (
+                    <Pressable key={opt} onClick={() => { handleVentilationMode(opt); setExpandedSelect(null); }}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                      style={{
+                        backgroundColor: nibe.ventilation_mode === opt ? "var(--color-primary)" : "var(--color-surface-container)",
+                        color: nibe.ventilation_mode === opt ? "var(--color-on-primary)" : "var(--color-on-surface-variant)",
+                      }}>
+                      {opt}
+                    </Pressable>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Toggle buttons */}
+          <div className="grid grid-cols-2 gap-1.5">
+            {[
+              { label: "Nattsvalka", icon: "nightlight", active: nibe.nattsvalka, color: "var(--color-primary)", onToggle: () => handleNattsvalka(nibe.nattsvalka) },
+              { label: "Kaminläge",  icon: "local_fire_department", active: nibe.kaminlage, color: "var(--color-tertiary)", onToggle: () => handleKaminlage(nibe.kaminlage) },
+            ].map(({ label, icon, active, color, onToggle }) => (
+              <Pressable key={label} onClick={onToggle}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
+                style={{
+                  backgroundColor: active ? (color === "var(--color-primary)" ? "rgba(71,91,194,0.15)" : "rgba(136,92,0,0.15)") : "var(--color-surface-container-high)",
+                  color: active ? color : "var(--color-on-surface-variant)",
+                }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{icon}</span>
                 {label}
               </Pressable>
             ))}
@@ -712,8 +828,8 @@ export default function HomePage() {
   const acState     = hvacOk ? hvac.heat_pump.state : "off";
   const acOn        = acState !== "off";
   const acLabel     = acOn ? ({ heat: "Värme", cool: "Kyla", heat_cool: "Auto", fan_only: "Fläkt", dry: "Torr" }[acState] ?? acState) : "AC";
-  const kaminOn     = hvacOk ? hvac.flv.kaminlage      : false;
-  const boostOn     = hvacOk ? hvac.flv.more_hot_water : false;
+  const kaminOn     = hvacOk ? hvac.nibe.kaminlage                    : false;
+  const boostOn     = hvacOk ? hvac.nibe.hot_water_boost !== "Off"    : false;
   const lightsOk    = lights && "areas" in lights;
   const allLightsOff = lightsOk ? lights.areas.every(a => a.on_count === 0) : false;
   const sensorsOk = sensors && "areas" in sensors;
@@ -740,8 +856,12 @@ export default function HomePage() {
 
       {/* Status strip — split into temp row (expandable) + energy row */}
       {(() => {
-        // Separate växthus from indoor areas
-        const indoorAreas = sensorsOk ? sensors.areas.filter(a => a.name.toLowerCase() !== "växthus") : [];
+        // Indoor rooms — fixed order, exclude Kök/Växthus
+        const INDOOR_ORDER = ["Vardagsrum", "Sovrum", "Elvira"];
+        const INDOOR_ICONS: Record<string, string> = { "Vardagsrum": "weekend", "Sovrum": "bed", "Elvira": "face" };
+        const indoorAreas = sensorsOk
+          ? INDOOR_ORDER.map(n => sensors.areas.find(a => a.name === n)).filter((a): a is SensorArea => a != null)
+          : [];
         const vaxthusArea = sensorsOk ? sensors.areas.find(a => a.name.toLowerCase() === "växthus") : null;
 
         const ChipRow = ({ children }: { children: React.ReactNode }) => (
@@ -803,9 +923,9 @@ export default function HomePage() {
                       <span className="text-sm font-semibold truncate" style={{ color: "var(--color-on-surface)" }}>Innetemperatur</span>
                       <PrimaryBadge color="var(--color-primary)" />
                     </div>
-                    <span className="flex items-center gap-1 ml-3 shrink-0">
-                      <span className="material-symbols-outlined text-[13px]" style={{ color: "var(--color-primary)" }}>thermometer</span>
-                      <span className="text-sm font-black" style={{ color: "var(--color-primary)" }}>{sensors.nibe_indoor_temp.toFixed(1)}°</span>
+                    <span className="flex items-center gap-0.5 shrink-0" style={{ minWidth: "3.75rem", justifyContent: "flex-end" }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>thermometer</span>
+                      <span className="text-sm font-black" style={{ color: "var(--color-primary)", fontVariantNumeric: "tabular-nums" }}>{sensors.nibe_indoor_temp.toFixed(1)}°</span>
                     </span>
                   </div>
                 )}
@@ -813,20 +933,20 @@ export default function HomePage() {
                 {indoorAreas.map(area => (
                   <div key={area.area_id} className="flex items-center justify-between py-2.5 border-t"
                     style={{ borderColor: "var(--color-outline-variant)" }}>
-                    <div className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "var(--color-primary)" }} />
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="material-symbols-outlined text-[15px] shrink-0" style={{ color: "var(--color-primary)" }}>{INDOOR_ICONS[area.name] ?? "thermometer"}</span>
                       <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
                     </div>
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       {area.humidity != null && (
                         <span className="flex items-center gap-1 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                          <span className="material-symbols-outlined text-[10px]">water_drop</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>water_drop</span>
                           {Math.round(area.humidity)}%
                         </span>
                       )}
-                      <span className="flex items-center gap-0.5">
-                        <span className="material-symbols-outlined text-[12px]" style={{ color: "var(--color-on-surface-variant)" }}>thermometer</span>
-                        <span className="text-sm font-black" style={{ color: "var(--color-on-surface)" }}>{area.temperature.toFixed(1)}°</span>
+                      <span className="flex items-center gap-0.5" style={{ minWidth: "3.75rem", justifyContent: "flex-end" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>thermometer</span>
+                        <span className="text-sm font-black" style={{ color: "var(--color-on-surface)", fontVariantNumeric: "tabular-nums" }}>{area.temperature.toFixed(1)}°</span>
                       </span>
                     </div>
                   </div>
@@ -845,9 +965,9 @@ export default function HomePage() {
                       <span className="text-sm font-semibold truncate" style={{ color: "var(--color-on-surface)" }}>Utetemperatur</span>
                       <PrimaryBadge color="var(--color-tertiary)" />
                     </div>
-                    <span className="flex items-center gap-1 ml-3 shrink-0">
-                      <span className="material-symbols-outlined text-[13px]" style={{ color: "var(--color-tertiary)" }}>thermometer</span>
-                      <span className="text-sm font-black" style={{ color: "var(--color-tertiary)" }}>{sensors.outdoor_temp.toFixed(1)}°</span>
+                    <span className="flex items-center gap-0.5 shrink-0" style={{ minWidth: "3.75rem", justifyContent: "flex-end" }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-tertiary)" }}>thermometer</span>
+                      <span className="text-sm font-black" style={{ color: "var(--color-tertiary)", fontVariantNumeric: "tabular-nums" }}>{sensors.outdoor_temp.toFixed(1)}°</span>
                     </span>
                   </div>
                 )}
@@ -861,13 +981,13 @@ export default function HomePage() {
                     <div className="flex items-center gap-2.5">
                       {vaxthusArea.humidity != null && (
                         <span className="flex items-center gap-1 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                          <span className="material-symbols-outlined text-[10px]">water_drop</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>water_drop</span>
                           {Math.round(vaxthusArea.humidity)}%
                         </span>
                       )}
-                      <span className="flex items-center gap-0.5">
-                        <span className="material-symbols-outlined text-[12px]" style={{ color: "var(--color-tertiary)" }}>thermometer</span>
-                        <span className="text-sm font-black" style={{ color: "var(--color-tertiary)" }}>{vaxthusArea.temperature.toFixed(1)}°</span>
+                      <span className="flex items-center gap-0.5" style={{ minWidth: "3.75rem", justifyContent: "flex-end" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>thermometer</span>
+                        <span className="text-sm font-black" style={{ color: "var(--color-on-surface)", fontVariantNumeric: "tabular-nums" }}>{vaxthusArea.temperature.toFixed(1)}°</span>
                         {vaxthusArea.temperature > 30 && (
                           <span className="material-symbols-outlined text-[14px] ml-0.5" style={{ color: "#e65100" }}>warning</span>
                         )}

@@ -2,6 +2,9 @@
 
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
+import { useTheme } from "@/lib/theme";
+
+const THEME_ICONS: Record<string, string> = { auto: "brightness_auto", light: "light_mode", dark: "dark_mode" };
 
 const CONTEXT_META: Record<
   string,
@@ -64,6 +67,7 @@ export default function TopBar() {
 
   const contextKey = getContextKey(pathname);
   const meta = CONTEXT_META[contextKey];
+  const { theme, cycleTheme } = useTheme();
 
   return (
     <header
@@ -94,38 +98,40 @@ export default function TopBar() {
       </span>
 
       {/* Context label + sub-tabs */}
-      <div className="flex items-center flex-1 gap-4 px-2 min-w-0">
+      <div className="flex items-center flex-1 min-w-0 px-2 overflow-hidden">
         <span
-          className="hidden md:block text-sm font-bold shrink-0"
+          className="hidden md:block text-sm font-bold shrink-0 mr-4"
           style={{ color: "var(--color-on-surface-variant)" }}
         >
           {meta.label}
         </span>
 
         {meta.tabs && meta.tabs.length > 1 && (
-          <nav className="flex gap-1">
-            {meta.tabs.map(({ label, suffix }) => {
-              const href = `${contextKey}${suffix}`;
-              const active = pathname === href;
-              return (
-                <a
-                  key={href}
-                  href={href}
-                  className="rounded-full px-3 py-1 text-sm font-medium transition-all whitespace-nowrap"
-                  style={
-                    active
-                      ? {
-                          backgroundColor: "var(--color-inverse-surface)",
-                          color: "var(--color-surface)",
-                        }
-                      : { color: "var(--color-on-surface-variant)" }
-                  }
-                >
-                  {label}
-                </a>
-              );
-            })}
-          </nav>
+          <div className="overflow-x-auto no-scrollbar flex-1">
+            <nav className="flex gap-1 w-max">
+              {meta.tabs.map(({ label, suffix }) => {
+                const href = `${contextKey}${suffix}`;
+                const active = pathname === href;
+                return (
+                  <a
+                    key={href}
+                    href={href}
+                    className="rounded-full px-3 py-1 text-sm font-medium transition-all whitespace-nowrap"
+                    style={
+                      active
+                        ? {
+                            backgroundColor: "var(--color-inverse-surface)",
+                            color: "var(--color-surface)",
+                          }
+                        : { color: "var(--color-on-surface-variant)" }
+                    }
+                  >
+                    {label}
+                  </a>
+                );
+              })}
+            </nav>
+          </div>
         )}
       </div>
 
@@ -161,8 +167,8 @@ export default function TopBar() {
         ))}
       </div>
 
-      {/* Right actions */}
-      <div className="flex items-center gap-3 px-4">
+      {/* Right actions — desktop */}
+      <div className="hidden md:flex items-center gap-3 px-4">
         <button
           className="material-symbols-outlined transition-colors opacity-70 hover:opacity-100"
           style={{ color: "var(--color-on-surface-variant)" }}
@@ -170,17 +176,23 @@ export default function TopBar() {
         >
           notifications
         </button>
-
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-          style={{
-            backgroundColor: "var(--color-primary)",
-            color: "var(--color-on-primary)",
-          }}
+          style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
         >
           SA
         </div>
       </div>
+
+      {/* Theme toggle — mobile only */}
+      <button
+        onClick={cycleTheme}
+        className="md:hidden flex items-center justify-center w-10 h-10 mr-2 rounded-full opacity-70"
+        style={{ color: "var(--color-on-surface-variant)" }}
+        aria-label="Växla tema"
+      >
+        <span className="material-symbols-outlined text-[22px]">{THEME_ICONS[theme]}</span>
+      </button>
     </header>
   );
 }

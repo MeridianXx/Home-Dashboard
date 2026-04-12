@@ -59,7 +59,7 @@ export default function Sidebar() {
       )}
 
       {/* Context nav */}
-      <nav className={`flex-1 ${isCollapsed ? "px-1 pt-4" : "px-2"} space-y-0.5`}>
+      <nav className={`flex-1 min-h-0 overflow-y-auto no-scrollbar ${isCollapsed ? "px-1 pt-4" : "px-2"} space-y-0.5`}>
         {CONTEXTS.map(({ icon, label, href }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
@@ -89,7 +89,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Secondary links + theme toggle */}
-      <div className={`${isCollapsed ? "px-1" : "px-2"} mb-4 space-y-0.5`}>
+      <div className={`${isCollapsed ? "px-1" : "px-2"} mb-4 space-y-0.5 shrink-0`}>
         {SECONDARY.map(({ icon, label, href }) => (
           <Link
             key={label}
