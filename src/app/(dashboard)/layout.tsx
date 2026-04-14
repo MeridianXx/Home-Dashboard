@@ -28,7 +28,7 @@ function getTabIndex(pathname: string) {
 }
 
 // Smooth slide — slower, deeper deceleration for less "jumpy" feel
-const SLIDE_EASE = { duration: 0.45, ease: [0.25, 0.8, 0.25, 1] as const };
+const FADE_EASE = { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const collapsed = useDashboardStore((s) => s.sidebarCollapsed);
@@ -274,11 +274,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <motion.div
             ref={swipeRef}
             key={pathname}
-            initial={slideDir !== 0 ? { x: `${slideDir * 15}%`, opacity: 0 } : false}
-            animate={{ x: 0, opacity: 1 }}
-            transition={SLIDE_EASE}
+            initial={slideDir !== 0 ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={FADE_EASE}
             onAnimationComplete={() => { directionRef.current = 0; }}
-            style={{ willChange: "transform, opacity" }}
+            style={{ willChange: "opacity" }}
           >
             {children}
           </motion.div>

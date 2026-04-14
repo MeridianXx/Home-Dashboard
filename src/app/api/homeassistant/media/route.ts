@@ -9,6 +9,7 @@ const PLAYERS: Array<{ entity_id: string; room: string; type: "sonos" | "appletv
   { entity_id: "media_player.elvira_sonos",       room: "Elvira",     type: "sonos" },
   { entity_id: "media_player.adrian_sonos",       room: "Adrian",     type: "sonos" },
   { entity_id: "media_player.vardagsrum_appletv", room: "Vardagsrum", type: "appletv" },
+  { entity_id: "media_player.allrum_appletv",     room: "Allrum",     type: "appletv" },
   { entity_id: "media_player.vardagsrum_tv",      room: "Vardagsrum", type: "tv" },
 ];
 
@@ -28,16 +29,18 @@ export type MediaPlayer = {
   source: string | null;
 };
 
-function abs(haBase: string, pic: string): string {
-  if (pic.startsWith("http")) return pic;
-  return `${haBase}${pic}`;
+// Proxy upstream HA image paths through our /api/homeassistant/image route so
+// the public-facing site works without exposing HA directly.
+function proxyImage(pic: string | undefined): string | null {
+  if (!pic) return null;
+  if (pic.startsWith("http")) return pic; // already absolute (external artwork)
+  return `/api/homeassistant/image?path=${encodeURIComponent(pic)}`;
 }
 
 export async function GET() {
   try {
     const states = await getStates("media_player");
     const byId = new Map(states.map(s => [s.entity_id, s]));
-    const haBase = process.env.HA_URL ?? "";
 
     const players: MediaPlayer[] = [];
     for (const p of PLAYERS) {
@@ -46,8 +49,6 @@ export async function GET() {
       if (s.state === "unavailable") continue;
 
       const attrs = s.attributes;
-      const pic = attrs.entity_picture as string | undefined;
-
       players.push({
         entity_id: p.entity_id,
         name: (attrs.friendly_name as string) ?? p.entity_id,
@@ -60,7 +61,7 @@ export async function GET() {
         media_artist: (attrs.media_artist as string) ?? null,
         media_album: (attrs.media_album_name as string) ?? null,
         media_channel: (attrs.media_channel as string) ?? null,
-        media_image_url: pic ? abs(haBase, pic) : null,
+        media_image_url: proxyImage(attrs.entity_picture as string | undefined),
         source: (attrs.source as string) ?? null,
       });
     }
