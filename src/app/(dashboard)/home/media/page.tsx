@@ -85,7 +85,7 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
       }}>
       {/* Album art / icon — vertically centered via parent items-center */}
       <div style={{
-        width: 52, height: 52, borderRadius: 10, flexShrink: 0, overflow: "hidden",
+        width: 68, height: 68, borderRadius: 12, flexShrink: 0, overflow: "hidden",
         backgroundColor: playing ? `${AMBER}18` : "var(--color-surface-container-high)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
@@ -94,7 +94,7 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
           <img src={player.media_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           <span className="material-symbols-outlined"
-            style={{ fontSize: 26, color: playing ? AMBER : "var(--color-outline)", fontVariationSettings: playing ? "'FILL' 1" : "'FILL' 0" }}>
+            style={{ fontSize: 32, color: playing ? AMBER : "var(--color-outline)", fontVariationSettings: playing ? "'FILL' 1" : "'FILL' 0" }}>
             speaker
           </span>
         )}
