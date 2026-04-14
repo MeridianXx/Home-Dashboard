@@ -1009,7 +1009,18 @@ function FavTile({ label, icon, color, active, loading, onClick }: {
 
 export default function HomePage() {
   const hydrated = useHydrated();
-  const [lastScene, setLastScene] = useState<"god_morgon" | "hemma" | "kvall" | "natt" | "slack" | null>(null);
+  type SceneKey = "god_morgon" | "hemma" | "kvall" | "natt" | "slack";
+  const [lastScene, setLastSceneState] = useState<SceneKey | null>(null);
+  // Hydrate from localStorage after mount (SSR-safe)
+  useEffect(() => {
+    const saved = localStorage.getItem("lastScene");
+    if (saved) setLastSceneState(saved as SceneKey);
+  }, []);
+  const setLastScene = useCallback((s: SceneKey | null) => {
+    setLastSceneState(s);
+    if (s) localStorage.setItem("lastScene", s);
+    else localStorage.removeItem("lastScene");
+  }, []);
 
   const { data: lights,  mutate: mLights  } = useSWR<LightsData>  ("/api/homeassistant/lights",  fetcher, { refreshInterval:  2_000 });
   const { data: sensors }                    = useSWR<SensorsData> ("/api/homeassistant/sensors", fetcher, { refreshInterval: 30_000 });

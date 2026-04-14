@@ -27,8 +27,8 @@ function getTabIndex(pathname: string) {
   return suffixes.indexOf(current);
 }
 
-// Smooth slide — no spring overshoot, clean deceleration
-const SLIDE_EASE = { duration: 0.32, ease: [0.32, 0.72, 0, 1] as const };
+// Smooth slide — slower, deeper deceleration for less "jumpy" feel
+const SLIDE_EASE = { duration: 0.45, ease: [0.25, 0.8, 0.25, 1] as const };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const collapsed = useDashboardStore((s) => s.sidebarCollapsed);
@@ -274,7 +274,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <motion.div
             ref={swipeRef}
             key={pathname}
-            initial={slideDir !== 0 ? { x: `${slideDir * 25}%`, opacity: 0 } : false}
+            initial={slideDir !== 0 ? { x: `${slideDir * 15}%`, opacity: 0 } : false}
             animate={{ x: 0, opacity: 1 }}
             transition={SLIDE_EASE}
             onAnimationComplete={() => { directionRef.current = 0; }}

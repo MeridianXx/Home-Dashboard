@@ -226,7 +226,7 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - **FavTile / knappar i grid:** Tailwinds `w-full` är otillförlitligt på mobil — lägg alltid till `width: "100%"` och `minHeight` som inline style på tiles för konsekvent storlek
 - **Haptic feedback:** `navigator.vibrate()` stöds **inte** i iOS Safari — implementera inte haptic för iOS, det är en platform-begränsning
 - **TempSlider:** generisk komponent i `home/page.tsx` för temperaturreglage; använd `key={value}` för att tvinga remount när servervärde ändras (uncontrolled input-mönster)
-- **Page transitions:** Framer Motion `motion.div` med `key={pathname}` i dashboard layout — ren horisontell slide (25%, 320ms ease-out `[0.32, 0.72, 0, 1] as const`). Riktning beräknas **under render** (inte useEffect!) genom att jämföra `pathname` med `prevPathnameRef` — useEffect körs efter render och missar första mount av nya motion.div. `onAnimationComplete` nollställer direction så app-switch inte triggar om. Undvik `AnimatePresence mode="wait"` (dubbel-laddning), spring (studsar), och Card-level entrance-animationer (diagonal rörelse).
+- **Page transitions:** Framer Motion `motion.div` med `key={pathname}` i dashboard layout — ren horisontell slide (15%, 450ms ease-out `[0.25, 0.8, 0.25, 1] as const`). Riktning beräknas **under render** (inte useEffect!) genom att jämföra `pathname` med `prevPathnameRef` — useEffect körs efter render och missar första mount av nya motion.div. `onAnimationComplete` nollställer direction så app-switch inte triggar om. Undvik `AnimatePresence mode="wait"` (dubbel-laddning), spring (studsar), och Card-level entrance-animationer (diagonal rörelse).
 - **iOS app-switch:** `onTouchCancel` + `visibilitychange`-lyssnare krävs för att nollställa inline swipe-transform. Utan det fastnar `translateX` när iOS avbryter touch (app-switch, samtal, notis).
 - **Expand/collapse:** `AnimatePresence initial={false}` + `motion.div` med `height: 0/auto` + `opacity: 0/1`, duration 0.2s ease-out, `overflow: hidden`. Används på belysningsrum, temperaturpaneler, HVAC-selects.
 - **Pull-to-refresh:** Custom touch-gest i layout.tsx. Kräver `scrollY === 0`, 80px threshold, undviker horisontell swipe-konflikt. Bekräftelse: bock + "Uppdaterat" i 800ms. **Viktigt:** använd `"0px"` (sträng) istället för `0` (number) i inline styles för height — annars hydration-mismatch.
@@ -235,6 +235,7 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - **Temperaturgrafer:** `mergeByTime()` bucketiserar data i 15-minutersintervall med medelvärde + forward-fill för komplett tooltip. `tightDomain()` beräknar Y-axel med ±1° marginal runt faktisk data.
 - **EnergyCard StatRow:** Konsekvent radkomponent med 36px cirkelikon, label/värde/badge, chevron som separat `<button>` (inte inuti Pressable) med `self-stretch` för full radhöjd — matchar belysningskortens expand-mönster.
 - **Belysningsundersida våningsplan:** Rum delas in via `NEDERVANING`/`OVERVANING`/`UTOMHUS`-arrayer i `lighting/page.tsx`. "Släck"-pill per sektion, "Släck allt" globalt — båda med spinner-feedback.
+- **Scen-persistens:** `lastScene` (aktiv scen i Favoriter) sparas i `localStorage` under key `lastScene`. Hydrateras i `useEffect` efter mount för att undvika SSR-mismatch.
 
 ---
 
