@@ -1041,7 +1041,7 @@ export default function HomePage() {
                       <PrimaryBadge color="var(--color-tertiary)" />
                     </div>
                     <span className="flex items-center gap-0.5 shrink-0" style={{ minWidth: "3.75rem", justifyContent: "flex-end" }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>thermometer</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>device_thermostat</span>
                       <span className="text-sm font-black" style={{ color: "var(--color-on-surface)", fontVariantNumeric: "tabular-nums" }}>{sensors.outdoor_temp.toFixed(1)}°</span>
                     </span>
                   </div>
