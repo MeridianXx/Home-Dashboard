@@ -1106,7 +1106,7 @@ export default function HomePage() {
         <SectionLabel>Favoriter</SectionLabel>
 
         {/* Scener */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginBottom: 12 }}>
           <FavTile
             label="God morgon" icon="wb_sunny"
             color="#f59e0b" active={lastScene === "god_morgon"}
