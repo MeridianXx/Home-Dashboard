@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
+import Logo from "@/components/Logo";
 
 const THEME_ICONS: Record<string, string> = { auto: "brightness_auto", light: "light_mode", dark: "dark_mode" };
 
@@ -92,10 +93,10 @@ export default function TopBar() {
 
       {/* Logo — mobile only */}
       <span
-        className="md:hidden text-lg font-black tracking-tight font-headline px-5"
+        className="md:hidden flex items-center px-5"
         style={{ color: "var(--color-on-surface)" }}
       >
-        inicio
+        <Logo size={26} />
       </span>
 
       {/* Context label + sub-tabs */}

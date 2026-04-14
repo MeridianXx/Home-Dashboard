@@ -281,6 +281,7 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - [x] Mediavy som egen undersida `/home/media` (`/api/homeassistant/media` + UI). Sonos per rum med albumart, volym-slider, play/pause, mute. Apple TV med source-badge.
 - [x] `FavTile` + `Pressable` extraherade till `src/components/FavTile.tsx` för delning.
 
-### Session E — Branding
-- [ ] Logo/wordmark istället för "inicio"-text i topmenyn
-- [ ] App-ikon för hemskärm + `manifest.json` uppdatering
+### Session E — Branding ✅ Klar
+- [x] Logo-symbol (Koncept A: outline-hus med prick, primärfärg #475bc2) ersätter "inicio"-text i TopBar och "inicio.cloud" i Sidebar — delad `src/components/Logo.tsx`
+- [x] App-ikon via Next.js icon-konvention: `src/app/icon.svg` (favicon) + `src/app/apple-icon.tsx` (180×180 PNG via `ImageResponse`)
+- [x] `public/manifest.json` migrerad till `src/app/manifest.ts` (TypeScript, refererar nya icon-paths). Tom `public/icons/` raderad.

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
+import Logo from "@/components/Logo";
 
 const THEME_ICONS: Record<string, string>  = { auto: "brightness_auto", light: "light_mode", dark: "dark_mode" };
 const THEME_LABELS: Record<string, string> = { auto: "Auto", light: "Ljust", dark: "Mörkt" };
@@ -40,23 +41,25 @@ export default function Sidebar() {
         boxShadow: "2px 0 16px rgba(56,56,51,0.04)",
       }}
     >
-      {/* Branding block — only when expanded */}
-      {!isCollapsed && (
-        <div className="px-5 py-5 mb-2">
+      {/* Branding block */}
+      <div
+        className={`flex items-center gap-3 ${
+          isCollapsed ? "justify-center py-5" : "px-5 py-5 mb-2"
+        }`}
+      >
+        <Logo
+          size={isCollapsed ? 24 : 28}
+          style={{ color: "var(--color-on-surface)" }}
+        />
+        {!isCollapsed && (
           <p
-            className="text-xs font-bold uppercase tracking-widest"
-            style={{ color: "var(--color-on-surface-variant)" }}
-          >
-            inicio.cloud
-          </p>
-          <p
-            className="text-[11px] font-medium mt-0.5"
+            className="text-[11px] font-medium"
             style={{ color: "var(--color-outline)" }}
           >
             Villa Björkdalen
           </p>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Context nav */}
       <nav className={`flex-1 min-h-0 overflow-y-auto no-scrollbar ${isCollapsed ? "px-1 pt-4" : "px-2"} space-y-0.5`}>

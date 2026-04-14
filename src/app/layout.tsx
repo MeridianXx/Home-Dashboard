@@ -17,7 +17,7 @@ const syne = Syne({
 export const metadata: Metadata = {
   title: "inicio.cloud — Villa Björkdalen",
   description: "Homelab & smarthome dashboard",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
