@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import useSWR from "swr";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -100,15 +101,21 @@ function Pressable({ children, onClick, disabled = false, loading = false, class
   );
 }
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function Card({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   return (
-    <div className={`rounded-2xl p-5 ${className}`} style={{
-      backgroundColor: "var(--color-surface-container-lowest)",
-      boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
-      border: "1px solid var(--color-card-border)",
-    }}>
+    <motion.div
+      className={`rounded-2xl p-5 ${className}`}
+      style={{
+        backgroundColor: "var(--color-surface-container-lowest)",
+        boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
+        border: "1px solid var(--color-card-border)",
+      }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut", delay }}
+    >
       {children}
-    </div>
+    </motion.div>
   );
 }
 
@@ -265,7 +272,15 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
               </div>
 
               {/* Inline expanded: per-light controls */}
+              <AnimatePresence initial={false}>
               {open && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  style={{ overflow: "hidden" }}
+                >
                 <div className="pt-1 pb-2 border-t"
                   style={{ borderColor: on ? `${AMBER}22` : "var(--color-outline-variant)", backgroundColor: "var(--color-surface-container)" }}>
                   {area.lights.map(light => {
@@ -319,7 +334,9 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
                     );
                   })}
                 </div>
+                </motion.div>
               )}
+              </AnimatePresence>
             </div>
           );
         })}
@@ -628,6 +645,8 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
                   style={{
                     backgroundColor: active ? (mode === "off" ? "rgba(129,129,122,0.15)" : mode === "cool" ? "rgba(71,91,194,0.15)" : "rgba(136,92,0,0.15)") : "var(--color-surface-container-high)",
                     color: active ? mColor : "var(--color-on-surface-variant)",
+                    transition: "background-color 0.2s, color 0.2s, box-shadow 0.2s",
+                    boxShadow: active ? `inset 0 0 0 99px ${mColor}08` : "none",
                   }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>
                     {HVAC_MODE_ICONS[mode]}
@@ -721,7 +740,15 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
                   {expandedSelect === "hot_water" ? "expand_less" : "expand_more"}
                 </span>
               </button>
+              <AnimatePresence initial={false}>
               {expandedSelect === "hot_water" && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  style={{ overflow: "hidden" }}
+                >
                 <div className="px-3 pb-3 flex flex-wrap gap-1.5">
                   {nibe.hot_water_boost_options.map(opt => (
                     <Pressable key={opt} onClick={() => { handleHotWaterBoost(opt); setExpandedSelect(null); }}
@@ -734,7 +761,9 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
                     </Pressable>
                   ))}
                 </div>
+                </motion.div>
               )}
+              </AnimatePresence>
             </div>
 
             {/* Ventilation */}
@@ -750,7 +779,15 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
                   {expandedSelect === "ventilation" ? "expand_less" : "expand_more"}
                 </span>
               </button>
+              <AnimatePresence initial={false}>
               {expandedSelect === "ventilation" && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  style={{ overflow: "hidden" }}
+                >
                 <div className="px-3 pb-3 flex flex-wrap gap-1.5">
                   {nibe.ventilation_options.map(opt => (
                     <Pressable key={opt} onClick={() => { handleVentilationMode(opt); setExpandedSelect(null); }}
@@ -763,7 +800,9 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
                     </Pressable>
                   ))}
                 </div>
+                </motion.div>
               )}
+              </AnimatePresence>
             </div>
           </div>
 
@@ -778,6 +817,8 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
                 style={{
                   backgroundColor: active ? (color === "var(--color-primary)" ? "rgba(71,91,194,0.15)" : "rgba(136,92,0,0.15)") : "var(--color-surface-container-high)",
                   color: active ? color : "var(--color-on-surface-variant)",
+                  transition: "background-color 0.2s, color 0.2s, box-shadow 0.2s",
+                  boxShadow: active ? `inset 0 0 0 99px ${color}08` : "none",
                 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{icon}</span>
                 {label}
@@ -806,6 +847,7 @@ function MiniTile({ label, icon, color, active, loading, onClick }: {
         backgroundColor: "var(--color-surface-container)",
         border: `2px solid ${active && !loading ? color : "transparent"}`,
         boxShadow: active && !loading ? `inset 0 0 0 99px ${color}18` : "none",
+        transition: "border-color 0.2s, box-shadow 0.2s",
       }}
     >
       {loading ? (
@@ -842,6 +884,7 @@ function FavTile({ label, icon, color, active, loading, onClick }: {
         boxShadow: active && !loading ? `inset 0 0 0 99px ${color}14` : "none",
         minHeight: 84,
         width: "100%",
+        transition: "border-color 0.2s, box-shadow 0.2s",
       }}
     >
       {loading ? (
@@ -988,7 +1031,15 @@ export default function HomePage() {
             </ChipRow>
 
             {/* Indoor expand panel */}
+            <AnimatePresence initial={false}>
             {expandedChip === "indoor" && sensorsOk && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                style={{ overflow: "hidden" }}
+              >
               <div className="px-4 pb-4 pt-1 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
                 {/* BT50 primary row */}
                 {sensors.nibe_indoor_temp != null && (
@@ -1027,10 +1078,20 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
+              </motion.div>
             )}
+            </AnimatePresence>
 
             {/* Outdoor expand panel */}
+            <AnimatePresence initial={false}>
             {expandedChip === "outdoor" && sensorsOk && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                style={{ overflow: "hidden" }}
+              >
               <div className="px-4 pb-4 pt-1 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
                 {/* BT1 primary row */}
                 {sensors.outdoor_temp != null && (
@@ -1071,7 +1132,9 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
+              </motion.div>
             )}
+            </AnimatePresence>
 
             {/* Divider between temp and energy rows */}
             <div className="h-px mx-4" style={{ backgroundColor: "var(--color-outline-variant)" }} />
