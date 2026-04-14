@@ -979,7 +979,7 @@ export default function HomePage() {
           }}>
             {/* Row 1: temp chips */}
             <ChipRow>
-              <ExpandChip chip="indoor" icon="thermostat"
+              <ExpandChip chip="indoor" icon="device_thermostat"
                 value={indoorTemp != null ? `${indoorTemp}°` : "–"}
                 label="Inomhus" color="var(--color-primary)" />
               <ExpandChip chip="outdoor" icon="device_thermostat"
@@ -994,13 +994,13 @@ export default function HomePage() {
                 {sensors.nibe_indoor_temp != null && (
                   <div className="flex items-center justify-between py-2.5">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="material-symbols-outlined text-[15px] shrink-0" style={{ color: "var(--color-primary)" }}>thermostat</span>
+                      <span className="material-symbols-outlined text-[15px] shrink-0" style={{ color: "var(--color-on-surface-variant)" }}>device_thermostat</span>
                       <span className="text-sm font-semibold truncate" style={{ color: "var(--color-on-surface)" }}>Innetemperatur</span>
                       <PrimaryBadge color="var(--color-primary)" />
                     </div>
                     <span className="flex items-center gap-0.5 shrink-0" style={{ minWidth: "3.75rem", justifyContent: "flex-end" }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>thermometer</span>
-                      <span className="text-sm font-black" style={{ color: "var(--color-primary)", fontVariantNumeric: "tabular-nums" }}>{sensors.nibe_indoor_temp.toFixed(1)}°</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>device_thermostat</span>
+                      <span className="text-sm font-black" style={{ color: "var(--color-on-surface)", fontVariantNumeric: "tabular-nums" }}>{sensors.nibe_indoor_temp.toFixed(1)}°</span>
                     </span>
                   </div>
                 )}
@@ -1009,7 +1009,7 @@ export default function HomePage() {
                   <div key={area.area_id} className="flex items-center justify-between py-2.5 border-t"
                     style={{ borderColor: "var(--color-outline-variant)" }}>
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="material-symbols-outlined text-[15px] shrink-0" style={{ color: "var(--color-primary)" }}>{INDOOR_ICONS[area.name] ?? "thermometer"}</span>
+                      <span className="material-symbols-outlined text-[15px] shrink-0" style={{ color: "var(--color-on-surface-variant)" }}>{INDOOR_ICONS[area.name] ?? "device_thermostat"}</span>
                       <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0">
@@ -1020,7 +1020,7 @@ export default function HomePage() {
                         </span>
                       )}
                       <span className="flex items-center gap-0.5" style={{ minWidth: "3.75rem", justifyContent: "flex-end" }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>thermometer</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>device_thermostat</span>
                         <span className="text-sm font-black" style={{ color: "var(--color-on-surface)", fontVariantNumeric: "tabular-nums" }}>{area.temperature.toFixed(1)}°</span>
                       </span>
                     </div>
@@ -1061,7 +1061,7 @@ export default function HomePage() {
                         </span>
                       )}
                       <span className="flex items-center gap-0.5" style={{ minWidth: "3.75rem", justifyContent: "flex-end" }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>thermometer</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>device_thermostat</span>
                         <span className="text-sm font-black" style={{ color: "var(--color-on-surface)", fontVariantNumeric: "tabular-nums" }}>{vaxthusArea.temperature.toFixed(1)}°</span>
                         {vaxthusArea.temperature > 30 && (
                           <span className="material-symbols-outlined text-[14px] ml-0.5" style={{ color: "#e65100" }}>warning</span>
