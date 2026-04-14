@@ -840,6 +840,7 @@ function FavTile({ label, icon, color, active, loading, onClick }: {
         backgroundColor: "var(--color-surface-container)",
         border: `2px solid ${active && !loading ? color : "transparent"}`,
         boxShadow: active && !loading ? `inset 0 0 0 99px ${color}14` : "none",
+        minHeight: 84,
       }}
     >
       {loading ? (
