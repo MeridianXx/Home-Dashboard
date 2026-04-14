@@ -222,17 +222,23 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - **Range inputs:** stylas via `globals.css` med `appearance: none` + CSS-variabel `--fill` för amber-fyllning; uppdateras live via `onInput` → `t.style.setProperty("--fill", \`${t.value}%\`)`
 - **iOS expanded sections:** expanderade `div`-block utan explicit bakgrund får svart default på iOS → lägg alltid till `backgroundColor: "var(--color-surface-container)"` på expanderade sektioner
 - **MobileNav:** glasmorfism-pill med `--nav-glass-bg` / `--nav-glass-border` CSS-variabler definierade per tema i `globals.css`; fasta 76px-breda items
+- **CSS Grid lika bredd:** använd alltid `repeat(N, minmax(0, 1fr))` — vanlig `1fr` har implicit `min-width: auto` och låter innehåll tänja ut kolumner på mobil
+- **FavTile / knappar i grid:** Tailwinds `w-full` är otillförlitligt på mobil — lägg alltid till `width: "100%"` och `minHeight` som inline style på tiles för konsekvent storlek
+- **Haptic feedback:** `navigator.vibrate()` stöds **inte** i iOS Safari — implementera inte haptic för iOS, det är en platform-begränsning
+- **TempSlider:** generisk komponent i `home/page.tsx` för temperaturreglage; använd `key={value}` för att tvinga remount när servervärde ändras (uncontrolled input-mönster)
 
 ---
 
 ## Pending work
 
-### Session A — Snabbfixar
-- [ ] Slider-% live vid drag (uppdatera label utan att släppa)
-- [ ] Haptisk feedback som PWA (`navigator.vibrate()`)
-- [ ] Färgöversyn — brun/amber-text och generella färger
-- [ ] Ikoner istället för text i topmenyn (Översikt, Belysning osv) och mobilnavigering
-- [ ] Kompressor börvärde på klimatkortet
+### Session A — Snabbfixar ✅ Klar
+- [x] Slider-% live vid drag (uppdatera label utan att släppa)
+- [x] Haptisk feedback — iOS Safari stödjer ej Vibration API, skippat
+- [x] Färgöversyn — amber/blå text ersatt med `on-surface`, konsekvent ikonanvändning
+- [x] Ikoner + text i TopBar-flikar (ikon ovanför label, FILL-animering)
+- [x] NIBE börvärde som slider på klimatkortet
+- [x] Hero-pump temperaturslider (16–30°C)
+- [x] HA-scener i Favoriter (Morgon, Hemma, Kväll, Natt) + Alla av på belysningskortet
 
 ### Session B — UX & animationer
 - [ ] Swipe-animation med preview (Framer Motion AnimatePresence) — native-känsla
