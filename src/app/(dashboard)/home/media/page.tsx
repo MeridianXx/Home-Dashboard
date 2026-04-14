@@ -76,80 +76,69 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
   const subtitle = player.media_artist || player.media_channel || player.source || (playing ? "Spelar" : "Pausad");
 
   return (
-    <div className="flex flex-col rounded-2xl overflow-hidden"
+    <div className="flex items-center gap-3 rounded-2xl px-4 py-4"
       style={{
         backgroundColor: "var(--color-surface-container)",
         border: `1.5px solid ${playing ? AMBER : "transparent"}`,
         boxShadow: playing ? `inset 0 0 0 99px ${AMBER}09` : "none",
         transition: "border-color 0.2s, box-shadow 0.2s",
       }}>
-      {/* Header row */}
-      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-        {/* Album art / icon */}
-        <div style={{
-          width: 52, height: 52, borderRadius: 10, flexShrink: 0, overflow: "hidden",
-          backgroundColor: playing ? `${AMBER}18` : "var(--color-surface-container-high)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          {player.media_image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={player.media_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          ) : (
-            <span className="material-symbols-outlined"
-              style={{ fontSize: 26, color: playing ? AMBER : "var(--color-outline)", fontVariationSettings: playing ? "'FILL' 1" : "'FILL' 0" }}>
-              speaker
-            </span>
-          )}
-        </div>
+      {/* Album art / icon — vertically centered via parent items-center */}
+      <div style={{
+        width: 52, height: 52, borderRadius: 10, flexShrink: 0, overflow: "hidden",
+        backgroundColor: playing ? `${AMBER}18` : "var(--color-surface-container-high)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {player.media_image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={player.media_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <span className="material-symbols-outlined"
+            style={{ fontSize: 26, color: playing ? AMBER : "var(--color-outline)", fontVariationSettings: playing ? "'FILL' 1" : "'FILL' 0" }}>
+            speaker
+          </span>
+        )}
+      </div>
 
-        {/* Text */}
-        <div className="min-w-0 flex-1">
+      {/* Content column — text + volume slider aligned to text start */}
+      <div className="min-w-0 flex-1 flex flex-col gap-2">
+        <div className="min-w-0">
           <p className="text-[11px] font-bold tracking-wide uppercase" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
           <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
             {player.media_title ?? player.name}
           </p>
           <p className="text-xs truncate" style={{ color: "var(--color-on-surface-variant)" }}>{subtitle}</p>
         </div>
-
-        {/* Transport: prev / play-pause / next */}
-        <div className="flex items-center gap-1.5">
-          <TransportButton icon="skip_previous" label="Föregående" size={36}
-            onClick={async () => { await callAction("media_previous_track", player.entity_id); onRefresh(); }} />
-          <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={44} primary={playing}
-            onClick={async () => { await callAction("media_play_pause", player.entity_id); onRefresh(); }} />
-          <TransportButton icon="skip_next" label="Nästa" size={36}
-            onClick={async () => { await callAction("media_next_track", player.entity_id); onRefresh(); }} />
+        <div className="flex items-center gap-3">
+          <input type="range" min={0} max={100}
+            key={`${player.entity_id}-${player.volume_level ?? "x"}`}
+            defaultValue={Math.round((player.volume_level ?? 0) * 100)}
+            className="flex-1 cursor-pointer"
+            style={{ "--fill": `${Math.round((player.volume_level ?? 0) * 100)}%` } as React.CSSProperties}
+            onInput={e => {
+              const t = e.currentTarget;
+              const v = parseInt(t.value);
+              t.style.setProperty("--fill", `${v}%`);
+              setLiveVol(v / 100);
+            }}
+            onMouseUp={async e => { const v = parseInt((e.target as HTMLInputElement).value) / 100; await callAction("volume_set", player.entity_id, { volume_level: v }); onRefresh(); }}
+            onTouchEnd={async e => { const v = parseInt((e.target as HTMLInputElement).value) / 100; await callAction("volume_set", player.entity_id, { volume_level: v }); onRefresh(); }}
+          />
+          <span className="text-[11px] font-medium shrink-0"
+            style={{ minWidth: 34, textAlign: "right", color: "var(--color-on-surface-variant)" }}>
+            {volPct}%
+          </span>
         </div>
       </div>
 
-      {/* Volume row */}
-      <div className="flex items-center gap-3 px-4 pb-3 pt-1">
-        <button onClick={async () => { vibrate(); await callAction("volume_mute", player.entity_id, { is_volume_muted: !player.is_volume_muted }); onRefresh(); }}
-          aria-label={player.is_volume_muted ? "Unmuta" : "Muta"}
-          style={{ border: "none", background: "transparent", cursor: "pointer", padding: 4 }}>
-          <span className="material-symbols-outlined"
-            style={{ fontSize: 18, color: player.is_volume_muted ? "var(--color-error)" : "var(--color-on-surface-variant)" }}>
-            {player.is_volume_muted ? "volume_off" : volPct === 0 ? "volume_mute" : volPct < 50 ? "volume_down" : "volume_up"}
-          </span>
-        </button>
-        <input type="range" min={0} max={100}
-          key={`${player.entity_id}-${player.volume_level ?? "x"}`}
-          defaultValue={Math.round((player.volume_level ?? 0) * 100)}
-          className="flex-1 cursor-pointer"
-          style={{ "--fill": `${Math.round((player.volume_level ?? 0) * 100)}%` } as React.CSSProperties}
-          onInput={e => {
-            const t = e.currentTarget;
-            const v = parseInt(t.value);
-            t.style.setProperty("--fill", `${v}%`);
-            setLiveVol(v / 100);
-          }}
-          onMouseUp={async e => { const v = parseInt((e.target as HTMLInputElement).value) / 100; await callAction("volume_set", player.entity_id, { volume_level: v }); onRefresh(); }}
-          onTouchEnd={async e => { const v = parseInt((e.target as HTMLInputElement).value) / 100; await callAction("volume_set", player.entity_id, { volume_level: v }); onRefresh(); }}
-        />
-        <span className="text-[11px] font-medium shrink-0"
-          style={{ minWidth: 34, textAlign: "right", color: "var(--color-on-surface-variant)" }}>
-          {volPct}%
-        </span>
+      {/* Transport: prev / play-pause / next */}
+      <div className="flex items-center gap-1.5">
+        <TransportButton icon="skip_previous" label="Föregående" size={36}
+          onClick={async () => { await callAction("media_previous_track", player.entity_id); onRefresh(); }} />
+        <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={44} primary={playing}
+          onClick={async () => { await callAction("media_play_pause", player.entity_id); onRefresh(); }} />
+        <TransportButton icon="skip_next" label="Nästa" size={36}
+          onClick={async () => { await callAction("media_next_track", player.entity_id); onRefresh(); }} />
       </div>
     </div>
   );
