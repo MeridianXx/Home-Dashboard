@@ -195,3 +195,61 @@ binary_sensor.vanster_laddning    Vänster laddbox — laddar
 binary_sensor.hoger_kontakt       Höger laddbox — inkopplad
 binary_sensor.hoger_laddning      Höger laddbox — laddar
 ```
+
+---
+
+## Projektläge
+
+**Aktiv branch:** `v2` (origin/v2 — detta är den enda aktiva branchen, main är övergiven)  
+**Preview-server:** konfigurerad i `.claude/launch.json`, starta med `preview_start("home-dashboard")`  
+**Färdiga sektioner:** Hem/Översikt, Belysning, Homelab (Servrar/Containers/Media/Nätverk), Fitness (stub), Trädgård (stub)
+
+---
+
+## Kritiska tekniska regler
+
+### Tailwind / responsivitet
+- `tw.css` (public/tw.css) genererar `md:`-klasser **utan** `@media`-wrappers → responsiva Tailwind-klasser fungerar **inte** på mobil
+- **Regel:** Använd alltid `style={{}}` inline för mobil-specifik styling. Använd aldrig `md:` prefix för att dölja/visa element på mobil
+- Undantag: `md:hidden` på MobileNav fungerar via tw.css och är OK
+
+### Next.js cache
+- Vid hydration-mismatchar: radera `.next/`-mappen helt, starta sedan om servern
+- Enbart serveromstart räcker inte — Turbopack cachar SSR-HTML
+
+### Kända mönster
+- **Bottom padding på main:** `style={{ paddingBottom: "140px" }}` (inline, inte Tailwind)
+- **Range inputs:** stylas via `globals.css` med `appearance: none` + CSS-variabel `--fill` för amber-fyllning; uppdateras live via `onInput` → `t.style.setProperty("--fill", \`${t.value}%\`)`
+- **iOS expanded sections:** expanderade `div`-block utan explicit bakgrund får svart default på iOS → lägg alltid till `backgroundColor: "var(--color-surface-container)"` på expanderade sektioner
+- **MobileNav:** glasmorfism-pill med `--nav-glass-bg` / `--nav-glass-border` CSS-variabler definierade per tema i `globals.css`; fasta 76px-breda items
+
+---
+
+## Pending work
+
+### Session A — Snabbfixar
+- [ ] Slider-% live vid drag (uppdatera label utan att släppa)
+- [ ] Haptisk feedback som PWA (`navigator.vibrate()`)
+- [ ] Färgöversyn — brun/amber-text och generella färger
+- [ ] Ikoner istället för text i topmenyn (Översikt, Belysning osv) och mobilnavigering
+- [ ] Kompressor börvärde på klimatkortet
+
+### Session B — UX & animationer
+- [ ] Swipe-animation med preview (Framer Motion AnimatePresence) — native-känsla
+- [ ] Pull-to-refresh på mobil
+- [ ] Visuell feedback vid aktivering på värmepumpskort (likt favoriter)
+- [ ] Animationer generellt (kort, transitions)
+
+### Session C — Grafer
+- [ ] Kombinerat temp-diagram inne+ute (Recharts eller Tremor)
+- [ ] Spotpris-graf (historik + prognos)
+- [ ] Effekt-graf (aktuell förbrukning över tid)
+- [ ] HA history-API endpoint behövs: `/api/homeassistant/history`
+
+### Session D — Nya sektioner
+- [ ] Scener på belysningssidan (`/home/lighting`)
+- [ ] Mediavy som egen undersida `/home/media` (Sonos per rum, volym, Apple TV-status)
+
+### Session E — Branding
+- [ ] Logo/wordmark istället för "inicio"-text i topmenyn
+- [ ] App-ikon för hemskärm + `manifest.json` uppdatering
