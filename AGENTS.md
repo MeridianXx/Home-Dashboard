@@ -226,6 +226,10 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - **FavTile / knappar i grid:** Tailwinds `w-full` är otillförlitligt på mobil — lägg alltid till `width: "100%"` och `minHeight` som inline style på tiles för konsekvent storlek
 - **Haptic feedback:** `navigator.vibrate()` stöds **inte** i iOS Safari — implementera inte haptic för iOS, det är en platform-begränsning
 - **TempSlider:** generisk komponent i `home/page.tsx` för temperaturreglage; använd `key={value}` för att tvinga remount när servervärde ändras (uncontrolled input-mönster)
+- **Page transitions:** Framer Motion `motion.div` med `key={pathname}` i dashboard layout — ren horisontell slide (25%, 320ms ease-out `[0.32, 0.72, 0, 1]`). Undvik `AnimatePresence mode="wait"` (ger dubbel-laddningskänsla) och spring-animationer (studsar). Undvik Card-level entrance-animationer som krockar med page-slide (skapar diagonal rörelse).
+- **Expand/collapse:** `AnimatePresence initial={false}` + `motion.div` med `height: 0/auto` + `opacity: 0/1`, duration 0.2s ease-out, `overflow: hidden`. Används på belysningsrum, temperaturpaneler, HVAC-selects.
+- **Pull-to-refresh:** Custom touch-gest i layout.tsx. Kräver `scrollY === 0`, 80px threshold, undviker horisontell swipe-konflikt. Bekräftelse: bock + "Uppdaterat" i 800ms. **Viktigt:** använd `"0px"` (sträng) istället för `0` (number) i inline styles för height — annars hydration-mismatch.
+- **Loading-state på toggle-knappar:** Använd `runAction(key, fn)` + `loadingKey` för att spåra in-flight state. Visa `spin-anim` SVG-spinner under laddning, dölj border/active-state. Skicka `loadingKey`/`runAction` som props till subkomponenter som behöver det.
 
 ---
 
@@ -240,11 +244,11 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - [x] Hero-pump temperaturslider (16–30°C)
 - [x] HA-scener i Favoriter (Morgon, Hemma, Kväll, Natt) + Alla av på belysningskortet
 
-### Session B — UX & animationer
-- [ ] Swipe-animation med preview (Framer Motion AnimatePresence) — native-känsla
-- [ ] Pull-to-refresh på mobil
-- [ ] Visuell feedback vid aktivering på värmepumpskort (likt favoriter)
-- [ ] Animationer generellt (kort, transitions)
+### Session B — UX & animationer ✅ Klar
+- [x] Swipe-animation med preview (Framer Motion) — smooth horisontell slide, 25% bredd, ease-out tween
+- [x] Pull-to-refresh på mobil — spinner + grön bock "Uppdaterat" som bekräftelse
+- [x] Visuell feedback vid aktivering på värmepumpskort — spinner, border, transitions (likt FavTile)
+- [x] Animationer generellt — expand/collapse (AnimatePresence height), border/shadow-transitions på tiles
 
 ### Session C — Grafer
 - [ ] Kombinerat temp-diagram inne+ute (Recharts eller Tremor)
