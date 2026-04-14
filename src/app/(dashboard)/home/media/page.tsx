@@ -42,12 +42,26 @@ async function callAction(service: string, entity_id: string, service_data?: Rec
   });
 }
 
-// For Apple TV power: remote.* entity controls the actual hardware.
+// Apple TV: media_player.* services accept calls but don't do anything.
+// Power via remote.turn_on / remote.turn_off (works — changes state).
+// Transport via remote.send_command with specific command names
+// (play/pause/next/previous — verified via pyatv integration).
 async function callRemote(service: "turn_on" | "turn_off", entity_id: string) {
   await fetch("/api/homeassistant/action", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ domain: "remote", service, entity_id }),
+  });
+}
+
+async function callRemoteCommand(entity_id: string, command: string) {
+  await fetch("/api/homeassistant/action", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      domain: "remote", service: "send_command", entity_id,
+      service_data: { command },
+    }),
   });
 }
 
@@ -158,8 +172,12 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-[11px] font-bold tracking-wide uppercase truncate" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
+          <p className="text-[11px] font-bold tracking-wide uppercase truncate" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
+          <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
+            {player.media_title ?? player.name}
+          </p>
+          <div className="flex items-baseline gap-2 min-w-0">
+            <p className="text-xs truncate flex-1" style={{ color: "var(--color-on-surface-variant)" }}>{subtitle}</p>
             {hasProgress && (
               <span className="text-[10px] tabular-nums shrink-0"
                 style={{ color: "var(--color-on-surface-variant)" }}>
@@ -167,18 +185,14 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
               </span>
             )}
           </div>
-          <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
-            {player.media_title ?? player.name}
-          </p>
-          <p className="text-xs truncate" style={{ color: "var(--color-on-surface-variant)" }}>{subtitle}</p>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <TransportButton icon="skip_previous" label="Föregående" size={36}
+        <div className="flex items-center gap-1 shrink-0">
+          <TransportButton icon="skip_previous" label="Föregående" size={32}
             onClick={async () => { await callAction("media_previous_track", player.entity_id); onRefresh(); }} />
-          <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={44} primary={playing}
+          <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={40} primary={playing}
             onClick={async () => { await callAction("media_play_pause", player.entity_id); onRefresh(); }} />
-          <TransportButton icon="skip_next" label="Nästa" size={36}
+          <TransportButton icon="skip_next" label="Nästa" size={32}
             onClick={async () => { await callAction("media_next_track", player.entity_id); onRefresh(); }} />
         </div>
       </div>
@@ -218,51 +232,124 @@ function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: ()
   const playing = isPlaying(player.state);
   // Power state from the remote.* entity when available — that's the
   // ground truth for whether the device is on. media_player.state is
-  // "idle" both when on-but-not-playing AND when CEC asleep.
+  // "idle" both when on-but-not-playing AND when sleeping.
   const isOff = player.power_state === "off" || (player.power_state == null && (player.state === "off" || player.state === "standby"));
 
+  // Apple TV media commands go through the remote entity, not media_player.
+  const remoteId = player.power_entity_id;
+  const transport = async (cmd: "play" | "pause" | "next" | "previous") => {
+    if (!remoteId) return;
+    await callRemoteCommand(remoteId, cmd);
+    onRefresh();
+  };
+  const togglePlay = async () => {
+    if (!remoteId) return;
+    await callRemoteCommand(remoteId, playing ? "pause" : "play");
+    onRefresh();
+  };
+  const togglePower = async () => {
+    if (!remoteId) return;
+    await callRemote(isOff ? "turn_on" : "turn_off", remoteId);
+    onRefresh();
+  };
+
+  const livePos = useLivePosition(player.media_position, player.media_position_updated_at, playing);
+  const hasProgress = player.media_duration != null && player.media_duration > 0 && livePos != null;
+  const progressPct = hasProgress && player.media_duration
+    ? Math.max(0, Math.min(100, (livePos! / player.media_duration) * 100))
+    : 0;
+
+  const subtitle = player.source ?? (isOff ? "Av" : "Inaktiv");
+
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+    <div className="relative flex flex-col gap-3 rounded-2xl px-4 py-4"
       style={{
         backgroundColor: "var(--color-surface-container)",
         border: `1.5px solid ${playing ? AMBER : "transparent"}`,
         boxShadow: playing ? `inset 0 0 0 99px ${AMBER}09` : "none",
         transition: "border-color 0.2s, box-shadow 0.2s",
       }}>
-      <div style={{
-        width: 52, height: 52, borderRadius: 10, flexShrink: 0,
-        backgroundColor: playing ? `${AMBER}18` : "var(--color-surface-container-high)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
+      {/* Power — small icon in top-right corner */}
+      <button onClick={() => { vibrate(); togglePower(); }}
+        aria-label={isOff ? "Slå på" : "Stäng av"}
+        style={{
+          position: "absolute", top: 10, right: 10,
+          width: 28, height: 28, borderRadius: "50%",
+          border: "none", cursor: "pointer",
+          backgroundColor: isOff ? "var(--color-surface-container-high)" : `${AMBER}22`,
+          color: isOff ? "var(--color-on-surface-variant)" : AMBER,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background-color 0.18s, color 0.18s",
+        }}>
         <span className="material-symbols-outlined"
-          style={{ fontSize: 26, color: playing ? AMBER : "var(--color-outline)", fontVariationSettings: "'FILL' 1" }}>
-          tv
+          style={{ fontSize: 16, fontVariationSettings: "'FILL' 1" }}>
+          power_settings_new
         </span>
+      </button>
+
+      {/* Header row — art + text + transport */}
+      <div className="flex items-center gap-3" style={{ paddingRight: 32 /* clear of power button */ }}>
+        <div style={{
+          width: 68, height: 68, borderRadius: 12, flexShrink: 0, overflow: "hidden",
+          backgroundColor: playing ? `${AMBER}18` : "var(--color-surface-container-high)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          {player.media_image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={player.media_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <span className="material-symbols-outlined"
+              style={{ fontSize: 32, color: playing ? AMBER : "var(--color-outline)", fontVariationSettings: "'FILL' 1" }}>
+              tv
+            </span>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold tracking-wide uppercase truncate" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
+          <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
+            {player.media_title ?? player.name}
+          </p>
+          <div className="flex items-baseline gap-2 min-w-0">
+            <p className="text-xs truncate flex-1" style={{ color: "var(--color-on-surface-variant)" }}>{subtitle}</p>
+            {hasProgress && (
+              <span className="text-[10px] tabular-nums shrink-0"
+                style={{ color: "var(--color-on-surface-variant)" }}>
+                {formatTime(livePos)} / {formatTime(player.media_duration)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <TransportButton icon="skip_previous" label="Föregående" size={32} disabled={isOff}
+            onClick={() => transport("previous")} />
+          <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={40} primary={playing} disabled={isOff}
+            onClick={togglePlay} />
+          <TransportButton icon="skip_next" label="Nästa" size={32} disabled={isOff}
+            onClick={() => transport("next")} />
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-bold tracking-wide uppercase" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
-        <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
-          {player.media_title ?? player.name}
-        </p>
-        <p className="text-xs truncate" style={{ color: "var(--color-on-surface-variant)" }}>
-          {player.source ? `${player.source} · ${player.state}` : player.state}
-        </p>
-      </div>
-      {/* Transport + power */}
-      <div className="flex items-center gap-1.5">
-        <TransportButton icon="skip_previous" label="Föregående" size={36} disabled={isOff}
-          onClick={async () => { await callAction("media_previous_track", player.entity_id); onRefresh(); }} />
-        <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={44} primary={playing} disabled={isOff}
-          onClick={async () => { await callAction("media_play_pause", player.entity_id); onRefresh(); }} />
-        <TransportButton icon="skip_next" label="Nästa" size={36} disabled={isOff}
-          onClick={async () => { await callAction("media_next_track", player.entity_id); onRefresh(); }} />
-        <TransportButton icon="power_settings_new" label={isOff ? "Slå på" : "Stäng av"} size={36} primary={!isOff}
-          onClick={async () => {
-            const svc = isOff ? "turn_on" : "turn_off";
-            if (player.power_entity_id) await callRemote(svc, player.power_entity_id);
-            else await callAction(svc, player.entity_id);
-            onRefresh();
-          }} />
+
+      {/* Progress bar — row 2, mirrors Sonos volume slider layout */}
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] tabular-nums shrink-0"
+          style={{ minWidth: 32, color: "var(--color-on-surface-variant)" }}>
+          {hasProgress ? formatTime(livePos) : "–:––"}
+        </span>
+        <div className="flex-1 h-1.5 rounded-full overflow-hidden"
+          style={{ backgroundColor: "var(--color-surface-container-high)" }}>
+          <div className="h-full rounded-full"
+            style={{
+              width: `${progressPct}%`,
+              backgroundColor: playing ? AMBER : "var(--color-outline)",
+              transition: "width 0.3s linear",
+            }} />
+        </div>
+        <span className="text-[10px] tabular-nums shrink-0"
+          style={{ minWidth: 32, textAlign: "right", color: "var(--color-on-surface-variant)" }}>
+          {hasProgress ? formatTime(player.media_duration) : "–:––"}
+        </span>
       </div>
     </div>
   );
