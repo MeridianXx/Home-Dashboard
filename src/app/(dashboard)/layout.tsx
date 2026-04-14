@@ -10,7 +10,7 @@ import MobileNav from "@/components/layout/MobileNav";
 import { useDashboardStore } from "@/lib/store";
 
 const CONTEXT_TABS: Record<string, string[]> = {
-  "/home":     ["", "/lighting", "/automations"],
+  "/home":     ["", "/lighting", "/media", "/automations"],
   "/homelab":  ["", "/servers", "/containers", "/media", "/network"],
   "/fitness":  ["", "/coach", "/history"],
   "/garden":   ["", "/planner"],

@@ -42,7 +42,7 @@ export async function GET() {
       .map(([area_id, lights]) => ({
         area_id,
         name:        areas[area_id]?.name ?? area_id,
-        lights,
+        lights:      lights.sort((a, b) => a.name.localeCompare(b.name, "sv")),
         on_count:    lights.filter(l => l.state === "on").length,
         total_count: lights.length,
       }))

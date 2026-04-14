@@ -235,7 +235,9 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - **Temperaturgrafer:** `mergeByTime()` bucketiserar data i 15-minutersintervall med medelvärde + forward-fill för komplett tooltip. `tightDomain()` beräknar Y-axel med ±1° marginal runt faktisk data.
 - **EnergyCard StatRow:** Konsekvent radkomponent med 36px cirkelikon, label/värde/badge, chevron som separat `<button>` (inte inuti Pressable) med `self-stretch` för full radhöjd — matchar belysningskortens expand-mönster.
 - **Belysningsundersida våningsplan:** Rum delas in via `NEDERVANING`/`OVERVANING`/`UTOMHUS`-arrayer i `lighting/page.tsx`. "Släck"-pill per sektion, "Släck allt" globalt — båda med spinner-feedback.
-- **Scen-persistens:** `lastScene` (aktiv scen i Favoriter) sparas i `localStorage` under key `lastScene`. Hydrateras i `useEffect` efter mount för att undvika SSR-mismatch.
+- **Scen-aktiv-detektion:** `detectActiveScene()` i `src/lib/scenes.ts` matchar ett snapshot av lampor mot varje scens target-states (state + brightness ±5%). Target-states hämtas via `/api/homeassistant/scenes` som läser HA:s config-endpoint `/api/config/scene/config/{internal_id}` (internal_id från scenens `attributes.id`). Vid flera matches vinner den med flest targets. Ingen localStorage; uppdateras automatiskt via SWR-refresh av lights.
+- **Delad FavTile:** `src/components/FavTile.tsx` exporterar `FavTile` och `Pressable` — återanvänds av hem och belysningsundersida. Håll layout-props (minHeight 84, full width, inset shadow-mönster) där.
+- **Media-entiteter:** `/api/homeassistant/media` filtrerar till en hårdkodad lista i `route.ts` (Sonos + Apple TV + TV). `entity_picture` från HA har signerad token i query-string → fungerar direkt i `<img>` utan Bearer. `unavailable`-players filtreras bort.
 
 ---
 
@@ -268,11 +270,12 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - [x] Större expand-touchytor med subtil avdelare på rumskort (home + lighting)
 - [x] Fix: layout.tsx duplicate `direction` → `slideDir`
 
-### Session D — Nya sektioner & scener
-- [ ] Scen-aktiv-detektion baserad på faktisk lampstatus (likt Apple Home). Jämför varje lampas state/brightness mot scenens målvärden (hämtas via `scene.get_state` eller `scene.{name}.attributes.entity_id`/`.state`). Ersätt `lastScene` localStorage-lösning med realtidsdetektion baserad på SWR-refresh av `/api/homeassistant/lights`.
-- [ ] Sortera alla lampor i bokstavsordning inom varje rum (både på hemsida och belysningsundersida). Sker troligen i `/api/homeassistant/lights` eller i LightingCard/RoomRow innan `.map()`.
-- [ ] Scener på belysningssidan (`/home/lighting`)
-- [ ] Mediavy som egen undersida `/home/media` (Sonos per rum, volym, Apple TV-status)
+### Session D — Nya sektioner & scener ✅ Klar
+- [x] Scen-aktiv-detektion (Apple Home-style) — `/api/homeassistant/scenes` + `src/lib/scenes.ts` `detectActiveScene()`. Ersätter `lastScene` localStorage.
+- [x] Alfabetisk sortering av lampor inom varje rum — sker i `/api/homeassistant/lights` med `localeCompare('sv')`.
+- [x] Scener på belysningssidan (`/home/lighting`) under egen "SCENER"-rubrik, synkad aktiv-detektion med hemsidan.
+- [x] Mediavy som egen undersida `/home/media` (`/api/homeassistant/media` + UI). Sonos per rum med albumart, volym-slider, play/pause, mute. Apple TV med source-badge.
+- [x] `FavTile` + `Pressable` extraherade till `src/components/FavTile.tsx` för delning.
 
 ### Session E — Branding
 - [ ] Logo/wordmark istället för "inicio"-text i topmenyn

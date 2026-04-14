@@ -13,9 +13,10 @@ const CONTEXT_META: Record<
   "/home": {
     label: "Hem",
     tabs: [
-      { label: "Översikt",    suffix: "",            icon: "dashboard"  },
-      { label: "Belysning",   suffix: "/lighting",   icon: "light_mode" },
-      { label: "Automationer",suffix: "/automations",icon: "auto_mode"  },
+      { label: "Översikt",    suffix: "",            icon: "dashboard"     },
+      { label: "Belysning",   suffix: "/lighting",   icon: "light_mode"    },
+      { label: "Media",       suffix: "/media",      icon: "speaker"       },
+      { label: "Automationer",suffix: "/automations",icon: "auto_mode"     },
     ],
   },
   "/homelab": {

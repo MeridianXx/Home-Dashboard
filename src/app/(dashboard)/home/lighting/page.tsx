@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import useSWR from "swr";
+import { FavTile } from "@/components/FavTile";
+import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -165,10 +167,38 @@ function sortByFloor(areas: LightArea[]) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const SCENES: Array<{ key: string; label: string; icon: string; color: string }> = [
+  { key: "god_morgon", label: "Morgon",  icon: "wb_sunny",             color: "#f59e0b" },
+  { key: "hemma",      label: "Hemma",   icon: "home",                 color: "#22c55e" },
+  { key: "kvall",      label: "Kväll",   icon: "partly_cloudy_night",  color: "#f59e0b" },
+  { key: "natt",       label: "Natt",    icon: "bedtime",              color: "#1d4ed8" },
+];
+
 export default function LightingPage() {
   const { data: lights, mutate } = useSWR<LightsData>("/api/homeassistant/lights", fetcher, { refreshInterval: 2_000 });
+  const { data: scenesData }     = useSWR<{ scenes: ScenePayload[] }>("/api/homeassistant/scenes", fetcher, { refreshInterval: 60_000 });
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [offLoading, setOffLoading] = useState<string | null>(null);
+  const [loadingScene, setLoadingScene] = useState<string | null>(null);
+
+  const activeScene = useMemo(() => {
+    if (!lights || !("areas" in lights) || !scenesData?.scenes) return null;
+    const snapshot = lights.areas.flatMap(a => a.lights.map(l => ({
+      entity_id: l.entity_id, state: l.state, brightness_pct: l.brightness_pct,
+    })));
+    return detectActiveScene(scenesData.scenes, snapshot);
+  }, [lights, scenesData]);
+
+  async function handleScene(key: string) {
+    if (loadingScene) return;
+    vibrate();
+    setLoadingScene(key);
+    try {
+      await callAction("scene", "turn_on", `scene.${key}`);
+      await new Promise<void>(r => setTimeout(r, 600));
+      await mutate();
+    } finally { setLoadingScene(null); }
+  }
 
   const areas = lights && "areas" in lights ? lights.areas : [];
   const totalOn  = areas.reduce((s, a) => s + a.on_count, 0);
@@ -273,6 +303,21 @@ export default function LightingPage() {
           {totalOn > 0 && (
             <OffPill label="Släck allt" loading={offLoading === "all"} onClick={handleAllOff} />
           )}
+        </div>
+      </div>
+
+      {/* Scenes */}
+      <div>
+        <p className="text-xs font-bold tracking-wide mb-2" style={{ color: "var(--color-on-surface-variant)" }}>SCENER</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+          {SCENES.map(s => (
+            <FavTile key={s.key}
+              label={s.label} icon={s.icon} color={s.color}
+              active={activeScene === s.key}
+              loading={loadingScene === s.key}
+              onClick={() => handleScene(s.key)}
+            />
+          ))}
         </div>
       </div>
 

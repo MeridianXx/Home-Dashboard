@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
+import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
+import { Pressable, FavTile } from "@/components/FavTile";
 
 const SpotPriceChart   = dynamic(() => import("@/components/charts/SpotPriceChart"), { ssr: false });
 const PowerChart       = dynamic(() => import("@/components/charts/PowerChart"),     { ssr: false });
@@ -73,40 +75,6 @@ async function callAction(domain: string, service: string, entity_id: string | s
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 
 /** Cross-platform press button — uses pointer events so it works on iOS Safari */
-function Pressable({ children, onClick, disabled = false, loading = false, className = "", style = {} }: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  loading?: boolean;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  const [pressed, setPressed] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled || loading}
-      onPointerDown={() => setPressed(true)}
-      onPointerUp={() => setPressed(false)}
-      onPointerLeave={() => setPressed(false)}
-      onPointerCancel={() => setPressed(false)}
-      className={`select-none ${className}`}
-      style={{
-        transform: pressed && !disabled && !loading ? "scale(0.93)" : "scale(1)",
-        transition: "transform 0.08s ease, opacity 0.08s ease",
-        // loading keeps full opacity so spinner is clearly visible
-        opacity: loading ? 1 : disabled ? 0.6 : pressed ? 0.85 : 1,
-        WebkitTapHighlightColor: "transparent",
-        touchAction: "manipulation",
-        cursor: loading ? "default" : "pointer",
-        ...style,
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={`rounded-2xl p-5 ${className}`} style={{
@@ -968,61 +936,22 @@ function MiniTile({ label, icon, color, active, loading, onClick }: {
   );
 }
 
-// ─── Favorit tile ─────────────────────────────────────────────────────────────
-
-function FavTile({ label, icon, color, active, loading, onClick }: {
-  label: string; icon: string; color: string;
-  active: boolean; loading: boolean; onClick: () => void;
-}) {
-  return (
-    <Pressable
-      onClick={onClick}
-      loading={loading}
-      className="flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl text-center w-full"
-      style={{
-        // No color-mix() — use border + label color for active indication (works in all browsers)
-        backgroundColor: "var(--color-surface-container)",
-        border: `2px solid ${active && !loading ? color : "transparent"}`,
-        boxShadow: active && !loading ? `inset 0 0 0 99px ${color}14` : "none",
-        minHeight: 84,
-        width: "100%",
-        transition: "border-color 0.2s, box-shadow 0.2s",
-      }}
-    >
-      {loading ? (
-        <svg className="spin-anim" viewBox="0 0 24 24" fill="none"
-          style={{ color, width: 26, height: 26, flexShrink: 0 }}>
-          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25"/>
-          <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-        </svg>
-      ) : (
-        <span className="material-symbols-outlined text-[26px]"
-          style={{ color, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{icon}</span>
-      )}
-      <span className="text-[11px] font-semibold leading-tight w-full truncate px-1"
-        style={{ color: active && !loading ? color : "var(--color-on-surface)" }}>{label}</span>
-    </Pressable>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   const hydrated = useHydrated();
-  type SceneKey = "god_morgon" | "hemma" | "kvall" | "natt" | "slack";
-  const [lastScene, setLastSceneState] = useState<SceneKey | null>(null);
-  // Hydrate from localStorage after mount (SSR-safe)
-  useEffect(() => {
-    const saved = localStorage.getItem("lastScene");
-    if (saved) setLastSceneState(saved as SceneKey);
-  }, []);
-  const setLastScene = useCallback((s: SceneKey | null) => {
-    setLastSceneState(s);
-    if (s) localStorage.setItem("lastScene", s);
-    else localStorage.removeItem("lastScene");
-  }, []);
 
   const { data: lights,  mutate: mLights  } = useSWR<LightsData>  ("/api/homeassistant/lights",  fetcher, { refreshInterval:  2_000 });
+  const { data: scenesData }                = useSWR<{ scenes: ScenePayload[] }>("/api/homeassistant/scenes", fetcher, { refreshInterval: 60_000 });
+
+  // Active scene derived from actual light state (Apple Home-style)
+  const activeScene = useMemo(() => {
+    if (!lights || !("areas" in lights) || !scenesData?.scenes) return null;
+    const snapshot = lights.areas.flatMap(a => a.lights.map(l => ({
+      entity_id: l.entity_id, state: l.state, brightness_pct: l.brightness_pct,
+    })));
+    return detectActiveScene(scenesData.scenes, snapshot);
+  }, [lights, scenesData]);
   const { data: sensors }                    = useSWR<SensorsData> ("/api/homeassistant/sensors", fetcher, { refreshInterval: 30_000 });
   const { data: energy }                     = useSWR<EnergyData>  ("/api/homeassistant/energy",  fetcher, { refreshInterval:  3_000 });
   const { data: cars }                       = useSWR<CarsData>    ("/api/homeassistant/cars",    fetcher, { refreshInterval: 60_000 });
@@ -1295,38 +1224,38 @@ export default function HomePage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginBottom: 12 }}>
           <FavTile
             label="Morgon" icon="wb_sunny"
-            color="#f59e0b" active={lastScene === "god_morgon"}
+            color="#f59e0b" active={activeScene === "god_morgon"}
             loading={loadingKey === "scene-god_morgon"}
             onClick={() => runAction("scene-god_morgon", async () => {
               await callAction("scene", "turn_on", "scene.god_morgon");
-              setLastScene("god_morgon");
+              await refreshLights();
             })}
           />
           <FavTile
             label="Hemma" icon="home"
-            color="#22c55e" active={lastScene === "hemma"}
+            color="#22c55e" active={activeScene === "hemma"}
             loading={loadingKey === "scene-hemma"}
             onClick={() => runAction("scene-hemma", async () => {
               await callAction("scene", "turn_on", "scene.hemma");
-              setLastScene("hemma");
+              await refreshLights();
             })}
           />
           <FavTile
             label="Kväll" icon="partly_cloudy_night"
-            color="#f59e0b" active={lastScene === "kvall"}
+            color="#f59e0b" active={activeScene === "kvall"}
             loading={loadingKey === "scene-kvall"}
             onClick={() => runAction("scene-kvall", async () => {
               await callAction("scene", "turn_on", "scene.kvall");
-              setLastScene("kvall");
+              await refreshLights();
             })}
           />
           <FavTile
             label="Natt" icon="bedtime"
-            color="#1d4ed8" active={lastScene === "natt"}
+            color="#1d4ed8" active={activeScene === "natt"}
             loading={loadingKey === "scene-natt"}
             onClick={() => runAction("scene-natt", async () => {
               await callAction("scene", "turn_on", "scene.natt");
-              setLastScene("natt");
+              await refreshLights();
             })}
           />
         </div>

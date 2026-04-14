@@ -59,6 +59,24 @@ export async function getState(entityId: string): Promise<HAState> {
   return haGet<HAState>(`/api/states/${entityId}`);
 }
 
+// ─── Scene config — target states per entity ──────────────────────────────────
+
+export type SceneEntityTarget = {
+  state: string;
+  brightness?: number;
+  [key: string]: unknown;
+};
+
+export type SceneConfig = {
+  id: string;
+  name: string;
+  entities: Record<string, SceneEntityTarget>;
+};
+
+export async function getSceneConfig(id: string): Promise<SceneConfig> {
+  return haGet<SceneConfig>(`/api/config/scene/config/${id}`);
+}
+
 // ─── Area / entity registry — HA template API, 60 s in-process cache ─────────
 
 type Area = { area_id: string; name: string };
