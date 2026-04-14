@@ -84,7 +84,7 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
         transition: "border-color 0.2s, box-shadow 0.2s",
       }}>
       {/* Header row */}
-      <div className="flex items-center gap-3 px-4 pt-3 pb-2">
+      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
         {/* Album art / icon */}
         <div style={{
           width: 52, height: 52, borderRadius: 10, flexShrink: 0, overflow: "hidden",
