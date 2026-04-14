@@ -555,7 +555,7 @@ function TempSlider({ value, min, max, step = 0.5, icon = "thermostat", onSet }:
   );
 }
 
-function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }) {
+function HvacCard({ data, onRefresh, loadingKey, runAction }: { data: HvacData; onRefresh: () => void; loadingKey: string | null; runAction: (key: string, fn: () => Promise<void>) => Promise<void> }) {
   const hp   = data.heat_pump;
   const nibe = data.nibe;
   const [expandedSelect, setExpandedSelect] = useState<"hot_water" | "ventilation" | null>(null);
@@ -582,14 +582,10 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
     onRefresh();
   }
   async function handleNattsvalka(current: boolean) {
-    vibrate();
     await callAction("switch", current ? "turn_off" : "turn_on", "switch.nibe_nattsvalka");
-    onRefresh();
   }
   async function handleKaminlage(current: boolean) {
-    vibrate();
     await callAction("switch", current ? "turn_off" : "turn_on", "switch.nibe_kaminlage");
-    onRefresh();
   }
   async function handleHeroTemp(temp: number) {
     vibrate();
@@ -803,21 +799,34 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
           {/* Toggle buttons */}
           <div className="grid grid-cols-2 gap-1.5">
             {[
-              { label: "Nattsvalka", icon: "nightlight", active: nibe.nattsvalka, color: "var(--color-primary)", onToggle: () => handleNattsvalka(nibe.nattsvalka) },
-              { label: "Kaminläge",  icon: "local_fire_department", active: nibe.kaminlage, color: "var(--color-tertiary)", onToggle: () => handleKaminlage(nibe.kaminlage) },
-            ].map(({ label, icon, active, color, onToggle }) => (
-              <Pressable key={label} onClick={onToggle}
+              { key: "nattsvalka", label: "Nattsvalka", icon: "nightlight", active: nibe.nattsvalka, color: "var(--color-primary)", onToggle: () => handleNattsvalka(nibe.nattsvalka) },
+              { key: "kaminlage",  label: "Kaminläge",  icon: "local_fire_department", active: nibe.kaminlage, color: "var(--color-tertiary)", onToggle: () => handleKaminlage(nibe.kaminlage) },
+            ].map(({ key, label, icon, active, color, onToggle }) => {
+              const isLoading = loadingKey === `nibe-${key}`;
+              return (
+              <Pressable key={label} onClick={() => runAction(`nibe-${key}`, async () => { await onToggle(); await onRefresh(); })}
+                loading={isLoading}
                 className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
                 style={{
                   backgroundColor: active ? (color === "var(--color-primary)" ? "rgba(71,91,194,0.15)" : "rgba(136,92,0,0.15)") : "var(--color-surface-container-high)",
-                  color: active ? color : "var(--color-on-surface-variant)",
+                  color: active && !isLoading ? color : "var(--color-on-surface-variant)",
                   transition: "background-color 0.2s, color 0.2s, box-shadow 0.2s",
-                  boxShadow: active ? `inset 0 0 0 99px ${color}08` : "none",
+                  boxShadow: active && !isLoading ? `inset 0 0 0 99px ${color}08` : "none",
+                  border: `2px solid ${active && !isLoading ? color : "transparent"}`,
                 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{icon}</span>
+                {isLoading ? (
+                  <svg className="spin-anim" viewBox="0 0 24 24" fill="none"
+                    style={{ color, width: 16, height: 16, flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25"/>
+                    <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                ) : (
+                  <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{icon}</span>
+                )}
                 {label}
               </Pressable>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -1270,7 +1279,7 @@ export default function HomePage() {
 
         {/* Värmepumpar */}
         {hvacOk ? (
-          <HvacCard data={hvac} onRefresh={refreshHvac} />
+          <HvacCard data={hvac} onRefresh={refreshHvac} loadingKey={loadingKey} runAction={runAction} />
         ) : (
           <Card className="md:col-span-2"><SectionLabel>Värmepumpar</SectionLabel><Skeleton className="h-36" /></Card>
         )}

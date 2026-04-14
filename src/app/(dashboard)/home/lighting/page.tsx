@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import useSWR from "swr";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
         backgroundColor: "var(--color-surface-container)",
         border: `1.5px solid ${on ? AMBER : "transparent"}`,
         boxShadow: on ? `inset 0 0 0 99px ${AMBER}09` : "none",
+        transition: "border-color 0.2s, box-shadow 0.2s",
       }}>
       {/* Row header */}
       <div className="flex items-center gap-3 px-4 py-3">
@@ -94,7 +96,15 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
       </div>
 
       {/* Expanded: per-light controls */}
+      <AnimatePresence initial={false}>
       {expanded && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          style={{ overflow: "hidden" }}
+        >
         <div className="border-t px-4 pb-4 pt-3 space-y-3"
           style={{ borderColor: on ? `${AMBER}33` : "var(--color-outline-variant)", backgroundColor: "var(--color-surface-container)" }}>
           {area.lights.map(light => {
@@ -128,7 +138,9 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
             );
           })}
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

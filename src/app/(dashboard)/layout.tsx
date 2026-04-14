@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useSWRConfig } from "swr";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
@@ -27,8 +27,8 @@ function getTabIndex(pathname: string) {
   return suffixes.indexOf(current);
 }
 
-// iOS-style slide — wide sweep, gentle deceleration
-const SLIDE_SPRING = { type: "spring" as const, stiffness: 260, damping: 28, mass: 0.8 };
+// Smooth slide — no spring overshoot, clean deceleration
+const SLIDE_EASE = { duration: 0.32, ease: [0.32, 0.72, 0, 1] };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const collapsed = useDashboardStore((s) => s.sidebarCollapsed);
@@ -40,7 +40,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { mutate } = useSWRConfig();
 
-  // ─── Slide direction for AnimatePresence ───
+  // ─── Slide direction for page transition ───
   const directionRef = useRef(0);
   const prevIndexRef = useRef(getTabIndex(pathname));
 
@@ -152,13 +152,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, []);
 
+  const [refreshDone, setRefreshDone] = useState(false);
+
   const handlePullEnd = useCallback(async () => {
     if (pullDistance >= PULL_THRESHOLD && !refreshing) {
       setRefreshing(true);
-      setPullDistance(PULL_THRESHOLD); // Hold at threshold
-      // Revalidate all SWR caches
+      setPullDistance(PULL_THRESHOLD);
       await mutate(() => true, undefined, { revalidate: true });
       setRefreshing(false);
+      // Show done checkmark briefly
+      setRefreshDone(true);
+      await new Promise(r => setTimeout(r, 800));
+      setRefreshDone(false);
     }
     pullStart.current = null;
     setPullDistance(0);
@@ -196,44 +201,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Pull-to-refresh indicator */}
         <div
           style={{
-            height: pullDistance > 0 || refreshing ? Math.max(pullDistance, refreshing ? 48 : 0) : 0,
+            height: pullDistance > 0 || refreshing || refreshDone ? `${Math.max(pullDistance, refreshing || refreshDone ? 48 : 0)}px` : "0px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            gap: 8,
             overflow: "hidden",
             transition: pullDistance === 0 ? "height 0.3s ease" : "none",
           }}
         >
-          {(pullDistance > 10 || refreshing) && (
-            <span
-              className={`material-symbols-outlined ${refreshing ? "spin-anim" : ""}`}
-              style={{
-                fontSize: 22,
-                color: "var(--color-on-surface-variant)",
-                opacity: refreshing ? 1 : Math.min(pullDistance / PULL_THRESHOLD, 1),
-                transform: `rotate(${refreshing ? 0 : (pullDistance / PULL_THRESHOLD) * 360}deg)`,
-                transition: refreshing ? "none" : "transform 0.05s",
-              }}
-            >
-              {refreshing ? "progress_activity" : "arrow_downward"}
-            </span>
+          {(pullDistance > 10 || refreshing || refreshDone) && (
+            <>
+              <span
+                className={`material-symbols-outlined ${refreshing ? "spin-anim" : ""}`}
+                style={{
+                  fontSize: 20,
+                  color: refreshDone ? "var(--color-secondary)" : "var(--color-on-surface-variant)",
+                  opacity: refreshing || refreshDone ? 1 : Math.min(pullDistance / PULL_THRESHOLD, 1),
+                  transform: refreshDone ? "scale(1)" : `rotate(${refreshing ? 0 : (pullDistance / PULL_THRESHOLD) * 360}deg)`,
+                  transition: refreshDone ? "color 0.2s, transform 0.2s" : refreshing ? "none" : "transform 0.05s",
+                  fontVariationSettings: refreshDone ? "'FILL' 1" : "'FILL' 0",
+                }}
+              >
+                {refreshDone ? "check_circle" : refreshing ? "progress_activity" : "arrow_downward"}
+              </span>
+              {refreshDone && (
+                <span style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "var(--color-secondary)",
+                }}>
+                  Uppdaterat
+                </span>
+              )}
+            </>
           )}
         </div>
 
         <div className="px-5 lg:px-8 py-6 max-w-[1600px] mx-auto">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              ref={swipeRef}
-              key={pathname}
-              initial={{ x: `${direction * 30}%`, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: `${direction * -30}%`, opacity: 0 }}
-              transition={SLIDE_SPRING}
-              style={{ willChange: "transform, opacity" }}
-            >
-              {children}
-            </motion.div>
-          </AnimatePresence>
+          <motion.div
+            ref={swipeRef}
+            key={pathname}
+            initial={{ x: `${direction * 25}%`, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={SLIDE_EASE}
+            style={{ willChange: "transform, opacity" }}
+          >
+            {children}
+          </motion.div>
         </div>
       </main>
       <MobileNav />
