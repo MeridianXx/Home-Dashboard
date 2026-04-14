@@ -40,20 +40,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { mutate } = useSWRConfig();
 
-  // ─── Slide direction for page transition ───
+  // ─── Slide direction — computed during render, not in useEffect ───
+  // This ensures direction is available on the SAME render that mounts the new motion.div.
+  // On app-switch (pathname unchanged), direction stays 0 → no animation.
+  const prevPathnameRef = useRef(pathname);
   const directionRef = useRef(0);
-  const prevIndexRef = useRef(getTabIndex(pathname));
 
-  useEffect(() => {
-    const newIndex = getTabIndex(pathname);
-    if (newIndex !== prevIndexRef.current) {
-      directionRef.current = newIndex > prevIndexRef.current ? 1 : -1;
-      prevIndexRef.current = newIndex;
+  if (pathname !== prevPathnameRef.current) {
+    const prevCtx = getContextKey(prevPathnameRef.current);
+    const newCtx = getContextKey(pathname);
+    if (prevCtx === newCtx) {
+      // Same section (e.g. /home → /home/lighting) — compare tab index
+      const prevSuffix = prevPathnameRef.current.slice(prevCtx.length);
+      const newSuffix = pathname.slice(newCtx.length);
+      const suffixes = CONTEXT_TABS[prevCtx] ?? [];
+      const prevIdx = suffixes.indexOf(prevSuffix);
+      const newIdx = suffixes.indexOf(newSuffix);
+      directionRef.current = newIdx > prevIdx ? 1 : -1;
+    } else {
+      // Different section (e.g. /home → /homelab) — compare section order
+      const contexts = Object.keys(CONTEXT_TABS);
+      directionRef.current = contexts.indexOf(newCtx) > contexts.indexOf(prevCtx) ? 1 : -1;
     }
-    // Reset direction after animation frame so app-switch doesn't re-trigger
-    const raf = requestAnimationFrame(() => { directionRef.current = 0; });
-    return () => cancelAnimationFrame(raf);
-  }, [pathname]);
+    prevPathnameRef.current = pathname;
+  }
+
+  const direction = directionRef.current;
 
   // ─── Touch swipe navigation with live preview ───
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -114,7 +126,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const next = dx < 0 ? idx + 1 : idx - 1;
     if (next < 0 || next >= suffixes.length) return;
 
-    directionRef.current = dx < 0 ? 1 : -1;
     swipeLocked.current = true;
     router.push(contextKey + suffixes[next]);
   }, [pathname, router]);
@@ -188,8 +199,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     handlePullEnd();
   }, [handleTouchEnd, handlePullEnd]);
 
-  const direction = directionRef.current;
-
   return (
     <>
       <TopBar />
@@ -248,6 +257,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             initial={direction !== 0 ? { x: `${direction * 25}%`, opacity: 0 } : false}
             animate={{ x: 0, opacity: 1 }}
             transition={SLIDE_EASE}
+            onAnimationComplete={() => { directionRef.current = 0; }}
             style={{ willChange: "transform, opacity" }}
           >
             {children}
