@@ -33,25 +33,25 @@ function indoorColors(t: ChartTheme) {
 export function IndoorTempChart() {
   const mounted = useDeferredMount();
   const theme = useChartTheme();
-  const { ref, width, height } = useChartSize(180);
+  const { ref, width, height, stopSwipe } = useChartSize(180);
   const { data, isLoading } = useSWR<HistoryResp>(
     `/api/homeassistant/history?entities=${INDOOR_ENTITIES.join(",")}&hours=24`,
     fetcher,
     { refreshInterval: 300_000, revalidateOnFocus: false, dedupingInterval: 60_000 },
   );
 
-  if (!mounted || isLoading || !data || !theme || !width) return <div ref={ref} style={{ height: 180, width: "100%" }}><ChartSkeleton /></div>;
+  if (!mounted || isLoading || !data || !theme || !width) return <div ref={ref} {...stopSwipe} style={{ height: 180, width: "100%" }}><ChartSkeleton /></div>;
 
   // Merge all series by minute key
   const merged = mergeByTime(data.entities, INDOOR_ENTITIES);
-  if (!merged.length) return <div ref={ref} style={{ height: 180, width: "100%" }}><ChartSkeleton /></div>;
+  if (!merged.length) return <div ref={ref} {...stopSwipe} style={{ height: 180, width: "100%" }}><ChartSkeleton /></div>;
 
   const colors = indoorColors(theme);
   const present = INDOOR_ENTITIES.filter(id => data.entities[id]?.length);
   const [yMin, yMax] = tightDomain(merged, present);
 
   return (
-    <div ref={ref} style={{ width: "100%" }}>
+    <div ref={ref} {...stopSwipe} style={{ width: "100%" }}>
       <Legend items={present.map(id => ({ label: INDOOR_LABELS[id], color: colors[id] }))} />
       <div style={{ height: height - 20 }}>
         <LineChart data={merged} width={width} height={height - 20} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
@@ -95,17 +95,17 @@ function outdoorColors(t: ChartTheme) {
 export function OutdoorTempChart() {
   const mounted = useDeferredMount();
   const theme = useChartTheme();
-  const { ref, width, height } = useChartSize(180);
+  const { ref, width, height, stopSwipe } = useChartSize(180);
   const { data, isLoading } = useSWR<HistoryResp>(
     `/api/homeassistant/history?entities=${OUTDOOR_ENTITIES.join(",")}&hours=24`,
     fetcher,
     { refreshInterval: 300_000, revalidateOnFocus: false, dedupingInterval: 60_000 },
   );
 
-  if (!mounted || isLoading || !data || !theme || !width) return <div ref={ref} style={{ height: 180, width: "100%" }}><ChartSkeleton /></div>;
+  if (!mounted || isLoading || !data || !theme || !width) return <div ref={ref} {...stopSwipe} style={{ height: 180, width: "100%" }}><ChartSkeleton /></div>;
 
   const merged = mergeByTime(data.entities, OUTDOOR_ENTITIES);
-  if (!merged.length) return <div ref={ref} style={{ height: 180, width: "100%" }}><ChartSkeleton /></div>;
+  if (!merged.length) return <div ref={ref} {...stopSwipe} style={{ height: 180, width: "100%" }}><ChartSkeleton /></div>;
 
   const colors = outdoorColors(theme);
   const present = OUTDOOR_ENTITIES.filter(id => data.entities[id]?.length);
@@ -113,7 +113,7 @@ export function OutdoorTempChart() {
   const hasNegative = yMin < 0;
 
   return (
-    <div ref={ref} style={{ width: "100%" }}>
+    <div ref={ref} {...stopSwipe} style={{ width: "100%" }}>
       <Legend items={present.map(id => ({ label: OUTDOOR_LABELS[id], color: colors[id] }))} />
       <div style={{ height: height - 20 }}>
         <LineChart data={merged} width={width} height={height - 20} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>

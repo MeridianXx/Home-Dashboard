@@ -12,17 +12,17 @@ type HistoryResp = { entities: Record<string, Array<{ t: string; v: number }>> }
 export default function SpotPriceChart() {
   const mounted = useDeferredMount();
   const theme = useChartTheme();
-  const { ref, width, height } = useChartSize();
+  const { ref, width, height, stopSwipe } = useChartSize();
   const { data, isLoading } = useSWR<HistoryResp>(
     `/api/homeassistant/history?entities=${ENTITY}&hours=24`,
     fetcher,
     { refreshInterval: 300_000, revalidateOnFocus: false, dedupingInterval: 60_000 },
   );
 
-  if (!mounted || isLoading || !data || !theme || !width) return <div ref={ref} style={{ height: 200, width: "100%" }}><ChartSkeleton /></div>;
+  if (!mounted || isLoading || !data || !theme || !width) return <div ref={ref} {...stopSwipe} style={{ height: 200, width: "100%" }}><ChartSkeleton /></div>;
 
   const raw = data.entities[ENTITY];
-  if (!raw?.length) return <div ref={ref} style={{ height: 200, width: "100%" }}><ChartSkeleton /></div>;
+  if (!raw?.length) return <div ref={ref} {...stopSwipe} style={{ height: 200, width: "100%" }}><ChartSkeleton /></div>;
 
   // Convert SEK/kWh → öre
   const points = raw.map(p => ({ t: p.t, v: Math.round(p.v * 100 * 10) / 10 }));
@@ -30,7 +30,7 @@ export default function SpotPriceChart() {
   const avg = points.reduce((s, p) => s + p.v, 0) / points.length;
 
   return (
-    <div ref={ref} style={{ height, width: "100%" }}>
+    <div ref={ref} {...stopSwipe} style={{ height, width: "100%" }}>
       <BarChart data={points} width={width} height={height} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
         <XAxis
           dataKey="t"

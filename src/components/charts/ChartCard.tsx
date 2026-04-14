@@ -109,6 +109,9 @@ export function useDeferredMount() {
 
 // ─── Chart size — measure container to avoid ResponsiveContainer -1 bug ─────
 
+/** Stop horizontal swipe on charts from triggering page navigation */
+const stopSwipe = { onTouchStart: (e: React.TouchEvent) => e.stopPropagation() };
+
 export function useChartSize(height = 200) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -124,7 +127,7 @@ export function useChartSize(height = 200) {
     return () => ro.disconnect();
   }, []);
 
-  return { ref, width, height };
+  return { ref, width, height, stopSwipe };
 }
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────

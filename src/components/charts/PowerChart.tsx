@@ -12,22 +12,22 @@ type HistoryResp = { entities: Record<string, Array<{ t: string; v: number }>> }
 export default function PowerChart({ avgPower }: { avgPower?: number }) {
   const mounted = useDeferredMount();
   const theme = useChartTheme();
-  const { ref, width, height } = useChartSize();
+  const { ref, width, height, stopSwipe } = useChartSize();
   const { data, isLoading } = useSWR<HistoryResp>(
     `/api/homeassistant/history?entities=${ENTITY}&hours=24`,
     fetcher,
     { refreshInterval: 300_000, revalidateOnFocus: false, dedupingInterval: 60_000 },
   );
 
-  if (!mounted || isLoading || !data || !theme || !width) return <div ref={ref} style={{ height: 200, width: "100%" }}><ChartSkeleton /></div>;
+  if (!mounted || isLoading || !data || !theme || !width) return <div ref={ref} {...stopSwipe} style={{ height: 200, width: "100%" }}><ChartSkeleton /></div>;
 
   const points = data.entities[ENTITY];
-  if (!points?.length) return <div ref={ref} style={{ height: 200, width: "100%" }}><ChartSkeleton /></div>;
+  if (!points?.length) return <div ref={ref} {...stopSwipe} style={{ height: 200, width: "100%" }}><ChartSkeleton /></div>;
 
   const fmtW = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)} kW` : `${Math.round(v)} W`;
 
   return (
-    <div ref={ref} style={{ height, width: "100%" }}>
+    <div ref={ref} {...stopSwipe} style={{ height, width: "100%" }}>
       <AreaChart data={points} width={width} height={height} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
         <defs>
           <linearGradient id="powerFill" x1="0" y1="0" x2="0" y2="1">
