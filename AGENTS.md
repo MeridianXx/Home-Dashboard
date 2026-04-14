@@ -202,7 +202,7 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 
 **Aktiv branch:** `v2` (origin/v2 — detta är den enda aktiva branchen, main är övergiven)  
 **Preview-server:** konfigurerad i `.claude/launch.json`, starta med `preview_start("home-dashboard")`  
-**Färdiga sektioner:** Hem/Översikt, Belysning, Homelab (Servrar/Containers/Media/Nätverk), Fitness (stub), Trädgård (stub)
+**Färdiga sektioner:** Hem/Översikt (med grafer), Belysning (med våningsplan), Homelab (Servrar/Containers/Media/Nätverk), Fitness (stub), Trädgård (stub)
 
 ---
 
@@ -231,6 +231,10 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - **Expand/collapse:** `AnimatePresence initial={false}` + `motion.div` med `height: 0/auto` + `opacity: 0/1`, duration 0.2s ease-out, `overflow: hidden`. Används på belysningsrum, temperaturpaneler, HVAC-selects.
 - **Pull-to-refresh:** Custom touch-gest i layout.tsx. Kräver `scrollY === 0`, 80px threshold, undviker horisontell swipe-konflikt. Bekräftelse: bock + "Uppdaterat" i 800ms. **Viktigt:** använd `"0px"` (sträng) istället för `0` (number) i inline styles för height — annars hydration-mismatch.
 - **Loading-state på toggle-knappar:** Använd `runAction(key, fn)` + `loadingKey` för att spåra in-flight state. Visa `spin-anim` SVG-spinner under laddning, dölj border/active-state. Skicka `loadingKey`/`runAction` som props till subkomponenter som behöver det.
+- **Recharts grafer:** Använd `useChartSize()` (ResizeObserver) istället för `ResponsiveContainer` — den ger -1 width/height inuti AnimatePresence. Sätt explicit `width={width} height={height}` på chart-komponenten. `useDeferredMount()` fördröjer mount 2 rAF-frames. Kurvtyp: `type="basis"` (B-spline, mjukast). Tooltip: `cursor={{ stroke: "var(--color-outline)", strokeWidth: 1 }}` för vertikal linje + touch-stöd.
+- **Temperaturgrafer:** `mergeByTime()` bucketiserar data i 15-minutersintervall med medelvärde + forward-fill för komplett tooltip. `tightDomain()` beräknar Y-axel med ±1° marginal runt faktisk data.
+- **EnergyCard StatRow:** Konsekvent radkomponent med 36px cirkelikon, label/värde/badge, chevron som separat `<button>` (inte inuti Pressable) med `self-stretch` för full radhöjd — matchar belysningskortens expand-mönster.
+- **Belysningsundersida våningsplan:** Rum delas in via `NEDERVANING`/`OVERVANING`/`UTOMHUS`-arrayer i `lighting/page.tsx`. "Släck"-pill per sektion, "Släck allt" globalt — båda med spinner-feedback.
 
 ---
 
@@ -251,11 +255,17 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - [x] Visuell feedback vid aktivering på värmepumpskort — spinner, border, transitions (likt FavTile)
 - [x] Animationer generellt — expand/collapse (AnimatePresence height), border/shadow-transitions på tiles
 
-### Session C — Grafer
-- [ ] Kombinerat temp-diagram inne+ute (Recharts eller Tremor)
-- [ ] Spotpris-graf (historik + prognos)
-- [ ] Effekt-graf (aktuell förbrukning över tid)
-- [ ] HA history-API endpoint behövs: `/api/homeassistant/history`
+### Session C — Grafer ✅ Klar
+- [x] HA history-API endpoint (`/api/homeassistant/history`) med 15-min bucketing och nedsampling
+- [x] Spotpris-graf (BarChart, neutral färg, expand i EnergyCard)
+- [x] Effekt-graf (AreaChart, expand inuti EnergyCard-tile)
+- [x] Inomhus-tempgraf (LineChart: NIBE BT50 + Vardagsrum/Sovrum/Elvira, tight Y-domän, legend)
+- [x] Utomhus-tempgraf (LineChart: BT1 + Växthus, legend)
+- [x] Delad chart-infrastruktur: `useChartTheme` (CSS-variabler + MutationObserver), `useChartSize` (ResizeObserver), tooltip med alla serier, B-spline kurvor
+- [x] Redesignad EnergyCard med konsekvent StatRow-layout (cirkelikoner, matchande belysningskort)
+- [x] Belysningsundersida uppdelad i Nedervåning/Övervåning/Utomhus med "Släck"/"Släck allt"-pills
+- [x] Större expand-touchytor med subtil avdelare på rumskort (home + lighting)
+- [x] Fix: layout.tsx duplicate `direction` → `slideDir`
 
 ### Session D — Nya sektioner
 - [ ] Scener på belysningssidan (`/home/lighting`)
