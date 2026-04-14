@@ -130,6 +130,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push(contextKey + suffixes[next]);
   }, [pathname, router]);
 
+  // Reset swipe transform on cancel (e.g. iOS app-switch) or visibility change
+  const resetSwipeTransform = useCallback(() => {
+    if (swipeRef.current) {
+      swipeRef.current.style.transform = "";
+      swipeRef.current.style.opacity = "";
+    }
+    touchStart.current = null;
+    pullStart.current = null;
+    setPullDistance(0);
+  }, []);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") resetSwipeTransform();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [resetSwipeTransform]);
+
   // ─── Pull-to-refresh ───
   const pullStart = useRef<number | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
@@ -209,6 +228,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        onTouchCancel={resetSwipeTransform}
       >
         {/* Pull-to-refresh indicator */}
         <div
