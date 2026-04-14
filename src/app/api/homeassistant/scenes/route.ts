@@ -47,5 +47,7 @@ export async function GET() {
   }
 }
 
-// Scene config rarely changes; allow light caching (targets aren't time-sensitive).
-export const revalidate = 300;
+// Always re-fetch — Next.js otherwise caches an empty response if the first
+// hit fails (e.g. transient HA timeout) and the dashboard then thinks no
+// scene is active for the rest of the session.
+export const dynamic = "force-dynamic";
