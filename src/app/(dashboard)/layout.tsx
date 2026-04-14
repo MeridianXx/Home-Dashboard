@@ -50,6 +50,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       directionRef.current = newIndex > prevIndexRef.current ? 1 : -1;
       prevIndexRef.current = newIndex;
     }
+    // Reset direction after animation frame so app-switch doesn't re-trigger
+    const raf = requestAnimationFrame(() => { directionRef.current = 0; });
+    return () => cancelAnimationFrame(raf);
   }, [pathname]);
 
   // ─── Touch swipe navigation with live preview ───
@@ -242,7 +245,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <motion.div
             ref={swipeRef}
             key={pathname}
-            initial={{ x: `${direction * 25}%`, opacity: 0 }}
+            initial={direction !== 0 ? { x: `${direction * 25}%`, opacity: 0 } : false}
             animate={{ x: 0, opacity: 1 }}
             transition={SLIDE_EASE}
             style={{ willChange: "transform, opacity" }}
