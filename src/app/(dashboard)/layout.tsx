@@ -28,7 +28,7 @@ function getTabIndex(pathname: string) {
 }
 
 // Smooth slide — no spring overshoot, clean deceleration
-const SLIDE_EASE = { duration: 0.32, ease: [0.32, 0.72, 0, 1] };
+const SLIDE_EASE = { duration: 0.32, ease: [0.32, 0.72, 0, 1] as const };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const collapsed = useDashboardStore((s) => s.sidebarCollapsed);
