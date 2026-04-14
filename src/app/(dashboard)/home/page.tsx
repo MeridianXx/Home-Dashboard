@@ -213,12 +213,12 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
           </span>
           {totalOn > 0 && (
             <Pressable
-              onClick={() => { vibrate(); callAction("light", "turn_off", "all").then(onRefresh); }}
+              onClick={() => { vibrate(); callAction("scene", "turn_on", "scene.slack").then(onRefresh); }}
               className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold"
               style={{ backgroundColor: "var(--color-surface-container-high)", color: "var(--color-on-surface-variant)" }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 12 }}>light_off</span>
-              Alla av
+              Släck
             </Pressable>
           )}
         </div>
@@ -1104,7 +1104,7 @@ export default function HomePage() {
         <SectionLabel>Favoriter</SectionLabel>
 
         {/* Scener */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
           <FavTile
             label="God morgon" icon="wb_sunny"
             color="#f59e0b" active={lastScene === "god_morgon"}
@@ -1139,16 +1139,6 @@ export default function HomePage() {
             onClick={() => runAction("scene-natt", async () => {
               await callAction("scene", "turn_on", "scene.natt");
               setLastScene("natt");
-            })}
-          />
-          <FavTile
-            label="Släck" icon="light_off"
-            color="#6b7280" active={allLightsOff}
-            loading={loadingKey === "scene-slack"}
-            onClick={() => runAction("scene-slack", async () => {
-              await callAction("scene", "turn_on", "scene.slack");
-              setLastScene("slack");
-              await refreshLights();
             })}
           />
         </div>
