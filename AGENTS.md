@@ -270,6 +270,7 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 
 ### Session D — Nya sektioner & scener
 - [ ] Scen-aktiv-detektion baserad på faktisk lampstatus (likt Apple Home). Jämför varje lampas state/brightness mot scenens målvärden (hämtas via `scene.get_state` eller `scene.{name}.attributes.entity_id`/`.state`). Ersätt `lastScene` localStorage-lösning med realtidsdetektion baserad på SWR-refresh av `/api/homeassistant/lights`.
+- [ ] Sortera alla lampor i bokstavsordning inom varje rum (både på hemsida och belysningsundersida). Sker troligen i `/api/homeassistant/lights` eller i LightingCard/RoomRow innan `.map()`.
 - [ ] Scener på belysningssidan (`/home/lighting`)
 - [ ] Mediavy som egen undersida `/home/media` (Sonos per rum, volym, Apple TV-status)
 
