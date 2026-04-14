@@ -27,6 +27,7 @@ type HvacData     = {
     system_power_kw: number | null; compressor_hz: number | null; heater_kw: number | null;
     hot_water_boost: string; hot_water_boost_options: string[];
     ventilation_mode: string; ventilation_options: string[];
+    indoor_setpoint: number | null;
   };
 };
 type VacuumData   = { state: string; battery_pct: number | null; status: string | null; current_room: string | null; cleaned_area: number | null; charging: boolean; cleaning: boolean; do_not_disturb: boolean };
@@ -153,7 +154,8 @@ function StatChip({ icon, value, label, color = "var(--color-primary)", onClick 
 
 // ─── Belysning ────────────────────────────────────────────────────────────────
 
-const AMBER = "#f59e0b";
+const AMBER = "#fab849";
+const vibrate = () => typeof navigator !== "undefined" && navigator.vibrate?.(10);
 const FAVORITE_ROOM_ORDER = ["Vardagsrum", "Kök", "Allrum", "Sovrum", "Adrian", "Elvira"];
 
 function LightToggle({ on, onChange }: { on: boolean; onChange: () => void }) {
@@ -177,6 +179,7 @@ function LightToggle({ on, onChange }: { on: boolean; onChange: () => void }) {
 
 function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => void }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [liveBrightness, setLiveBrightness] = useState<Record<string, number>>({});
 
   const totalOn  = data.areas.reduce((s, a) => s + a.on_count, 0);
   const totalAll = data.areas.reduce((s, a) => s + a.total_count, 0);
@@ -185,14 +188,17 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
     .filter((a): a is LightArea => a != null);
 
   async function handleToggleArea(area: LightArea) {
+    vibrate();
     await callAction("light", area.on_count > 0 ? "turn_off" : "turn_on", area.lights.map(l => l.entity_id));
     onRefresh();
   }
   async function handleToggleLight(light: LightEntry) {
+    vibrate();
     await callAction("light", light.state === "on" ? "turn_off" : "turn_on", light.entity_id);
     onRefresh();
   }
   async function handleBrightness(entity_id: string, pct: number) {
+    vibrate();
     await callAction("light", "turn_on", entity_id, { brightness_pct: pct });
     onRefresh();
   }
@@ -201,7 +207,7 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
     <Card className="md:col-span-2 xl:col-span-3">
       <div className="flex items-center justify-between mb-3">
         <SectionLabel>Belysning</SectionLabel>
-        <span className="text-xs font-bold -mt-3" style={{ color: totalOn > 0 ? AMBER : "var(--color-outline)" }}>
+        <span className="text-xs font-bold -mt-3" style={{ color: totalOn > 0 ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
           {totalOn}/{totalAll} på
         </span>
       </div>
@@ -234,7 +240,7 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
                 {/* Name + status — tapping also toggles */}
                 <Pressable onClick={() => handleToggleArea(area)} className="flex-1 min-w-0 text-left">
                   <p className="text-sm font-bold leading-tight" style={{ color: "var(--color-on-surface)" }}>{area.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: on ? AMBER : "var(--color-outline)" }}>
+                  <p className="text-xs mt-0.5" style={{ color: on ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
                     {area.total_count > 1 ? `${area.on_count}/${area.total_count} på` : (on ? "På" : "Av")}
                   </p>
                 </Pressable>
@@ -278,11 +284,12 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
                               sunny
                             </span>
                             <input type="range" min={1} max={100}
+                              key={`${light.entity_id}-${light.brightness_pct ?? 'x'}`}
                               defaultValue={light.brightness_pct ?? (lon ? 100 : 0)}
                               disabled={!lon}
                               className="flex-1 cursor-pointer"
                               style={{ opacity: lon ? 1 : 0.25, "--fill": `${light.brightness_pct ?? (lon ? 100 : 0)}%` } as React.CSSProperties}
-                              onInput={e => { const t = e.currentTarget; t.style.setProperty("--fill", `${t.value}%`); }}
+                              onInput={e => { const t = e.currentTarget; const v = parseInt(t.value); t.style.setProperty("--fill", `${v}%`); setLiveBrightness(p => ({ ...p, [light.entity_id]: v })); }}
                               onMouseUp={e => lon && handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                               onTouchEnd={e => lon && handleBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                             />
@@ -292,7 +299,7 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
                                 color: lon ? "var(--color-on-surface-variant)" : "var(--color-outline)",
                                 opacity: lon ? 1 : 0.4,
                               }}>
-                              {lon ? `${light.brightness_pct ?? 100}%` : "0%"}
+                              {lon ? `${liveBrightness[light.entity_id] ?? light.brightness_pct ?? 100}%` : "0%"}
                             </span>
                           </div>
                         )}
@@ -307,7 +314,7 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
       </div>
       <a href="/home/lighting"
         className="flex items-center justify-center gap-1.5 mt-4 text-sm font-semibold"
-        style={{ color: AMBER, opacity: 0.7 }}>
+        style={{ color: "var(--color-primary)", opacity: 0.8 }}>
         <span>Visa alla rum</span>
         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
       </a>
@@ -470,7 +477,7 @@ function VacuumCard({ data, onRefresh }: { data: VacuumData; onRefresh: () => vo
           { label: "Till docka",  icon: "home",               action: () => callAction("vacuum", "return_to_base", "vacuum.chomper") },
         ].map(({ label, icon, action }) => (
           <Pressable key={label}
-            onClick={async () => { await action(); onRefresh(); }}
+            onClick={async () => { vibrate(); await action(); onRefresh(); }}
             className="flex flex-col items-center gap-1.5 py-3 rounded-xl text-center"
             style={{ backgroundColor: "var(--color-surface-container)" }}>
             <span className="material-symbols-outlined text-[20px]"
@@ -496,6 +503,34 @@ const HVAC_MODE_ICONS: Record<string, string> = {
 };
 
 const HERO_MODES = ["off", "heat", "cool", "heat_cool"];
+function TempSlider({ value, min, max, step = 0.5, icon = "thermostat", onSet }: {
+  value: number; min: number; max: number; step?: number; icon?: string;
+  onSet: (t: number) => void;
+}) {
+  const [live, setLive] = useState<number | null>(null);
+  const displayed = live ?? value;
+  const fillPct = ((displayed - min) / (max - min)) * 100;
+  return (
+    <div className="flex items-center gap-3">
+      <span className="material-symbols-outlined shrink-0" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>{icon}</span>
+      <input type="range" min={min} max={max} step={step}
+        key={value}
+        defaultValue={value}
+        className="flex-1"
+        style={{ "--fill": `${fillPct.toFixed(1)}%` } as React.CSSProperties}
+        onInput={e => {
+          const v = parseFloat(e.currentTarget.value);
+          e.currentTarget.style.setProperty("--fill", `${((v - min) / (max - min) * 100).toFixed(1)}%`);
+          setLive(v);
+        }}
+        onMouseUp={e => onSet(parseFloat((e.target as HTMLInputElement).value))}
+        onTouchEnd={e => onSet(parseFloat((e.target as HTMLInputElement).value))}
+      />
+      <span className="text-[11px] w-10 text-right shrink-0 font-semibold"
+        style={{ color: "var(--color-on-surface)" }}>{displayed}°C</span>
+    </div>
+  );
+}
 
 function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }) {
   const hp   = data.heat_pump;
@@ -503,24 +538,39 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
   const [expandedSelect, setExpandedSelect] = useState<"hot_water" | "ventilation" | null>(null);
 
   async function handleHeatPumpMode(mode: string) {
+    vibrate();
     await callAction("climate", mode === "off" ? "turn_off" : "set_hvac_mode", hp.entity_id,
       mode === "off" ? undefined : { hvac_mode: mode });
     onRefresh();
   }
   async function handleHotWaterBoost(option: string) {
+    vibrate();
     await callAction("select", "select_option", "select.villa_bjorkdalen_more_hot_water", { option });
     onRefresh();
   }
   async function handleVentilationMode(option: string) {
+    vibrate();
     await callAction("select", "select_option", "select.villa_bjorkdalen_ventilation_mode", { option });
     onRefresh();
   }
+  async function handleNibeSetpoint(value: number) {
+    vibrate();
+    await callAction("number", "set_value", "number.villa_bjorkdalen_rumsgivare_borvarde_inomhusklimat", { value });
+    onRefresh();
+  }
   async function handleNattsvalka(current: boolean) {
+    vibrate();
     await callAction("switch", current ? "turn_off" : "turn_on", "switch.nibe_nattsvalka");
     onRefresh();
   }
   async function handleKaminlage(current: boolean) {
+    vibrate();
     await callAction("switch", current ? "turn_off" : "turn_on", "switch.nibe_kaminlage");
+    onRefresh();
+  }
+  async function handleHeroTemp(temp: number) {
+    vibrate();
+    await callAction("climate", "set_temperature", hp.entity_id, { temperature: temp });
     onRefresh();
   }
 
@@ -549,7 +599,7 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
               </p>
             </div>
             {hp.current_temp != null && (
-              <span className="text-2xl font-black shrink-0" style={{ color: "var(--color-tertiary)" }}>{hp.current_temp}°</span>
+              <span className="text-2xl font-black shrink-0" style={{ color: "var(--color-on-surface)" }}>{hp.current_temp}°</span>
             )}
           </div>
 
@@ -575,6 +625,11 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
               );
             })}
           </div>
+
+          {/* Temperature slider */}
+          {hp.target_temp != null && (
+            <TempSlider value={hp.target_temp} min={16} max={30} onSet={handleHeroTemp} />
+          )}
         </div>
 
         {/* ── Nibe S735 — bergvärmepump ── */}
@@ -592,7 +647,7 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
               <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>Frånluftsvärmepump</p>
             </div>
             {nibe.outdoor_temp != null && (
-              <span className="text-2xl font-black shrink-0" style={{ color: "var(--color-tertiary)" }}>{Math.round(nibe.outdoor_temp)}°</span>
+              <span className="text-2xl font-black shrink-0" style={{ color: "var(--color-on-surface)" }}>{Math.round(nibe.outdoor_temp)}°</span>
             )}
           </div>
 
@@ -617,10 +672,10 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
           {/* Status pills */}
           <div className="grid grid-cols-2 gap-1.5">
             {[
-              { icon: "compress", label: "Kompressor", value: nibe.compressor_hz != null ? `${nibe.compressor_hz}Hz`          : "–" },
-              { icon: "bolt",     label: "Elpatron",   value: nibe.heater_kw    != null ? `${nibe.heater_kw.toFixed(1)}kW`    : "–" },
+              { icon: "compress", label: "Kompressor", value: nibe.compressor_hz != null ? `${nibe.compressor_hz}Hz`        : "–" },
+              { icon: "bolt",     label: "Elpatron",   value: nibe.heater_kw    != null ? `${nibe.heater_kw.toFixed(1)}kW` : "–" },
             ].map(({ icon, label, value }) => (
-              <span key={label} className="flex items-center justify-center gap-1 text-[11px] font-semibold px-2 py-1.5 rounded-full"
+              <span key={label} className="flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-full"
                 style={{
                   backgroundColor: "var(--color-surface-container-high)",
                   color: "var(--color-on-surface-variant)",
@@ -630,6 +685,11 @@ function HvacCard({ data, onRefresh }: { data: HvacData; onRefresh: () => void }
               </span>
             ))}
           </div>
+
+          {/* Börvärde slider */}
+          {nibe.indoor_setpoint != null && (
+            <TempSlider value={nibe.indoor_setpoint} min={16} max={25} icon="thermostat" onSet={handleNibeSetpoint} />
+          )}
 
           {/* Expandable selects */}
           <div className="space-y-1.5">
@@ -967,8 +1027,8 @@ export default function HomePage() {
                       <PrimaryBadge color="var(--color-tertiary)" />
                     </div>
                     <span className="flex items-center gap-0.5 shrink-0" style={{ minWidth: "3.75rem", justifyContent: "flex-end" }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-tertiary)" }}>thermometer</span>
-                      <span className="text-sm font-black" style={{ color: "var(--color-tertiary)", fontVariantNumeric: "tabular-nums" }}>{sensors.outdoor_temp.toFixed(1)}°</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>thermometer</span>
+                      <span className="text-sm font-black" style={{ color: "var(--color-on-surface)", fontVariantNumeric: "tabular-nums" }}>{sensors.outdoor_temp.toFixed(1)}°</span>
                     </span>
                   </div>
                 )}

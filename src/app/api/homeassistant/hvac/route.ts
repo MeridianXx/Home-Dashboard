@@ -9,7 +9,7 @@ export async function GET() {
       nibeOutdoor, nibeHotWater, nibeFanSpeed,
       nibeAlarm, nibeKaminlage, nibeNattsvalka,
       nibeSystemPower, nibeCompressor, nibeHeater,
-      nibeHotWaterBoost, nibeVentilation,
+      nibeHotWaterBoost, nibeVentilation, nibeIndoorSetpoint,
     ] = await Promise.all([
       getState("climate.vardagsrum_luftvarmepump"),
       getState("sensor.nibe_inomhusklimat"),
@@ -23,6 +23,7 @@ export async function GET() {
       getState("sensor.nibe_effekt_elpatron"),
       getState("select.villa_bjorkdalen_more_hot_water"),
       getState("select.villa_bjorkdalen_ventilation_mode"),
+      getState("number.villa_bjorkdalen_rumsgivare_borvarde_inomhusklimat"),
     ]);
 
     return Response.json({
@@ -47,6 +48,7 @@ export async function GET() {
         hot_water_boost_options: (nibeHotWaterBoost.attributes.options as string[] | null) ?? [],
         ventilation_mode:        nibeVentilation.state,
         ventilation_options:     (nibeVentilation.attributes.options  as string[] | null) ?? [],
+        indoor_setpoint:         safe(nibeIndoorSetpoint.state),
       },
     });
   } catch (err) {

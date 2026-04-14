@@ -8,39 +8,39 @@ const THEME_ICONS: Record<string, string> = { auto: "brightness_auto", light: "l
 
 const CONTEXT_META: Record<
   string,
-  { label: string; tabs?: { label: string; suffix: string }[] }
+  { label: string; tabs?: { label: string; suffix: string; icon: string }[] }
 > = {
   "/home": {
     label: "Hem",
     tabs: [
-      { label: "Översikt", suffix: "" },
-      { label: "Belysning", suffix: "/lighting" },
-      { label: "Automationer", suffix: "/automations" },
+      { label: "Översikt",    suffix: "",            icon: "dashboard"  },
+      { label: "Belysning",   suffix: "/lighting",   icon: "light_mode" },
+      { label: "Automationer",suffix: "/automations",icon: "auto_mode"  },
     ],
   },
   "/homelab": {
     label: "Homelab",
     tabs: [
-      { label: "Översikt", suffix: "" },
-      { label: "Servrar", suffix: "/servers" },
-      { label: "Containers", suffix: "/containers" },
-      { label: "Media", suffix: "/media" },
-      { label: "Nätverk", suffix: "/network" },
+      { label: "Översikt",   suffix: "",          icon: "dashboard"   },
+      { label: "Servrar",    suffix: "/servers",  icon: "dns"         },
+      { label: "Containers", suffix: "/containers",icon: "view_in_ar" },
+      { label: "Media",      suffix: "/media",    icon: "queue_music" },
+      { label: "Nätverk",    suffix: "/network",  icon: "router"      },
     ],
   },
   "/fitness": {
     label: "Fitness",
     tabs: [
-      { label: "Dashboard", suffix: "" },
-      { label: "Coach", suffix: "/coach" },
-      { label: "Historik", suffix: "/history" },
+      { label: "Dashboard", suffix: "",         icon: "fitness_center" },
+      { label: "Coach",     suffix: "/coach",   icon: "person"         },
+      { label: "Historik",  suffix: "/history", icon: "history"        },
     ],
   },
   "/garden": {
     label: "Trädgård",
     tabs: [
-      { label: "Översikt", suffix: "" },
-      { label: "Planering", suffix: "/planner" },
+      { label: "Översikt",  suffix: "",          icon: "dashboard"     },
+      { label: "Planering", suffix: "/planner",  icon: "calendar_today"},
     ],
   },
 };
@@ -109,24 +109,25 @@ export default function TopBar() {
         {meta.tabs && meta.tabs.length > 1 && (
           <div className="overflow-x-auto no-scrollbar flex-1">
             <nav className="flex gap-1 w-max">
-              {meta.tabs.map(({ label, suffix }) => {
+              {meta.tabs.map(({ label, suffix, icon }) => {
                 const href = `${contextKey}${suffix}`;
                 const active = pathname === href;
                 return (
                   <a
                     key={href}
                     href={href}
-                    className="rounded-full px-3 py-1 text-sm font-medium transition-all whitespace-nowrap"
+                    className="rounded-full px-3 py-1.5 transition-all whitespace-nowrap flex flex-col items-center gap-0.5"
                     style={
                       active
-                        ? {
-                            backgroundColor: "var(--color-inverse-surface)",
-                            color: "var(--color-surface)",
-                          }
+                        ? { backgroundColor: "var(--color-inverse-surface)", color: "var(--color-surface)" }
                         : { color: "var(--color-on-surface-variant)" }
                     }
                   >
-                    {label}
+                    <span className="material-symbols-outlined"
+                      style={{ fontSize: 16, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>
+                      {icon}
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{label}</span>
                   </a>
                 );
               })}

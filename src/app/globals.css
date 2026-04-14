@@ -208,7 +208,7 @@ input[type="range"]:disabled { cursor: not-allowed; }
 input[type="range"]::-webkit-slider-runnable-track {
   background: linear-gradient(
     to right,
-    #f59e0b var(--fill, 0%),
+    var(--color-tertiary-fixed) var(--fill, 0%),
     rgba(128,128,120,0.25) var(--fill, 0%)
   );
   height: 4px;
@@ -235,7 +235,7 @@ input[type="range"]::-moz-range-track {
   border-radius: 2px;
 }
 input[type="range"]::-moz-range-progress {
-  background: #f59e0b;
+  background: var(--color-tertiary-fixed);
   height: 4px;
   border-radius: 2px;
 }

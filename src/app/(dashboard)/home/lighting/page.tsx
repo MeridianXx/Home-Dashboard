@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import useSWR from "swr";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -27,7 +27,8 @@ async function callAction(domain: string, service: string, entity_id: string | s
   });
 }
 
-const AMBER = "#f59e0b";
+const AMBER = "#fab849";
+const vibrate = () => typeof navigator !== "undefined" && navigator.vibrate?.(10);
 
 // ─── UI Components ────────────────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
   onBrightness: (entity_id: string, pct: number) => void;
 }) {
   const on = area.on_count > 0;
+  const [liveBrightness, setLiveBrightness] = useState<Record<string, number>>({});
   return (
     <div className="flex flex-col rounded-2xl overflow-hidden"
       style={{
@@ -76,7 +78,7 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
         <button onClick={() => onToggleArea(area)} className="flex-1 min-w-0 text-left">
           <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
           {area.total_count > 1 ? (
-            <span className="text-xs ml-2" style={{ color: on ? AMBER : "var(--color-outline)" }}>
+            <span className="text-xs ml-2" style={{ color: on ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
               {area.on_count}/{area.total_count} på
             </span>
           ) : (
@@ -114,12 +116,12 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
                       defaultValue={light.brightness_pct ?? 100}
                       className="flex-1"
                       style={{ "--fill": `${light.brightness_pct ?? 100}%` } as React.CSSProperties}
-                      onInput={e => { const t = e.currentTarget; t.style.setProperty("--fill", `${t.value}%`); }}
+                      onInput={e => { const t = e.currentTarget; const v = parseInt(t.value); t.style.setProperty("--fill", `${v}%`); setLiveBrightness(p => ({ ...p, [light.entity_id]: v })); }}
                       onMouseUp={e => onBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                       onTouchEnd={e => onBrightness(light.entity_id, parseInt((e.target as HTMLInputElement).value))}
                     />
                     <span className="text-[11px] w-7 text-right shrink-0"
-                      style={{ color: "var(--color-outline)" }}>{light.brightness_pct ?? 100}%</span>
+                      style={{ color: "var(--color-outline)" }}>{liveBrightness[light.entity_id] ?? light.brightness_pct ?? 100}%</span>
                   </div>
                 )}
               </div>
@@ -142,14 +144,17 @@ export default function LightingPage() {
   const totalAll = areas.reduce((s, a) => s + a.total_count, 0);
 
   async function handleToggleArea(area: LightArea) {
+    vibrate();
     await callAction("light", area.on_count > 0 ? "turn_off" : "turn_on", area.lights.map(l => l.entity_id));
     mutate();
   }
   async function handleToggleLight(light: LightEntry) {
+    vibrate();
     await callAction("light", light.state === "on" ? "turn_off" : "turn_on", light.entity_id);
     mutate();
   }
   async function handleBrightness(entity_id: string, pct: number) {
+    vibrate();
     await callAction("light", "turn_on", entity_id, { brightness_pct: pct });
     mutate();
   }
@@ -160,7 +165,7 @@ export default function LightingPage() {
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-lg font-bold" style={{ color: "var(--color-on-surface)" }}>Alla rum</h1>
         {totalAll > 0 && (
-          <span className="text-sm font-bold" style={{ color: totalOn > 0 ? AMBER : "var(--color-outline)" }}>
+          <span className="text-sm font-bold" style={{ color: totalOn > 0 ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
             {totalOn}/{totalAll} på
           </span>
         )}
