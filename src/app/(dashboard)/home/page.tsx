@@ -1036,7 +1036,7 @@ export default function HomePage() {
                 {sensors.outdoor_temp != null && (
                   <div className="flex items-center justify-between py-2.5">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="material-symbols-outlined text-[15px] shrink-0" style={{ color: "var(--color-tertiary)" }}>device_thermostat</span>
+                      <span className="material-symbols-outlined text-[15px] shrink-0" style={{ color: "var(--color-on-surface-variant)" }}>device_thermostat</span>
                       <span className="text-sm font-semibold truncate" style={{ color: "var(--color-on-surface)" }}>Utetemperatur</span>
                       <PrimaryBadge color="var(--color-tertiary)" />
                     </div>
@@ -1050,7 +1050,7 @@ export default function HomePage() {
                 {vaxthusArea && (
                   <div className="flex items-center justify-between py-2.5 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[15px]" style={{ color: "var(--color-tertiary)" }}>potted_plant</span>
+                      <span className="material-symbols-outlined text-[15px]" style={{ color: "var(--color-on-surface-variant)" }}>potted_plant</span>
                       <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>Växthus</span>
                     </div>
                     <div className="flex items-center gap-2.5">
