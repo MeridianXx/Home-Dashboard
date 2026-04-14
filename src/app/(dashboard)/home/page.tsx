@@ -561,10 +561,8 @@ function HvacCard({ data, onRefresh, loadingKey, runAction }: { data: HvacData; 
   const [expandedSelect, setExpandedSelect] = useState<"hot_water" | "ventilation" | null>(null);
 
   async function handleHeatPumpMode(mode: string) {
-    vibrate();
     await callAction("climate", mode === "off" ? "turn_off" : "set_hvac_mode", hp.entity_id,
       mode === "off" ? undefined : { hvac_mode: mode });
-    onRefresh();
   }
   async function handleHotWaterBoost(option: string) {
     vibrate();
@@ -626,21 +624,32 @@ function HvacCard({ data, onRefresh, loadingKey, runAction }: { data: HvacData; 
           <div className="grid grid-cols-4 gap-1.5">
             {modes.map(mode => {
               const active = hp.state === mode;
+              const isLoading = loadingKey === `hero-${mode}`;
               const mColor = mode === "off" ? "var(--color-outline)"
                 : mode === "cool" ? "var(--color-primary)"
                 : "var(--color-tertiary)";
               return (
-                <Pressable key={mode} onClick={() => handleHeatPumpMode(mode)}
+                <Pressable key={mode} onClick={() => runAction(`hero-${mode}`, async () => { await handleHeatPumpMode(mode); await onRefresh(); })}
+                  loading={isLoading}
                   className="flex flex-col items-center gap-1.5 py-2.5 rounded-xl"
                   style={{
                     backgroundColor: active ? (mode === "off" ? "rgba(129,129,122,0.15)" : mode === "cool" ? "rgba(71,91,194,0.15)" : "rgba(136,92,0,0.15)") : "var(--color-surface-container-high)",
-                    color: active ? mColor : "var(--color-on-surface-variant)",
-                    transition: "background-color 0.2s, color 0.2s, box-shadow 0.2s",
-                    boxShadow: active ? `inset 0 0 0 99px ${mColor}08` : "none",
+                    color: active && !isLoading ? mColor : "var(--color-on-surface-variant)",
+                    transition: "background-color 0.2s, color 0.2s, box-shadow 0.2s, border-color 0.2s",
+                    boxShadow: active && !isLoading ? `inset 0 0 0 99px ${mColor}08` : "none",
+                    border: `2px solid ${active && !isLoading ? mColor : "transparent"}`,
                   }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>
-                    {HVAC_MODE_ICONS[mode]}
-                  </span>
+                  {isLoading ? (
+                    <svg className="spin-anim" viewBox="0 0 24 24" fill="none"
+                      style={{ color: mColor, width: 18, height: 18, flexShrink: 0 }}>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25"/>
+                      <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                  ) : (
+                    <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>
+                      {HVAC_MODE_ICONS[mode]}
+                    </span>
+                  )}
                   <span className="text-[10px] font-bold">{HVAC_MODE_LABELS[mode]}</span>
                 </Pressable>
               );
