@@ -101,21 +101,15 @@ function Pressable({ children, onClick, disabled = false, loading = false, class
   );
 }
 
-function Card({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <motion.div
-      className={`rounded-2xl p-5 ${className}`}
-      style={{
-        backgroundColor: "var(--color-surface-container-lowest)",
-        boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
-        border: "1px solid var(--color-card-border)",
-      }}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut", delay }}
-    >
+    <div className={`rounded-2xl p-5 ${className}`} style={{
+      backgroundColor: "var(--color-surface-container-lowest)",
+      boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
+      border: "1px solid var(--color-card-border)",
+    }}>
       {children}
-    </motion.div>
+    </div>
   );
 }
 

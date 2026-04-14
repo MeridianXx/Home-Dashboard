@@ -225,9 +225,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <motion.div
               ref={swipeRef}
               key={pathname}
-              initial={{ x: `${direction * 35}%`, opacity: 0.4, scale: 0.97 }}
-              animate={{ x: 0, opacity: 1, scale: 1 }}
-              exit={{ x: `${direction * -35}%`, opacity: 0.4, scale: 0.97 }}
+              initial={{ x: `${direction * 30}%`, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: `${direction * -30}%`, opacity: 0 }}
               transition={SLIDE_SPRING}
               style={{ willChange: "transform, opacity" }}
             >
