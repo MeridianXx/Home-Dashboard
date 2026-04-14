@@ -162,55 +162,42 @@ function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: ()
   const isOff = player.state === "off" || player.state === "standby";
 
   return (
-    <div className="flex flex-col rounded-2xl overflow-hidden"
+    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl"
       style={{
         backgroundColor: "var(--color-surface-container)",
         border: `1.5px solid ${playing ? AMBER : "transparent"}`,
         boxShadow: playing ? `inset 0 0 0 99px ${AMBER}09` : "none",
         transition: "border-color 0.2s, box-shadow 0.2s",
       }}>
-      {/* Header row */}
-      <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-        <div style={{
-          width: 52, height: 52, borderRadius: 10, flexShrink: 0,
-          backgroundColor: playing ? `${AMBER}18` : "var(--color-surface-container-high)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <span className="material-symbols-outlined"
-            style={{ fontSize: 26, color: playing ? AMBER : "var(--color-outline)", fontVariationSettings: "'FILL' 1" }}>
-            tv
-          </span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold tracking-wide uppercase" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
-          <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
-            {player.media_title ?? player.name}
-          </p>
-          <p className="text-xs truncate" style={{ color: "var(--color-on-surface-variant)" }}>
-            {player.source ? `${player.source} · ${player.state}` : player.state}
-          </p>
-        </div>
-        {/* Transport */}
-        <div className="flex items-center gap-1.5">
-          <TransportButton icon="skip_previous" label="Föregående" size={36} disabled={isOff}
-            onClick={async () => { await callAction("media_previous_track", player.entity_id); onRefresh(); }} />
-          <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={44} primary={playing} disabled={isOff}
-            onClick={async () => { await callAction("media_play_pause", player.entity_id); onRefresh(); }} />
-          <TransportButton icon="skip_next" label="Nästa" size={36} disabled={isOff}
-            onClick={async () => { await callAction("media_next_track", player.entity_id); onRefresh(); }} />
-        </div>
+      <div style={{
+        width: 52, height: 52, borderRadius: 10, flexShrink: 0,
+        backgroundColor: playing ? `${AMBER}18` : "var(--color-surface-container-high)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <span className="material-symbols-outlined"
+          style={{ fontSize: 26, color: playing ? AMBER : "var(--color-outline)", fontVariationSettings: "'FILL' 1" }}>
+          tv
+        </span>
       </div>
-
-      {/* Controls row: power + volume */}
-      <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-1">
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-bold tracking-wide uppercase" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
+        <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
+          {player.media_title ?? player.name}
+        </p>
+        <p className="text-xs truncate" style={{ color: "var(--color-on-surface-variant)" }}>
+          {player.source ? `${player.source} · ${player.state}` : player.state}
+        </p>
+      </div>
+      {/* Transport + power */}
+      <div className="flex items-center gap-1.5">
+        <TransportButton icon="skip_previous" label="Föregående" size={36} disabled={isOff}
+          onClick={async () => { await callAction("media_previous_track", player.entity_id); onRefresh(); }} />
+        <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={44} primary={playing} disabled={isOff}
+          onClick={async () => { await callAction("media_play_pause", player.entity_id); onRefresh(); }} />
+        <TransportButton icon="skip_next" label="Nästa" size={36} disabled={isOff}
+          onClick={async () => { await callAction("media_next_track", player.entity_id); onRefresh(); }} />
         <TransportButton icon="power_settings_new" label={isOff ? "Slå på" : "Stäng av"} size={36} primary={!isOff}
           onClick={async () => { await callAction(isOff ? "turn_on" : "turn_off", player.entity_id); onRefresh(); }} />
-        <div className="flex items-center gap-1.5">
-          <TransportButton icon="volume_down" label="Sänk volym" size={36} disabled={isOff}
-            onClick={async () => { await callAction("volume_down", player.entity_id); onRefresh(); }} />
-          <TransportButton icon="volume_up" label="Höj volym" size={36} disabled={isOff}
-            onClick={async () => { await callAction("volume_up", player.entity_id); onRefresh(); }} />
-        </div>
       </div>
     </div>
   );
