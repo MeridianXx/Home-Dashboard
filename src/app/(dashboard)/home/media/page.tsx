@@ -258,33 +258,15 @@ function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: ()
   const subtitle = player.source ?? (isOff ? "Av" : "Inaktiv");
 
   return (
-    <div className="relative flex flex-col gap-3 rounded-2xl px-4 py-4"
+    <div className="flex flex-col gap-3 rounded-2xl px-4 py-4"
       style={{
         backgroundColor: "var(--color-surface-container)",
         border: `1.5px solid ${playing ? AMBER : "transparent"}`,
         boxShadow: playing ? `inset 0 0 0 99px ${AMBER}09` : "none",
         transition: "border-color 0.2s, box-shadow 0.2s",
       }}>
-      {/* Power — small icon in top-right corner */}
-      <button onClick={() => { vibrate(); togglePower(); }}
-        aria-label={isOff ? "Slå på" : "Stäng av"}
-        style={{
-          position: "absolute", top: 10, right: 10,
-          width: 28, height: 28, borderRadius: "50%",
-          border: "none", cursor: "pointer",
-          backgroundColor: isOff ? "var(--color-surface-container-high)" : `${AMBER}22`,
-          color: isOff ? "var(--color-on-surface-variant)" : AMBER,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "background-color 0.18s, color 0.18s",
-        }}>
-        <span className="material-symbols-outlined"
-          style={{ fontSize: 16, fontVariationSettings: "'FILL' 1" }}>
-          power_settings_new
-        </span>
-      </button>
-
-      {/* Header row — art + text(+ transport stacked) */}
-      <div className="flex items-center gap-3" style={{ paddingRight: 32 /* clear of power button */ }}>
+      {/* Header row — art + text + transport (aligned with Sonos) */}
+      <div className="flex items-center gap-3">
         <div style={{
           width: 68, height: 68, borderRadius: 12, flexShrink: 0, overflow: "hidden",
           backgroundColor: playing ? `${AMBER}18` : "var(--color-surface-container-high)",
@@ -319,13 +301,25 @@ function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: ()
         </div>
       </div>
 
-      {/* Progress bar — row 2, mirrors Sonos volume slider layout */}
+      {/* Progress row — power toggle + time + bar + duration (mirrors Sonos volume row) */}
       <div className="flex items-center gap-3">
+        <button onClick={() => { vibrate(); togglePower(); }}
+          aria-label={isOff ? "Slå på" : "Stäng av"}
+          style={{ border: "none", background: "transparent", cursor: "pointer", padding: 4 }}>
+          <span className="material-symbols-outlined"
+            style={{
+              fontSize: 18,
+              color: isOff ? "var(--color-outline)" : AMBER,
+              fontVariationSettings: "'FILL' 1",
+            }}>
+            power_settings_new
+          </span>
+        </button>
         <span className="text-[10px] tabular-nums shrink-0"
           style={{ minWidth: 32, color: "var(--color-on-surface-variant)" }}>
           {hasProgress ? formatTime(livePos) : "–:––"}
         </span>
-        <div className="flex-1 h-1.5 rounded-full overflow-hidden"
+        <div className="flex-1 h-1.5 rounded-full overflow-hidden min-w-0"
           style={{ backgroundColor: "var(--color-surface-container-high)" }}>
           <div className="h-full rounded-full"
             style={{
