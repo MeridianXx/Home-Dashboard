@@ -3,6 +3,12 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import useSWR from "swr";
+import dynamic from "next/dynamic";
+
+const SpotPriceChart   = dynamic(() => import("@/components/charts/SpotPriceChart"), { ssr: false });
+const PowerChart       = dynamic(() => import("@/components/charts/PowerChart"),     { ssr: false });
+const IndoorTempChart  = dynamic(() => import("@/components/charts/TempChart").then(m => ({ default: m.IndoorTempChart })), { ssr: false });
+const OutdoorTempChart = dynamic(() => import("@/components/charts/TempChart").then(m => ({ default: m.OutdoorTempChart })), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -178,7 +184,7 @@ function LightToggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   );
 }
 
-function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => void }) {
+function LightingCard({ data, onRefresh, loadingKey, runAction }: { data: LightsData; onRefresh: () => void; loadingKey: string | null; runAction: (key: string, fn: () => Promise<void>) => Promise<void> }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [liveBrightness, setLiveBrightness] = useState<Record<string, number>>({});
 
@@ -214,12 +220,20 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
           </span>
           {totalOn > 0 && (
             <Pressable
-              onClick={() => { vibrate(); callAction("scene", "turn_on", "scene.slack").then(onRefresh); }}
+              loading={loadingKey === "slack"}
+              onClick={() => runAction("slack", async () => { await callAction("scene", "turn_on", "scene.slack"); await onRefresh(); })}
               className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold"
               style={{ backgroundColor: "var(--color-surface-container-high)", color: "var(--color-on-surface-variant)" }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>light_off</span>
-              Alla av
+              {loadingKey === "slack" ? (
+                <svg className="spin-anim" viewBox="0 0 24 24" fill="none" style={{ width: 12, height: 12 }}>
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25"/>
+                  <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+              ) : (
+                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>light_off</span>
+              )}
+              Släck allt
             </Pressable>
           )}
         </div>
@@ -236,11 +250,11 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
                 boxShadow: on ? `inset 0 0 0 99px ${AMBER}09` : "none",
               }}>
               {/* Row header */}
-              <div className="flex items-center gap-3 px-4 py-3">
-                {/* Circle icon — tapping toggles room */}
-                <Pressable onClick={() => handleToggleArea(area)} className="shrink-0">
+              <div className="flex items-center">
+                {/* Left side: icon + name — tapping toggles room */}
+                <Pressable onClick={() => handleToggleArea(area)} className="flex items-center gap-3 flex-1 min-w-0 text-left px-4 py-3">
                   <div style={{
-                    width: 40, height: 40, borderRadius: "50%",
+                    width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
                     backgroundColor: on ? `${AMBER}22` : "var(--color-surface-container-high)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}>
@@ -249,19 +263,20 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
                       lightbulb
                     </span>
                   </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold leading-tight" style={{ color: "var(--color-on-surface)" }}>{area.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: on ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
+                      {area.total_count > 1 ? `${area.on_count}/${area.total_count} på` : (on ? "På" : "Av")}
+                    </p>
+                  </div>
                 </Pressable>
-                {/* Name + status — tapping also toggles */}
-                <Pressable onClick={() => handleToggleArea(area)} className="flex-1 min-w-0 text-left">
-                  <p className="text-sm font-bold leading-tight" style={{ color: "var(--color-on-surface)" }}>{area.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: on ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
-                    {area.total_count > 1 ? `${area.on_count}/${area.total_count} på` : (on ? "På" : "Av")}
-                  </p>
-                </Pressable>
-                {/* Expand inline */}
+                {/* Right: expand — tall touch target with subtle left divider */}
                 <button onClick={() => setExpandedId(open ? null : area.area_id)}
-                  className="material-symbols-outlined shrink-0"
-                  style={{ fontSize: 20, color: "var(--color-on-surface-variant)", opacity: 0.4 }}>
-                  {open ? "expand_less" : "expand_more"}
+                  className="shrink-0 flex items-center justify-center self-stretch"
+                  style={{ width: 48, borderLeft: "1px solid var(--color-outline-variant)", opacity: 0.5 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--color-on-surface-variant)" }}>
+                    {open ? "expand_less" : "expand_more"}
+                  </span>
                 </button>
               </div>
 
@@ -414,39 +429,114 @@ function CarsCard({ data }: { data: CarsData }) {
 // ─── Energi ───────────────────────────────────────────────────────────────────
 
 function EnergyCard({ data }: { data: EnergyData }) {
+  const [expanded, setExpanded] = useState<"price" | "power" | null>(null);
+  const toggle = (key: "price" | "power") => setExpanded(prev => prev === key ? null : key);
+
   const spotLabel = data.spot_level === "low" ? "Lågt" : data.spot_level === "medium" ? "Medel" : data.spot_level === "high" ? "Högt" : "–";
   const spotColor = data.spot_level === "low" ? "var(--color-secondary)" : data.spot_level === "high" ? "var(--color-error)" : "var(--color-tertiary)";
+
+  const StatRow = ({ icon, label, value, badge, color, expandKey }: {
+    icon: string; label: string; value: string; badge?: React.ReactNode; color: string; expandKey?: "price" | "power";
+  }) => {
+    const open = expandKey ? expanded === expandKey : false;
+    const iconEl = (
+      <div style={{
+        width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+        backgroundColor: `${color}18`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 18, color }}>{icon}</span>
+      </div>
+    );
+    const textEl = (
+      <div className="flex-1 min-w-0 text-left">
+        <p className="text-[10px] font-semibold" style={{ color: "var(--color-on-surface-variant)" }}>{label}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-black" style={{ color: "var(--color-on-surface)" }}>{value}</p>
+          {badge}
+        </div>
+      </div>
+    );
+    return (
+      <div className="flex items-center gap-3 px-4 py-3">
+        {expandKey ? (
+          <>
+            <Pressable onClick={() => toggle(expandKey)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+              {iconEl}{textEl}
+            </Pressable>
+            <button onClick={() => toggle(expandKey)}
+              className="material-symbols-outlined shrink-0"
+              style={{ fontSize: 20, color: "var(--color-on-surface-variant)", opacity: 0.4 }}>
+              {open ? "expand_less" : "expand_more"}
+            </button>
+          </>
+        ) : (
+          <>{iconEl}{textEl}</>
+        )}
+      </div>
+    );
+  };
 
   return (
     <Card>
       <SectionLabel>Energi</SectionLabel>
-      {/* Price hero */}
-      <div className="flex items-baseline gap-2 mb-4">
-        <span className="text-4xl font-black" style={{ color: "var(--color-on-surface)" }}>
-          {data.spot_price_ore != null ? data.spot_price_ore.toFixed(1) : "–"}
-        </span>
-        <span className="text-sm font-bold" style={{ color: "var(--color-on-surface-variant)" }}>öre/kWh</span>
-        <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: `${spotColor}22`, color: spotColor }}>
-          {spotLabel}
-        </span>
-      </div>
-      {/* 2×2 stat grid */}
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          { icon: "bolt",           label: "Aktuell effekt", value: `${data.current_power_w} W`,                                                            color: "var(--color-secondary)" },
-          { icon: "today",          label: "Idag",           value: `${data.accumulated_kwh.toFixed(1)} kWh · ${data.accumulated_cost_sek.toFixed(0)} kr`,   color: "var(--color-outline)" },
-          { icon: "receipt",        label: "Månadskostnad",  value: `${data.monthly_cost_sek.toFixed(0)} kr`,                                                color: "var(--color-outline)" },
-          { icon: "electric_meter", label: "Månadsförbrukn.",value: `${data.monthly_kwh.toFixed(0)} kWh`,                                                    color: "var(--color-outline)" },
-        ].map(({ icon, label, value, color }) => (
-          <div key={label} className="p-3 rounded-xl" style={{ backgroundColor: "var(--color-surface-container)" }}>
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="material-symbols-outlined text-[14px]" style={{ color }}>{icon}</span>
-              <span className="text-[10px] font-semibold" style={{ color: "var(--color-on-surface-variant)" }}>{label}</span>
-            </div>
-            <p className="text-sm font-black" style={{ color: "var(--color-on-surface)" }}>{value}</p>
-          </div>
-        ))}
+      <div className="space-y-2">
+        {/* Spotpris — expandable */}
+        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--color-surface-container)" }}>
+          <StatRow icon="payments" label="Spotpris" color={spotColor} expandKey="price"
+            value={data.spot_price_ore != null ? `${data.spot_price_ore.toFixed(1)} öre/kWh` : "–"}
+            badge={<span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${spotColor}22`, color: spotColor }}>{spotLabel}</span>} />
+          <AnimatePresence initial={false}>
+            {expanded === "price" && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                style={{ overflow: "hidden" }}
+              >
+                <div className="px-4 pb-3 pt-1 border-t" style={{ borderColor: "var(--color-outline-variant)", backgroundColor: "var(--color-surface-container)" }}>
+                  <p className="text-[10px] font-semibold mb-2" style={{ color: "var(--color-on-surface-variant)" }}>Elpris senaste 24h</p>
+                  <SpotPriceChart />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Aktuell effekt — expandable */}
+        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--color-surface-container)" }}>
+          <StatRow icon="bolt" label="Effekt" value={`${data.current_power_w} W`}
+            color="var(--color-secondary)" expandKey="power" />
+          <AnimatePresence initial={false}>
+            {expanded === "power" && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                style={{ overflow: "hidden" }}
+              >
+                <div className="px-4 pb-3 pt-1 border-t" style={{ borderColor: "var(--color-outline-variant)", backgroundColor: "var(--color-surface-container)" }}>
+                  <p className="text-[10px] font-semibold mb-2" style={{ color: "var(--color-on-surface-variant)" }}>Effekt senaste 24h</p>
+                  <PowerChart avgPower={data.avg_power_w} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Idag */}
+        <div className="rounded-2xl" style={{ backgroundColor: "var(--color-surface-container)" }}>
+          <StatRow icon="today" label="Idag" color="var(--color-outline)"
+            value={`${data.accumulated_kwh.toFixed(1)} kWh · ${data.accumulated_cost_sek.toFixed(0)} kr`} />
+        </div>
+
+        {/* Denna månad */}
+        <div className="rounded-2xl" style={{ backgroundColor: "var(--color-surface-container)" }}>
+          <StatRow icon="calendar_month" label="Denna månad" color="var(--color-outline)"
+            value={`${data.monthly_kwh.toFixed(0)} kWh · ${data.monthly_cost_sek.toFixed(0)} kr`} />
+        </div>
       </div>
     </Card>
   );
@@ -1089,6 +1179,11 @@ export default function HomePage() {
                     </div>
                   </div>
                 ))}
+                {/* 24h indoor temperature chart */}
+                <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
+                  <p className="text-[10px] font-semibold mb-1" style={{ color: "var(--color-on-surface-variant)" }}>Inomhus senaste 24h</p>
+                  <IndoorTempChart />
+                </div>
               </div>
               </motion.div>
             )}
@@ -1143,6 +1238,11 @@ export default function HomePage() {
                     </div>
                   </div>
                 )}
+                {/* 24h outdoor temperature chart */}
+                <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
+                  <p className="text-[10px] font-semibold mb-1" style={{ color: "var(--color-on-surface-variant)" }}>Utomhus senaste 24h</p>
+                  <OutdoorTempChart />
+                </div>
               </div>
               </motion.div>
             )}
@@ -1274,7 +1374,7 @@ export default function HomePage() {
 
         {/* Belysning */}
         {lights && "areas" in lights ? (
-          <LightingCard data={lights} onRefresh={refreshLights} />
+          <LightingCard data={lights} onRefresh={refreshLights} loadingKey={loadingKey} runAction={runAction} />
         ) : (
           <Card><SectionLabel>Belysning</SectionLabel><Skeleton className="h-40" /></Card>
         )}

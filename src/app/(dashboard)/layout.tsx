@@ -65,7 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     prevPathnameRef.current = pathname;
   }
 
-  const direction = directionRef.current;
+  const slideDir = directionRef.current;
 
   // ─── Touch swipe navigation with live preview ───
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -274,7 +274,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <motion.div
             ref={swipeRef}
             key={pathname}
-            initial={direction !== 0 ? { x: `${direction * 25}%`, opacity: 0 } : false}
+            initial={slideDir !== 0 ? { x: `${slideDir * 25}%`, opacity: 0 } : false}
             animate={{ x: 0, opacity: 1 }}
             transition={SLIDE_EASE}
             onAnimationComplete={() => { directionRef.current = 0; }}

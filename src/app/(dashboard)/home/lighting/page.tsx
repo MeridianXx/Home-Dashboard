@@ -70,28 +70,31 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
         transition: "border-color 0.2s, box-shadow 0.2s",
       }}>
       {/* Row header */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <button onClick={() => onToggleArea(area)} className="shrink-0">
-          <span className="material-symbols-outlined"
+      <div className="flex items-center">
+        {/* Left: icon + name — tapping toggles room */}
+        <button onClick={() => onToggleArea(area)} className="flex items-center gap-3 flex-1 min-w-0 text-left px-4 py-3">
+          <span className="material-symbols-outlined shrink-0"
             style={{ fontSize: 22, color: on ? AMBER : "var(--color-outline)", fontVariationSettings: on ? "'FILL' 1" : "'FILL' 0" }}>
             {on ? "light_mode" : "light_off"}
           </span>
-        </button>
-        <button onClick={() => onToggleArea(area)} className="flex-1 min-w-0 text-left">
           <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>{area.name}</span>
           {area.total_count > 1 ? (
-            <span className="text-xs ml-2" style={{ color: on ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
+            <span className="text-xs" style={{ color: on ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
               {area.on_count}/{area.total_count} på
             </span>
           ) : (
-            <span className="text-xs ml-2" style={{ color: "var(--color-outline)" }}>
+            <span className="text-xs" style={{ color: "var(--color-outline)" }}>
               {on ? "På" : "Av"}
             </span>
           )}
         </button>
-        <button onClick={onToggleExpand} className="material-symbols-outlined shrink-0"
-          style={{ fontSize: 20, color: "var(--color-on-surface-variant)", opacity: 0.45 }}>
-          {expanded ? "expand_less" : "expand_more"}
+        {/* Right: expand — tall touch target with subtle divider */}
+        <button onClick={onToggleExpand}
+          className="shrink-0 flex items-center justify-center self-stretch"
+          style={{ width: 48, borderLeft: "1px solid var(--color-outline-variant)", opacity: 0.5 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--color-on-surface-variant)" }}>
+            {expanded ? "expand_less" : "expand_more"}
+          </span>
         </button>
       </div>
 
@@ -145,15 +148,52 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
   );
 }
 
+// ─── Floor plan ──────────────────────────────────────────────────────────────
+
+const NEDERVANING = ["Adrian", "Entré", "Hall", "Kök", "Sovrum", "Stora badrummet", "Tvättstuga", "Vardagsrum", "Walk-in"];
+const OVERVANING  = ["Allrum", "Elvira", "Kontor", "Lounge", "Lilla badrummet"];
+const UTOMHUS     = ["Utomhus"];
+
+function sortByFloor(areas: LightArea[]) {
+  const byName = (a: LightArea, b: LightArea) => a.name.localeCompare(b.name, "sv");
+  const neder   = areas.filter(a => NEDERVANING.includes(a.name)).sort(byName);
+  const over    = areas.filter(a => OVERVANING.includes(a.name)).sort(byName);
+  const utomhus = areas.filter(a => UTOMHUS.includes(a.name)).sort(byName);
+  const other   = areas.filter(a => !NEDERVANING.includes(a.name) && !OVERVANING.includes(a.name) && !UTOMHUS.includes(a.name)).sort(byName);
+  return { neder, over, utomhus, other };
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LightingPage() {
   const { data: lights, mutate } = useSWR<LightsData>("/api/homeassistant/lights", fetcher, { refreshInterval: 2_000 });
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [offLoading, setOffLoading] = useState<string | null>(null);
 
   const areas = lights && "areas" in lights ? lights.areas : [];
   const totalOn  = areas.reduce((s, a) => s + a.on_count, 0);
   const totalAll = areas.reduce((s, a) => s + a.total_count, 0);
+  const { neder, over, utomhus, other } = sortByFloor(areas);
+
+  async function handleSectionOff(key: string, list: LightArea[]) {
+    if (offLoading) return;
+    vibrate();
+    setOffLoading(key);
+    try {
+      const ids = list.flatMap(a => a.lights.map(l => l.entity_id));
+      if (ids.length) await callAction("light", "turn_off", ids);
+      await mutate();
+    } finally { setOffLoading(null); }
+  }
+
+  async function handleAllOff() {
+    setOffLoading("all");
+    try {
+      const ids = areas.flatMap(a => a.lights.map(l => l.entity_id));
+      if (ids.length) await callAction("light", "turn_off", ids);
+      await mutate();
+    } finally { setOffLoading(null); }
+  }
 
   async function handleToggleArea(area: LightArea) {
     vibrate();
@@ -171,29 +211,41 @@ export default function LightingPage() {
     mutate();
   }
 
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-lg font-bold" style={{ color: "var(--color-on-surface)" }}>Alla rum</h1>
-        {totalAll > 0 && (
-          <span className="text-sm font-bold" style={{ color: totalOn > 0 ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
-            {totalOn}/{totalAll} på
-          </span>
-        )}
-      </div>
-
-      {/* Room list */}
-      {areas.length === 0 ? (
-        <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-14 rounded-2xl animate-pulse"
-              style={{ backgroundColor: "var(--color-surface-container)" }} />
-          ))}
-        </div>
+  const OffPill = ({ label, loading, onClick }: { label: string; loading: boolean; onClick: () => void }) => (
+    <button onClick={onClick} disabled={loading}
+      className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold"
+      style={{ backgroundColor: "var(--color-surface-container-high)", color: "var(--color-on-surface-variant)", opacity: loading ? 0.6 : 1, transition: "opacity 0.15s" }}>
+      {loading ? (
+        <svg className="spin-anim" viewBox="0 0 24 24" fill="none" style={{ width: 12, height: 12 }}>
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25"/>
+          <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
       ) : (
+        <span className="material-symbols-outlined" style={{ fontSize: 12 }}>light_off</span>
+      )}
+      {label}
+    </button>
+  );
+
+  const renderSection = (key: string, title: string, list: LightArea[]) => {
+    if (!list.length) return null;
+    const sectionOn = list.reduce((s, a) => s + a.on_count, 0);
+    const sectionAll = list.reduce((s, a) => s + a.total_count, 0);
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold tracking-wide" style={{ color: "var(--color-on-surface-variant)" }}>{title}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold" style={{ color: sectionOn > 0 ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
+              {sectionOn}/{sectionAll} på
+            </span>
+            {sectionOn > 0 && (
+              <OffPill label="Släck" loading={offLoading === key} onClick={() => handleSectionOff(key, list)} />
+            )}
+          </div>
+        </div>
         <div className="space-y-2">
-          {areas.map(area => (
+          {list.map(area => (
             <RoomRow key={area.area_id} area={area}
               expanded={expandedId === area.area_id}
               onToggleExpand={() => setExpandedId(expandedId === area.area_id ? null : area.area_id)}
@@ -203,6 +255,42 @@ export default function LightingPage() {
             />
           ))}
         </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-bold" style={{ color: "var(--color-on-surface)" }}>Belysning</h1>
+        <div className="flex items-center gap-2">
+          {totalAll > 0 && (
+            <span className="text-sm font-bold" style={{ color: totalOn > 0 ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
+              {totalOn}/{totalAll} på
+            </span>
+          )}
+          {totalOn > 0 && (
+            <OffPill label="Släck allt" loading={offLoading === "all"} onClick={handleAllOff} />
+          )}
+        </div>
+      </div>
+
+      {/* Room list by floor */}
+      {areas.length === 0 ? (
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-14 rounded-2xl animate-pulse"
+              style={{ backgroundColor: "var(--color-surface-container)" }} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {renderSection("neder", "NEDERVÅNING", neder)}
+          {renderSection("over", "ÖVERVÅNING", over)}
+          {renderSection("ute", "UTOMHUS", utomhus)}
+          {other.length > 0 && renderSection("other", "ÖVRIGT", other)}
+        </>
       )}
     </div>
   );
