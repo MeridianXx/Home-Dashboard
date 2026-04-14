@@ -207,9 +207,21 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
     <Card className="md:col-span-2 xl:col-span-3">
       <div className="flex items-center justify-between mb-3">
         <SectionLabel>Belysning</SectionLabel>
-        <span className="text-xs font-bold -mt-3" style={{ color: totalOn > 0 ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
-          {totalOn}/{totalAll} på
-        </span>
+        <div className="flex items-center gap-2 -mt-3">
+          <span className="text-xs font-bold" style={{ color: totalOn > 0 ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
+            {totalOn}/{totalAll} på
+          </span>
+          {totalOn > 0 && (
+            <Pressable
+              onClick={() => { vibrate(); callAction("light", "turn_off", "all").then(onRefresh); }}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold"
+              style={{ backgroundColor: "var(--color-surface-container-high)", color: "var(--color-on-surface-variant)" }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>light_off</span>
+              Alla av
+            </Pressable>
+          )}
+        </div>
       </div>
       <div className="space-y-2">
         {favorites.map(area => {
@@ -850,7 +862,7 @@ function FavTile({ label, icon, color, active, loading, onClick }: {
 
 export default function HomePage() {
   const hydrated = useHydrated();
-  const [lastScene, setLastScene] = useState<"kvall" | "natt" | null>(null);
+  const [lastScene, setLastScene] = useState<"god_morgon" | "hemma" | "kvall" | "natt" | "slack" | null>(null);
 
   const { data: lights,  mutate: mLights  } = useSWR<LightsData>  ("/api/homeassistant/lights",  fetcher, { refreshInterval:  2_000 });
   const { data: sensors }                    = useSWR<SensorsData> ("/api/homeassistant/sensors", fetcher, { refreshInterval: 30_000 });
@@ -1090,13 +1102,33 @@ export default function HomePage() {
       {/* Favoriter */}
       <Card>
         <SectionLabel>Favoriter</SectionLabel>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+
+        {/* Scener */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 12 }}>
+          <FavTile
+            label="God morgon" icon="wb_sunny"
+            color="#f59e0b" active={lastScene === "god_morgon"}
+            loading={loadingKey === "scene-god_morgon"}
+            onClick={() => runAction("scene-god_morgon", async () => {
+              await callAction("scene", "turn_on", "scene.god_morgon");
+              setLastScene("god_morgon");
+            })}
+          />
+          <FavTile
+            label="Hemma" icon="home"
+            color="#22c55e" active={lastScene === "hemma"}
+            loading={loadingKey === "scene-hemma"}
+            onClick={() => runAction("scene-hemma", async () => {
+              await callAction("scene", "turn_on", "scene.hemma");
+              setLastScene("hemma");
+            })}
+          />
           <FavTile
             label="Kväll" icon="partly_cloudy_night"
             color="#f59e0b" active={lastScene === "kvall"}
             loading={loadingKey === "scene-kvall"}
             onClick={() => runAction("scene-kvall", async () => {
-              await callAction("scene", "turn_on", "scene.fasad");
+              await callAction("scene", "turn_on", "scene.kvall");
               setLastScene("kvall");
             })}
           />
@@ -1105,20 +1137,24 @@ export default function HomePage() {
             color="#1d4ed8" active={lastScene === "natt"}
             loading={loadingKey === "scene-natt"}
             onClick={() => runAction("scene-natt", async () => {
-              await callAction("scene", "turn_on", "scene.fasad_nattlage");
+              await callAction("scene", "turn_on", "scene.natt");
               setLastScene("natt");
             })}
           />
           <FavTile
-            label="Alla av" icon="light_off"
+            label="Släck" icon="light_off"
             color="#6b7280" active={allLightsOff}
-            loading={loadingKey === "lights-off"}
-            onClick={() => runAction("lights-off", async () => {
-              setLastScene(null);
-              await callAction("light", "turn_off", "all");
+            loading={loadingKey === "scene-slack"}
+            onClick={() => runAction("scene-slack", async () => {
+              await callAction("scene", "turn_on", "scene.slack");
+              setLastScene("slack");
               await refreshLights();
             })}
           />
+        </div>
+
+        {/* Kontroller */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {/* AC + Värme — two mini tiles sharing one grid slot */}
           <div className="flex gap-1.5">
             <MiniTile
