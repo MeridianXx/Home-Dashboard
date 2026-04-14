@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
+import { Pressable } from "@/components/FavTile";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,9 @@ type MediaPlayer = {
   media_channel: string | null;
   media_image_url: string | null;
   source: string | null;
+  media_position: number | null;
+  media_duration: number | null;
+  media_position_updated_at: string | null;
 };
 type MediaData = { players: MediaPlayer[] };
 
@@ -38,32 +42,71 @@ async function callAction(service: string, entity_id: string, service_data?: Rec
 
 function isPlaying(state: string) { return state === "playing"; }
 
+function formatTime(sec: number | null): string {
+  if (sec == null || !isFinite(sec) || sec < 0) return "0:00";
+  const s = Math.floor(sec);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, "0")}`;
+}
+
 // ─── Transport button (prev / play / next etc) ───────────────────────────────
+// Uses Pressable so every tap has a visible scale+opacity squeeze. A brief
+// flash on mouseup confirms the click registered even if the action produces
+// no visible state change (e.g. Apple TV in idle).
 
 function TransportButton({ icon, label, size = 40, primary = false, onClick, disabled = false }: {
   icon: string; label: string; size?: number; primary?: boolean;
   onClick: () => void; disabled?: boolean;
 }) {
+  const [flash, setFlash] = useState(false);
   return (
-    <button onClick={() => { vibrate(); onClick(); }} aria-label={label} disabled={disabled}
+    <Pressable
+      onClick={() => {
+        if (disabled) return;
+        vibrate();
+        setFlash(true);
+        window.setTimeout(() => setFlash(false), 220);
+        onClick();
+      }}
+      disabled={disabled}
+      className="flex items-center justify-center"
       style={{
         width: size, height: size, borderRadius: "50%", flexShrink: 0, border: "none",
-        cursor: disabled ? "default" : "pointer",
-        backgroundColor: primary ? AMBER : "var(--color-surface-container-high)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        opacity: disabled ? 0.35 : 1,
-        transition: "background-color 0.18s, opacity 0.18s",
-      }}>
-      <span className="material-symbols-outlined"
+        backgroundColor: flash
+          ? (primary ? "var(--color-on-surface)" : AMBER)
+          : (primary ? AMBER : "var(--color-surface-container-high)"),
+        transition: "background-color 0.22s",
+      }}
+    >
+      <span aria-label={label} className="material-symbols-outlined"
         style={{
           fontSize: Math.round(size * 0.5),
-          color: primary ? "var(--color-surface-container)" : "var(--color-on-surface)",
+          color: flash
+            ? (primary ? AMBER : "var(--color-surface-container)")
+            : (primary ? "var(--color-surface-container)" : "var(--color-on-surface)"),
           fontVariationSettings: "'FILL' 1",
+          transition: "color 0.22s",
         }}>
         {icon}
       </span>
-    </button>
+    </Pressable>
   );
+}
+
+// Live-ticking position for playing Sonos tracks. Interpolates from the
+// position HA reported at `updatedAt` based on elapsed wall-clock time.
+function useLivePosition(base: number | null, updatedAt: string | null, playing: boolean): number | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!playing || base == null || !updatedAt) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [playing, base, updatedAt]);
+  if (base == null || !updatedAt) return base;
+  if (!playing) return base;
+  const delta = (now - new Date(updatedAt).getTime()) / 1000;
+  return Math.max(0, base + delta);
 }
 
 // ─── Sonos tile ────────────────────────────────────────────────────────────────
@@ -74,6 +117,8 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
   const volPct = Math.round(((liveVol ?? player.volume_level ?? 0)) * 100);
 
   const subtitle = player.media_artist || player.media_channel || player.source || (playing ? "Spelar" : "Pausad");
+  const livePos = useLivePosition(player.media_position, player.media_position_updated_at, playing);
+  const hasProgress = player.media_duration != null && player.media_duration > 0 && livePos != null;
 
   return (
     <div className="flex items-center gap-3 rounded-2xl px-4 py-4"
@@ -103,7 +148,15 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
       {/* Content column — text + volume slider aligned to text start */}
       <div className="min-w-0 flex-1 flex flex-col gap-2">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold tracking-wide uppercase" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-[11px] font-bold tracking-wide uppercase" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
+            {hasProgress && (
+              <span className="text-[10px] tabular-nums shrink-0"
+                style={{ color: "var(--color-on-surface-variant)" }}>
+                {formatTime(livePos)} / {formatTime(player.media_duration)}
+              </span>
+            )}
+          </div>
           <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
             {player.media_title ?? player.name}
           </p>

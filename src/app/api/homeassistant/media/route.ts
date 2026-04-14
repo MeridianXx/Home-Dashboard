@@ -27,6 +27,11 @@ export type MediaPlayer = {
   media_channel: string | null;
   media_image_url: string | null;
   source: string | null;
+  // For tracks (not radio) — seconds. position_updated_at is server clock so the
+  // client can interpolate live position when state is "playing".
+  media_position: number | null;
+  media_duration: number | null;
+  media_position_updated_at: string | null;
 };
 
 // Proxy upstream HA image paths through our /api/homeassistant/image route so
@@ -63,6 +68,9 @@ export async function GET() {
         media_channel: (attrs.media_channel as string) ?? null,
         media_image_url: proxyImage(attrs.entity_picture as string | undefined),
         source: (attrs.source as string) ?? null,
+        media_position: typeof attrs.media_position === "number" ? attrs.media_position : null,
+        media_duration: typeof attrs.media_duration === "number" ? attrs.media_duration : null,
+        media_position_updated_at: (attrs.media_position_updated_at as string) ?? null,
       });
     }
 
