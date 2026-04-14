@@ -1,10 +1,15 @@
 // ─── Home Assistant API utility ───────────────────────────────────────────────
 
-const BASE  = process.env.HA_URL   ?? "";
-const TOKEN = process.env.HA_TOKEN ?? "";
+const BASE    = process.env.HA_URL   ?? "";
+const TOKEN   = process.env.HA_TOKEN ?? "";
+const TIMEOUT = 5_000; // ms — abort if HA doesn't respond
 
 function headers() {
   return { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" };
+}
+
+function signal() {
+  return AbortSignal.timeout(TIMEOUT);
 }
 
 export async function haGet<T>(path: string): Promise<T> {
@@ -12,6 +17,7 @@ export async function haGet<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: headers(),
     cache: "no-store",
+    signal: signal(),
   });
   if (!res.ok) throw new Error(`HA ${path}: ${res.status}`);
   return res.json() as Promise<T>;
@@ -24,6 +30,7 @@ export async function haPost(path: string, body: unknown): Promise<unknown> {
     headers: headers(),
     body: JSON.stringify(body),
     cache: "no-store",
+    signal: signal(),
   });
   if (!res.ok) throw new Error(`HA POST ${path}: ${res.status}`);
   return res.json();
@@ -37,6 +44,7 @@ async function haTemplate(template: string): Promise<string> {
     headers: headers(),
     body: JSON.stringify({ template }),
     cache: "no-store",
+    signal: signal(),
   });
   if (!res.ok) throw new Error(`HA template: ${res.status}`);
   return res.text();

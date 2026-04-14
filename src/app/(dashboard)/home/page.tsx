@@ -6,6 +6,9 @@ import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
 import { Pressable, FavTile } from "@/components/FavTile";
+import { callAction } from "@/lib/actions";
+import { fetcher } from "@/lib/fetcher";
+import ErrorBanner from "@/components/ErrorBanner";
 
 const SpotPriceChart   = dynamic(() => import("@/components/charts/SpotPriceChart"), { ssr: false });
 const PowerChart       = dynamic(() => import("@/components/charts/PowerChart"),     { ssr: false });
@@ -43,8 +46,6 @@ type VacuumData   = { state: string; battery_pct: number | null; status: string 
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const fetcher = (url: string) => fetch(url).then(r => r.json());
-
 function useHydrated() {
   const [h, set] = useState(false);
   useEffect(() => set(true), []);
@@ -64,13 +65,6 @@ function formatDate() {
   return new Date().toLocaleDateString("sv-SE", { weekday: "long", day: "numeric", month: "long" });
 }
 
-async function callAction(domain: string, service: string, entity_id: string | string[], service_data?: Record<string, unknown>) {
-  await fetch("/api/homeassistant/action", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ domain, service, entity_id, service_data }),
-  });
-}
 
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 
@@ -941,8 +935,8 @@ function MiniTile({ label, icon, color, active, loading, onClick }: {
 export default function HomePage() {
   const hydrated = useHydrated();
 
-  const { data: lights,  mutate: mLights  } = useSWR<LightsData>  ("/api/homeassistant/lights",  fetcher, { refreshInterval:  2_000 });
-  const { data: scenesData }                = useSWR<{ scenes: ScenePayload[] }>("/api/homeassistant/scenes", fetcher, { refreshInterval: 60_000 });
+  const { data: lights,  error: lightsError,  mutate: mLights  } = useSWR<LightsData>  ("/api/homeassistant/lights",  fetcher, { refreshInterval:  2_000 });
+  const { data: scenesData } = useSWR<{ scenes: ScenePayload[] }>("/api/homeassistant/scenes", fetcher, { refreshInterval: 60_000 });
 
   // Active scene derived from actual light state (Apple Home-style)
   const activeScene = useMemo(() => {
@@ -952,11 +946,11 @@ export default function HomePage() {
     })));
     return detectActiveScene(scenesData.scenes, snapshot);
   }, [lights, scenesData]);
-  const { data: sensors }                    = useSWR<SensorsData> ("/api/homeassistant/sensors", fetcher, { refreshInterval: 30_000 });
-  const { data: energy }                     = useSWR<EnergyData>  ("/api/homeassistant/energy",  fetcher, { refreshInterval:  3_000 });
-  const { data: cars }                       = useSWR<CarsData>    ("/api/homeassistant/cars",    fetcher, { refreshInterval: 60_000 });
-  const { data: hvac,    mutate: mHvac    } = useSWR<HvacData>    ("/api/homeassistant/hvac",    fetcher, { refreshInterval: 15_000 });
-  const { data: vacuum,  mutate: mVacuum  } = useSWR<VacuumData>  ("/api/homeassistant/vacuum",  fetcher, { refreshInterval: 10_000 });
+  const { data: sensors, error: sensorsError } = useSWR<SensorsData> ("/api/homeassistant/sensors", fetcher, { refreshInterval: 30_000 });
+  const { data: energy }                       = useSWR<EnergyData>  ("/api/homeassistant/energy",  fetcher, { refreshInterval:  3_000 });
+  const { data: cars }                         = useSWR<CarsData>    ("/api/homeassistant/cars",    fetcher, { refreshInterval: 60_000 });
+  const { data: hvac,    mutate: mHvac    }    = useSWR<HvacData>    ("/api/homeassistant/hvac",    fetcher, { refreshInterval: 15_000 });
+  const { data: vacuum,  mutate: mVacuum  }    = useSWR<VacuumData>  ("/api/homeassistant/vacuum",  fetcher, { refreshInterval: 10_000 });
 
   // Awaitable refresh — waits for HA to process the command before revalidating
   const delay = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
@@ -1001,6 +995,10 @@ export default function HomePage() {
 
   return (
     <div className="space-y-5">
+
+      {(lightsError || sensorsError) && (
+        <ErrorBanner onRetry={() => { mLights(); }} />
+      )}
 
       {/* Header */}
       <div>

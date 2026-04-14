@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { Pressable } from "@/components/FavTile";
+import { callAction } from "@/lib/actions";
+import { fetcher } from "@/lib/fetcher";
+import ErrorBanner from "@/components/ErrorBanner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,40 +33,22 @@ type MediaData = { players: MediaPlayer[] };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fetcher = (url: string) => fetch(url).then(r => r.json());
 const AMBER = "#fab849";
 const vibrate = () => typeof navigator !== "undefined" && navigator.vibrate?.(10);
 
-async function callAction(service: string, entity_id: string, service_data?: Record<string, unknown>) {
-  await fetch("/api/homeassistant/action", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ domain: "media_player", service, entity_id, service_data }),
-  });
-}
+// Convenience wrappers around the shared callAction for media_player domain
+const callMedia = (service: string, entity_id: string, service_data?: Record<string, unknown>) =>
+  callAction("media_player", service, entity_id, service_data);
 
 // Apple TV: media_player.* services accept calls but don't do anything.
 // Power via remote.turn_on / remote.turn_off (works — changes state).
 // Transport via remote.send_command with specific command names
 // (play/pause/next/previous — verified via pyatv integration).
-async function callRemote(service: "turn_on" | "turn_off", entity_id: string) {
-  await fetch("/api/homeassistant/action", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ domain: "remote", service, entity_id }),
-  });
-}
+const callRemote = (service: "turn_on" | "turn_off", entity_id: string) =>
+  callAction("remote", service, entity_id);
 
-async function callRemoteCommand(entity_id: string, command: string) {
-  await fetch("/api/homeassistant/action", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      domain: "remote", service: "send_command", entity_id,
-      service_data: { command },
-    }),
-  });
-}
+const callRemoteCommand = (entity_id: string, command: string) =>
+  callAction("remote", "send_command", entity_id, { command });
 
 function isPlaying(state: string) { return state === "playing"; }
 
@@ -186,11 +171,11 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
 
         <div className="flex items-center gap-1 shrink-0">
           <TransportButton icon="skip_previous" label="Föregående" size={32}
-            onClick={async () => { await callAction("media_previous_track", player.entity_id); onRefresh(); }} />
+            onClick={async () => { await callMedia("media_previous_track", player.entity_id); onRefresh(); }} />
           <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={40} primary={playing}
-            onClick={async () => { await callAction("media_play_pause", player.entity_id); onRefresh(); }} />
+            onClick={async () => { await callMedia("media_play_pause", player.entity_id); onRefresh(); }} />
           <TransportButton icon="skip_next" label="Nästa" size={32}
-            onClick={async () => { await callAction("media_next_track", player.entity_id); onRefresh(); }} />
+            onClick={async () => { await callMedia("media_next_track", player.entity_id); onRefresh(); }} />
         </div>
       </div>
 
@@ -201,6 +186,7 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
           {volPct === 0 ? "volume_mute" : volPct < 50 ? "volume_down" : "volume_up"}
         </span>
         <input type="range" min={0} max={100}
+          aria-label={`Volym för ${player.name}`}
           key={`${player.entity_id}-${player.volume_level ?? "x"}`}
           defaultValue={Math.round((player.volume_level ?? 0) * 100)}
           className="flex-1 cursor-pointer min-w-0"
@@ -211,8 +197,8 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
             t.style.setProperty("--fill", `${v}%`);
             setLiveVol(v / 100);
           }}
-          onMouseUp={async e => { const v = parseInt((e.target as HTMLInputElement).value) / 100; await callAction("volume_set", player.entity_id, { volume_level: v }); onRefresh(); }}
-          onTouchEnd={async e => { const v = parseInt((e.target as HTMLInputElement).value) / 100; await callAction("volume_set", player.entity_id, { volume_level: v }); onRefresh(); }}
+          onMouseUp={async e => { const v = parseInt((e.target as HTMLInputElement).value) / 100; await callMedia("volume_set", player.entity_id, { volume_level: v }); onRefresh(); }}
+          onTouchEnd={async e => { const v = parseInt((e.target as HTMLInputElement).value) / 100; await callMedia("volume_set", player.entity_id, { volume_level: v }); onRefresh(); }}
         />
         <span className="text-[11px] font-medium tabular-nums shrink-0"
           style={{ minWidth: 34, textAlign: "right", color: "var(--color-on-surface-variant)" }}>
@@ -233,19 +219,19 @@ function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: ()
   // The toggle service media_play_pause is broken on the pyatv integration —
   // returns 200 but never changes state. media_pause and media_play work.
   const togglePlay = async () => {
-    await callAction(playing ? "media_pause" : "media_play", player.entity_id);
+    await callMedia(playing ? "media_pause" : "media_play", player.entity_id);
     onRefresh();
   };
   const next = async () => {
-    await callAction("media_next_track", player.entity_id);
+    await callMedia("media_next_track", player.entity_id);
     onRefresh();
   };
   const prev = async () => {
-    await callAction("media_previous_track", player.entity_id);
+    await callMedia("media_previous_track", player.entity_id);
     onRefresh();
   };
   const togglePower = async () => {
-    await callAction(isOff ? "turn_on" : "turn_off", player.entity_id);
+    await callMedia(isOff ? "turn_on" : "turn_off", player.entity_id);
     onRefresh();
   };
 
@@ -340,7 +326,7 @@ function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: ()
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MediaPage() {
-  const { data, mutate } = useSWR<MediaData>("/api/homeassistant/media", fetcher, { refreshInterval: 3_000 });
+  const { data, error, mutate } = useSWR<MediaData>("/api/homeassistant/media", fetcher, { refreshInterval: 3_000 });
   const players = data && "players" in data ? data.players : [];
 
   const sonos   = players.filter(p => p.type === "sonos");
@@ -350,6 +336,8 @@ export default function MediaPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      {error && <ErrorBanner onRetry={() => mutate()} />}
+
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold" style={{ color: "var(--color-on-surface)" }}>Media</h1>
         {players.length > 0 && (

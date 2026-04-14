@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import useSWR from "swr";
 import { FavTile } from "@/components/FavTile";
 import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
+import { callAction } from "@/lib/actions";
+import { fetcher } from "@/lib/fetcher";
+import ErrorBanner from "@/components/ErrorBanner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,16 +22,6 @@ type LightArea = {
 type LightsData = { areas: LightArea[] };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
-
-async function callAction(domain: string, service: string, entity_id: string | string[], service_data?: Record<string, unknown>) {
-  await fetch("/api/homeassistant/action", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ domain, service, entity_id, service_data }),
-  });
-}
 
 const AMBER = "#fab849";
 const vibrate = () => typeof navigator !== "undefined" && navigator.vibrate?.(10);
@@ -128,6 +121,7 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
                 {light.dimmable && lon && (
                   <div className="flex items-center gap-3 pl-6">
                     <input type="range" min={1} max={100}
+                      aria-label={`Ljusstyrka för ${light.name}`}
                       defaultValue={light.brightness_pct ?? 100}
                       className="flex-1"
                       style={{ "--fill": `${light.brightness_pct ?? 100}%` } as React.CSSProperties}
@@ -175,8 +169,8 @@ const SCENES: Array<{ key: string; label: string; icon: string; color: string }>
 ];
 
 export default function LightingPage() {
-  const { data: lights, mutate } = useSWR<LightsData>("/api/homeassistant/lights", fetcher, { refreshInterval: 2_000 });
-  const { data: scenesData }     = useSWR<{ scenes: ScenePayload[] }>("/api/homeassistant/scenes", fetcher, { refreshInterval: 60_000 });
+  const { data: lights, error: lightsError, mutate } = useSWR<LightsData>("/api/homeassistant/lights", fetcher, { refreshInterval: 2_000 });
+  const { data: scenesData } = useSWR<{ scenes: ScenePayload[] }>("/api/homeassistant/scenes", fetcher, { refreshInterval: 60_000 });
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [offLoading, setOffLoading] = useState<string | null>(null);
   const [loadingScene, setLoadingScene] = useState<string | null>(null);
@@ -291,6 +285,8 @@ export default function LightingPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      {lightsError && <ErrorBanner onRetry={() => mutate()} />}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold" style={{ color: "var(--color-on-surface)" }}>Belysning</h1>
