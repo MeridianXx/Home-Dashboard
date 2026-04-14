@@ -218,7 +218,7 @@ function LightingCard({ data, onRefresh }: { data: LightsData; onRefresh: () => 
               style={{ backgroundColor: "var(--color-surface-container-high)", color: "var(--color-on-surface-variant)" }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 12 }}>light_off</span>
-              Släck
+              Alla av
             </Pressable>
           )}
         </div>
@@ -1144,7 +1144,7 @@ export default function HomePage() {
         </div>
 
         {/* Kontroller */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {/* AC + Värme — two mini tiles sharing one grid slot */}
           <div className="flex gap-1.5">
             <MiniTile
