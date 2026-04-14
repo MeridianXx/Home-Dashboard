@@ -171,29 +171,30 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold tracking-wide uppercase truncate" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
-          <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
-            {player.media_title ?? player.name}
-          </p>
-          <div className="flex items-baseline gap-2 min-w-0">
-            <p className="text-xs truncate flex-1" style={{ color: "var(--color-on-surface-variant)" }}>{subtitle}</p>
-            {hasProgress && (
-              <span className="text-[10px] tabular-nums shrink-0"
-                style={{ color: "var(--color-on-surface-variant)" }}>
-                {formatTime(livePos)} / {formatTime(player.media_duration)}
-              </span>
-            )}
+        <div className="min-w-0 flex-1 flex flex-col gap-2">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold tracking-wide uppercase truncate" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
+            <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
+              {player.media_title ?? player.name}
+            </p>
+            <div className="flex items-baseline gap-2 min-w-0">
+              <p className="text-xs truncate flex-1" style={{ color: "var(--color-on-surface-variant)" }}>{subtitle}</p>
+              {hasProgress && (
+                <span className="text-[10px] tabular-nums shrink-0"
+                  style={{ color: "var(--color-on-surface-variant)" }}>
+                  {formatTime(livePos)} / {formatTime(player.media_duration)}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-
-        <div className="flex items-center gap-1 shrink-0">
-          <TransportButton icon="skip_previous" label="Föregående" size={32}
-            onClick={async () => { await callAction("media_previous_track", player.entity_id); onRefresh(); }} />
-          <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={40} primary={playing}
-            onClick={async () => { await callAction("media_play_pause", player.entity_id); onRefresh(); }} />
-          <TransportButton icon="skip_next" label="Nästa" size={32}
-            onClick={async () => { await callAction("media_next_track", player.entity_id); onRefresh(); }} />
+          <div className="flex items-center gap-1.5">
+            <TransportButton icon="skip_previous" label="Föregående" size={36}
+              onClick={async () => { await callAction("media_previous_track", player.entity_id); onRefresh(); }} />
+            <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={40} primary={playing}
+              onClick={async () => { await callAction("media_play_pause", player.entity_id); onRefresh(); }} />
+            <TransportButton icon="skip_next" label="Nästa" size={36}
+              onClick={async () => { await callAction("media_next_track", player.entity_id); onRefresh(); }} />
+          </div>
         </div>
       </div>
 
@@ -230,26 +231,25 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
 
 function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () => void }) {
   const playing = isPlaying(player.state);
-  // Power state from the remote.* entity when available — that's the
-  // ground truth for whether the device is on. media_player.state is
-  // "idle" both when on-but-not-playing AND when sleeping.
-  const isOff = player.power_state === "off" || (player.power_state == null && (player.state === "off" || player.state === "standby"));
+  const isOff = player.state === "off" || player.state === "standby";
 
-  // Apple TV media commands go through the remote entity, not media_player.
-  const remoteId = player.power_entity_id;
-  const transport = async (cmd: "play" | "pause" | "next" | "previous") => {
-    if (!remoteId) return;
-    await callRemoteCommand(remoteId, cmd);
+  // Apple TV: use media_player.* with SPECIFIC services (media_pause/media_play).
+  // The toggle service media_play_pause is broken on the pyatv integration —
+  // returns 200 but never changes state. media_pause and media_play work.
+  const togglePlay = async () => {
+    await callAction(playing ? "media_pause" : "media_play", player.entity_id);
     onRefresh();
   };
-  const togglePlay = async () => {
-    if (!remoteId) return;
-    await callRemoteCommand(remoteId, playing ? "pause" : "play");
+  const next = async () => {
+    await callAction("media_next_track", player.entity_id);
+    onRefresh();
+  };
+  const prev = async () => {
+    await callAction("media_previous_track", player.entity_id);
     onRefresh();
   };
   const togglePower = async () => {
-    if (!remoteId) return;
-    await callRemote(isOff ? "turn_on" : "turn_off", remoteId);
+    await callAction(isOff ? "turn_on" : "turn_off", player.entity_id);
     onRefresh();
   };
 
@@ -287,7 +287,7 @@ function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: ()
         </span>
       </button>
 
-      {/* Header row — art + text + transport */}
+      {/* Header row — art + text(+ transport stacked) */}
       <div className="flex items-center gap-3" style={{ paddingRight: 32 /* clear of power button */ }}>
         <div style={{
           width: 68, height: 68, borderRadius: 12, flexShrink: 0, overflow: "hidden",
@@ -305,29 +305,24 @@ function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: ()
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold tracking-wide uppercase truncate" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
-          <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
-            {player.media_title ?? player.name}
-          </p>
-          <div className="flex items-baseline gap-2 min-w-0">
-            <p className="text-xs truncate flex-1" style={{ color: "var(--color-on-surface-variant)" }}>{subtitle}</p>
-            {hasProgress && (
-              <span className="text-[10px] tabular-nums shrink-0"
-                style={{ color: "var(--color-on-surface-variant)" }}>
-                {formatTime(livePos)} / {formatTime(player.media_duration)}
-              </span>
-            )}
+        <div className="min-w-0 flex-1 flex flex-col gap-2">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold tracking-wide uppercase truncate" style={{ color: "var(--color-on-surface-variant)" }}>{player.room}</p>
+            <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
+              {player.media_title ?? player.name}
+            </p>
+            <div className="flex items-baseline gap-2 min-w-0">
+              <p className="text-xs truncate flex-1" style={{ color: "var(--color-on-surface-variant)" }}>{subtitle}</p>
+            </div>
           </div>
-        </div>
-
-        <div className="flex items-center gap-1 shrink-0">
-          <TransportButton icon="skip_previous" label="Föregående" size={32} disabled={isOff}
-            onClick={() => transport("previous")} />
-          <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={40} primary={playing} disabled={isOff}
-            onClick={togglePlay} />
-          <TransportButton icon="skip_next" label="Nästa" size={32} disabled={isOff}
-            onClick={() => transport("next")} />
+          <div className="flex items-center gap-1.5">
+            <TransportButton icon="skip_previous" label="Föregående" size={36} disabled={isOff}
+              onClick={prev} />
+            <TransportButton icon={playing ? "pause" : "play_arrow"} label={playing ? "Pausa" : "Spela"} size={40} primary={playing} disabled={isOff}
+              onClick={togglePlay} />
+            <TransportButton icon="skip_next" label="Nästa" size={36} disabled={isOff}
+              onClick={next} />
+          </div>
         </div>
       </div>
 
