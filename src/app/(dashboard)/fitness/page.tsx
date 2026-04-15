@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { workoutSlug } from "@/lib/fitness/slug";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useFitnessProfile, hrZone } from "@/lib/fitness/profile";
+import { useHydrateProfile } from "@/lib/fitness/useHydrateProfile";
 import { paceString, durationString } from "@/lib/fitness/parser";
 import type { WorkoutsResponse, PlansResponse, Workout, PlannedWorkout, FitnessProfile } from "@/lib/fitness/types";
 import type { MetricsResponse } from "@/app/api/fitness/metrics/route";
@@ -317,6 +320,8 @@ function EditField({
 
 function ProfileCard({ metrics }: { metrics: MetricsResponse | undefined }) {
   const profile = useFitnessProfile((s) => s.profile);
+  const lastSyncedAt = useFitnessProfile((s) => s.lastSyncedAt);
+  const lastError = useFitnessProfile((s) => s.lastError);
   const [editing, setEditing] = useState(false);
   // Vikt, vilopuls och VO₂ max hämtas från HealthFit. Maxpuls sätts manuellt.
   const weightKg = metrics?.weightKg ?? profile.weightKg ?? null;
@@ -417,6 +422,20 @@ function ProfileCard({ metrics }: { metrics: MetricsResponse | undefined }) {
               })}
             </div>
           </div>
+
+          {(lastSyncedAt || lastError) && (
+            <div
+              className="text-[11px] mt-3 flex items-center gap-1.5"
+              style={{ color: lastError ? "var(--color-error, #b3261e)" : "var(--color-on-surface-variant)" }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                {lastError ? "error" : "cloud_done"}
+              </span>
+              {lastError
+                ? `Sync-fel: ${lastError}`
+                : `Synkad ${new Date(lastSyncedAt!).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}`}
+            </div>
+          )}
 
           {profile.goals.length > 0 && (
             <div style={{ marginTop: 16 }}>
@@ -611,10 +630,15 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
                 ? hrZone(Math.round(w.avgHR), profile.zones)
                 : null;
             return (
-              <div
+              <Link
                 key={`${w.date}-${i}`}
-                className="rounded-xl p-3 flex items-center gap-3"
-                style={{ backgroundColor: "var(--color-surface-container)" }}
+                href={`/fitness/pass/${workoutSlug(w)}`}
+                className="rounded-xl p-3 flex items-center gap-3 transition-colors"
+                style={{
+                  backgroundColor: "var(--color-surface-container)",
+                  textDecoration: "none",
+                  color: "inherit",
+                }}
               >
                 <div
                   className="flex items-center justify-center rounded-full shrink-0"
@@ -665,7 +689,14 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
                     {zone}
                   </span>
                 )}
-              </div>
+                <span
+                  className="material-symbols-outlined shrink-0"
+                  style={{ fontSize: 18, color: "var(--color-on-surface-variant)" }}
+                  aria-hidden="true"
+                >
+                  chevron_right
+                </span>
+              </Link>
             );
           })}
         </div>
@@ -677,6 +708,7 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
 // ─── Sida ────────────────────────────────────────────────────────────────────
 
 export default function FitnessPage() {
+  useHydrateProfile();
   const {
     data: workoutsData, error: workoutsError, isLoading: workoutsLoading, mutate: mutateWorkouts,
   } = useSWR<WorkoutsResponse>("/api/fitness/workouts?limit=10", fetcher, {

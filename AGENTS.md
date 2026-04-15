@@ -202,7 +202,7 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 
 **Aktiv branch:** `v2` (origin/v2 — detta är den enda aktiva branchen, main är övergiven)  
 **Preview-server:** konfigurerad i `.claude/launch.json`, starta med `preview_start("home-dashboard")`  
-**Färdiga sektioner:** Hem/Översikt (med grafer), Hem/Belysning (med våningsplan + scener), Hem/Media (Sonos + Apple TV), Homelab (Servrar/Containers/Media/Nätverk), **Fitness/Dashboard (Session A — nästa pass, passhistorik, profilkort med live-metriker från HealthFit)**, Trädgård (stub)
+**Färdiga sektioner:** Hem/Översikt (med grafer), Hem/Belysning (med våningsplan + scener), Hem/Media (Sonos + Apple TV), Homelab (Servrar/Containers/Media/Nätverk), **Fitness/Dashboard (Session A+B — nästa pass, passhistorik med detaljvy inkl. GPS-karta + elevation + HR-serie + zondistribution, Notion-synkad profil, Workouts→Notion-sync)**, Trädgård (stub)
 
 ---
 
@@ -223,7 +223,8 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 | `GOOGLE_DRIVE_HEALTHFIT_FOLDER_ID` | ID till HealthFit-mappen i Drive |
 | `NOTION_TOKEN` | Integration-token (`ntn_…`) för *Träningscoach*-integrationen |
 | `NOTION_FITNESS_PLANS_DB` | DB-id för "Planerade pass" |
-| `NOTION_FITNESS_LOG_DB` | **Kan vara tom sträng** tills `scripts/create-fitness-log-db.mjs` körts — UI hanterar det gracefully |
+| `NOTION_FITNESS_LOG_DB` | **Kan vara tom sträng** tills `scripts/create-fitness-notion-dbs.mjs` körts — `isLogDbReady()` hanterar det gracefully |
+| `NOTION_FITNESS_PROFILE_DB` | **Kan vara tom sträng**. Utan denna: profil-GET returnerar `DEFAULT_PROFILE`, PATCH svarar 501, sync-badge visas inte. |
 | `ANTHROPIC_API_KEY` | `sk-ant-api03-…` för coach/analys (Session C+) |
 
 **Snabb-sanity efter deploy:**
@@ -389,7 +390,8 @@ GOOGLE_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE K
 GOOGLE_DRIVE_FOLDER_ID=...          # mappen HealthFit/ i Drive
 NOTION_TOKEN=...                    # finns i traningscoach-app/.env
 NOTION_FITNESS_PLANS_DB=31e9b5da-2245-8082-9fb2-ea3c5fadbc51
-NOTION_FITNESS_LOG_DB=...           # skapas i Session A
+NOTION_FITNESS_LOG_DB=...           # skapas i Session A (`scripts/create-fitness-notion-dbs.mjs`)
+NOTION_FITNESS_PROFILE_DB=...       # skapas i Session B (samma script)
 ANTHROPIC_API_KEY=...               # finns i traningscoach-app/.env
 ```
 
@@ -421,26 +423,31 @@ ANTHROPIC_API_KEY=...               # finns i traningscoach-app/.env
 - Google Sheets-filen heter `Workouts_v5` (utan `.xlsx`) och ligger inte i HealthFit-mappen — `drive.ts` söker därför även `sharedWithMe` och exporterar via `files.export()`.
 - Korrekt env-namn är `GOOGLE_DRIVE_HEALTHFIT_FOLDER_ID` (inte `GOOGLE_DRIVE_FOLDER_ID` som tidigare angavs).
 
-#### Session B — FIT-parsing, detaljvy & Notion-profil
-- Server-side FIT-parsning från Google Drive (`fit-file-parser`)
-- Per-pass detaljvy: GPS-karta (Leaflet/MapLibre), elevationsprofil, HR-tidsserie, zondistribution (Recharts)
-- Matchning genomfört pass → planerat pass via datum
-- Synk Workouts_vN.xlsx → Notion Träningslogg
-- **Tvåvägssynk av manuellt redigerade profilvärden till Notion** (ersätter `localStorage`-lagringen i Session A — byta primärkälla, behålla Zustand som optimistic cache)
-  - Ny DB `Profil` under coachsidan med properties: `Nyckel` (title), `Värde` (rich_text), `Kategori` (select: `profil`/`zon`/`mål`), `Uppdaterad` (last_edited_time). Rader: `name`, `birthYear`, `maxHR`, `zone.Z1`…`zone.Z5`, `goal.<slug>` + deadline.
-  - `GET /api/fitness/profile` → läser Notion-DB, mergear med `/api/fitness/metrics` (vikt + vilopuls + VO₂ max), 5 min cache.
-  - `PATCH /api/fitness/profile` → skriver tillbaka ändrade nycklar via `notion.pages.update`. Optimistic UI: Zustand-store uppdateras direkt, Notion-anropet sker i bakgrunden.
-  - SWR `revalidateOnFocus: true` på profilkortet → ändringar gjorda direkt i Notion dyker upp nästa gång man öppnar fliken.
-  - Conflict resolution: senaste `Uppdaterad`-timestamp vinner. Visa "synkad för X min sedan"-badge under profilkortet.
-  - Utöka `scripts/create-fitness-log-db.mjs` → `scripts/create-fitness-notion-dbs.mjs` som skapar både `Träningslogg` och `Profil` i samma körning.
+#### Session B — FIT-parsing, detaljvy & Notion-profil ✅ Klar
+- [x] `src/lib/fitness/fit-parser.ts` — cascade-mode via `fit-file-parser`. Records plockas från `session.laps[].records` (flatMap-fallback) — de ligger **inte** direkt på session i cascade-mode. Decimerar ~1900 sekundsampler → ~600 punkter.
+- [x] `src/lib/fitness/drive.ts` — `listFitFiles(datePrefix?)` + `findFitFileForWorkout(date, time?, type?)` med poängsatt matchning (datum+1, exakt HHMM+10, typ+3). `downloadFitFile(fileId)` med 30 min in-memory cache.
+- [x] `src/app/api/fitness/fit/route.ts` — GET via `?date=&time=&type=` eller `?fileId=` eller `?list=1&date=`. `maxDuration=30` för större FIT-filer.
+- [x] `src/app/(dashboard)/fitness/pass/[slug]/page.tsx` — slug-format `YYYY-MM-DD-HHMM-Type` (mellanslag → bindestreck). Parse/encode via delad `src/lib/fitness/slug.ts`. Summary-KV + karta + elevationsprofil + HR-serie + zondistribution + planerat pass-match + FIT-fotnot.
+- [x] `src/components/fitness/TrackMap.tsx` — Leaflet, Carto Positron-tiles, start/slut-markers, `ssr: false` via `next/dynamic` i detaljsidan.
+- [x] `src/components/fitness/PassCharts.tsx` — `HRSeriesChart` (zon-band som `ReferenceArea`), `ElevationChart` (area med gradient), `ZoneDistribution` (horisontell stapelbar från `HRZ0–5`-fraktioner × `totalSec`).
+- [x] WorkoutHistoryCard: rader är `<Link>` → `/fitness/pass/<slug>` + chevron.
+- [x] `src/lib/fitness/notion.ts` — `syncWorkoutToLog()`/`syncWorkoutsToLog()` idempotent via unik key `date|HHMM|type` i `FIT-fil`-property. `getProfile(fallback)`, `updateProfile(patch)` för Profil-DB.
+- [x] `src/app/api/fitness/sync/route.ts` — POST `?limit=N` returnerar `{ total, created, updated, sourceFile }`.
+- [x] `src/app/api/fitness/profile/route.ts` — GET returnerar `{ profile, dbReady, source, updatedAt }`; PATCH upsertar rader i `Profil`-DB. Utan DB konfigurerad: GET ger `DEFAULT_PROFILE` + `dbReady=false`, PATCH ger 501.
+- [x] `src/lib/fitness/profile-defaults.ts` — `DEFAULT_PROFILE` delad mellan server + client. Behövdes eftersom `profile.ts` har `"use client"` och inte får importeras från routes.
+- [x] `src/lib/fitness/profile.ts` — Zustand byter från `persist` till SWR-hydrering. `setProfile()` gör optimistic lokal uppdatering + fire-and-forget `PATCH /api/fitness/profile`. `lastSyncedAt`/`lastError` visas som liten badge under profilkortet.
+- [x] `src/lib/fitness/useHydrateProfile.ts` — SWR-hook som anropas från `FitnessPage`, hydrerar Zustand-storen. `revalidateOnFocus: true` + 30-min refresh så Notion-ändringar dyker upp automatiskt.
+- [x] `scripts/create-fitness-notion-dbs.mjs` — skapar både `Träningslogg` och `Profil` idempotent (hoppar rätt DB om `NOTION_FITNESS_*_DB` redan satt).
+- [x] `.github/workflows/deploy.yml` — `NOTION_FITNESS_PROFILE_DB` injiceras som `-e` i `docker run`.
 
-- [ ] `src/lib/fitness/fit-parser.ts`
-- [ ] `src/app/api/fitness/fit/route.ts`
-- [ ] `src/app/(dashboard)/fitness/history/page.tsx` — detaljvy
-- [ ] `src/app/api/fitness/profile/route.ts` — GET + PATCH med Notion-backing
-- [ ] `src/lib/fitness/notion.ts` — utöka med `getProfile()` / `updateProfile()`
-- [ ] `src/lib/fitness/profile.ts` — Zustand byter från `persist` till SWR-hydrering; `setProfile()` kallar PATCH
-- [ ] `scripts/create-fitness-notion-dbs.mjs` — skapa både DB:er
+**Observera:**
+- `fit-file-parser` returnerar `records[]` **under varje lap** (cascade-mode), inte direkt på session. Typerna i `node_modules/fit-file-parser/dist/fit_types.d.ts` bekräftar: `records?: ParsedRecord[]` ligger på `ParsedLap`. Första implementationen antog session-level och gav 0 datapunkter.
+- Nodens `Buffer<ArrayBufferLike>` passar inte `fit-file-parser`s `Buffer<ArrayBuffer>`-signatur. Workaround: `buffer.buffer.slice(offset, offset+len) as ArrayBuffer` → `Buffer.from(ab)`.
+- Profil-DB har enkel schemalös layout: `Nyckel` (title), `Värde` (rich_text, stringified), `Kategori` (select: profil/zon/mål), `Deadline` (date, bara för mål), `Uppdaterad` (last_edited_time). Nycklar: `name`, `birthYear`, `maxHR`, `restingHR`, `weightKg`, `zone.Z1.lo`/`.hi`…`zone.Z5.hi`, `goal.0`/`goal.1`… Parse i `getProfile()` via `parseInt`/`parseFloat`.
+- Notion SDK v5: `parent: { type: "data_source_id", data_source_id: dsId }` vid `pages.create()`, inte `database_id`. Queries mot `client.dataSources.query({ data_source_id })`.
+- `syncWorkoutToLog()` använder `FIT-fil`-propertyn (rich_text) för en unik key (`date|HHMM|type`) så pass kan uppdateras idempotent. Filnamn lagras inte separat eftersom det går att härleda från `date+time+type` + sökning i Drive.
+- Pass-slug `YYYY-MM-DD-HHMM-Type` använder bindestreck för mellanslag i typnamnet; `parseSlug` i `slug.ts` översätter tillbaka. Nästa gångs förbättring: lägga till tecken-escaping om någon typ innehåller `-` (ingen gör det idag i HealthFit).
+- Profile sync-badge (timestamp eller felmeddelande) finns under ProfileCard när storen har `lastSyncedAt`/`lastError`. Inga toasts eller globala statusbar-komponenter behövdes.
 
 #### Session C — AI-analys per pass
 - Anthropic API (`claude-sonnet-4-20250514`) för passanalys

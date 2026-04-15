@@ -1,7 +1,7 @@
 /**
  * Visas när ett SWR-anrop misslyckas. Ger användaren en retry-knapp.
  */
-export default function ErrorBanner({ onRetry }: { onRetry?: () => void }) {
+export default function ErrorBanner({ onRetry, message }: { onRetry?: () => void; message?: string }) {
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm"
@@ -15,7 +15,7 @@ export default function ErrorBanner({ onRetry }: { onRetry?: () => void }) {
         <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden="true">
           wifi_off
         </span>
-        <span>Kunde inte hämta data — kontrollera anslutningen.</span>
+        <span>{message ?? "Kunde inte hämta data — kontrollera anslutningen."}</span>
       </div>
       {onRetry && (
         <button

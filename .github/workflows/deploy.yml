@@ -71,6 +71,7 @@ jobs:
             -e NOTION_TOKEN="${{ secrets.NOTION_TOKEN }}" \
             -e NOTION_FITNESS_PLANS_DB="${{ secrets.NOTION_FITNESS_PLANS_DB }}" \
             -e NOTION_FITNESS_LOG_DB="${{ secrets.NOTION_FITNESS_LOG_DB }}" \
+            -e NOTION_FITNESS_PROFILE_DB="${{ secrets.NOTION_FITNESS_PROFILE_DB }}" \
             -e ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
             -l "com.centurylinklabs.watchtower.enable=false" \
             ghcr.io/meridianxx/home-dashboard:latest

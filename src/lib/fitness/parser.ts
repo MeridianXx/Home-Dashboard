@@ -70,6 +70,8 @@ export function parseAllWorkouts(buffer: Buffer): Workout[] {
     distance: idx("Distance"),
     elevation: idx("Elevation Gain"),
     calories: idx("Active Calories"),
+    totalCalories: idx("Total Calories", "Calories"),
+    avgCadence: idx("Avg. Cadence", "Avg Cadence", "Average Cadence"),
     minHR: idx("Min. Heart Rate", "Min HR"),
     avgHR: idx("Avg. Heart Rate", "Avg HR"),
     maxHR: idx("Max. Heart Rate", "Max HR"),
@@ -117,16 +119,28 @@ export function parseAllWorkouts(buffer: Buffer): Workout[] {
     const date = excelSerialToDate(dateSerial);
     const timeSerial = num(row[I.time]);
 
+    const totalTimeSec = toSec(row[I.totalTime]);
+    // HRZn lagras som Excel-dygnsfraktion (samma enhet som Total_Time), INTE som
+    // direkt fraktion 0–1. Konvertera till fraktion-av-pass: hrz × 86400 / totalSec.
+    // Ex: hrz3=0.006 → 518s → 27 % av en 32:28-löpning.
+    const toZoneFrac = (v: unknown): number | null => {
+      const n = num(v);
+      if (n === null || totalTimeSec <= 0) return n;
+      return (n * 86400) / totalTimeSec;
+    };
+
     out.push({
       date,
       time: timeSerial !== null ? excelSerialToTime(timeSerial) : undefined,
       type: (str(row[I.type]) ?? "Running"),
-      totalTimeSec: toSec(row[I.totalTime]),
+      totalTimeSec,
       movingTimeSec: toSec(row[I.movingTime]),
       elapsedTimeSec: toSec(row[I.elapsedTime]),
       distanceM: toMeters(row[I.distance]),
       elevationGainM: num(row[I.elevation]) ?? 0,
       activeCalories: num(row[I.calories]) ?? 0,
+      totalCalories: num(row[I.totalCalories]),
+      avgCadence: num(row[I.avgCadence]),
       minHR: num(row[I.minHR]),
       avgHR: num(row[I.avgHR]),
       maxHR: num(row[I.maxHR]),
@@ -134,12 +148,12 @@ export function parseAllWorkouts(buffer: Buffer): Workout[] {
       rpe: num(row[I.rpe]),
       mets: num(row[I.mets]),
       hrZoneType: str(row[I.hrZoneType]),
-      hrz0: num(row[I.hrz0]),
-      hrz1: num(row[I.hrz1]),
-      hrz2: num(row[I.hrz2]),
-      hrz3: num(row[I.hrz3]),
-      hrz4: num(row[I.hrz4]),
-      hrz5: num(row[I.hrz5]),
+      hrz0: toZoneFrac(row[I.hrz0]),
+      hrz1: toZoneFrac(row[I.hrz1]),
+      hrz2: toZoneFrac(row[I.hrz2]),
+      hrz3: toZoneFrac(row[I.hrz3]),
+      hrz4: toZoneFrac(row[I.hrz4]),
+      hrz5: toZoneFrac(row[I.hrz5]),
       source: str(row[I.source]),
       avgSpeed: kmhToMs(row[I.avgSpeed]),
       maxSpeed: kmhToMs(row[I.maxSpeed]),

@@ -102,6 +102,117 @@ export async function getLatestWorkoutsXlsx(): Promise<{ buffer: Buffer; filenam
   return { buffer, filename: file.name };
 }
 
+// ─── FIT-filer ───────────────────────────────────────────────────────────────
+// Filnamn: `YYYY-MM-DD-HHMMSS-Type-Device.fit` (t.ex. `2026-04-14-063215-Running-AppleWatch.fit`).
+
+const FIT_CACHE_TTL = 30 * 60 * 1000; // 30 min — en FIT-fil ändras aldrig efter att den laddats upp
+interface FitCacheEntry { timestamp: number; buffer: Buffer; filename: string; fileId: string; }
+const fitCache = new Map<string, FitCacheEntry>();
+
+/** Metadata för en FIT-fil i Drive. */
+export interface FitFileMeta {
+  id: string;
+  name: string;
+  /** Parsed datum från filnamn, YYYY-MM-DD */
+  date: string;
+  /** Parsed tid HH:MM:SS från filnamn */
+  time: string;
+  /** Typ från filnamnet (t.ex. "Running") */
+  type: string;
+  modifiedTime: string;
+}
+
+const FIT_NAME_RE = /^(\d{4}-\d{2}-\d{2})-(\d{2})(\d{2})(\d{2})-([^-.]+)/;
+
+function parseFitName(name: string): Omit<FitFileMeta, "id" | "modifiedTime"> | null {
+  const m = name.match(FIT_NAME_RE);
+  if (!m) return null;
+  return {
+    name,
+    date: m[1],
+    time: `${m[2]}:${m[3]}:${m[4]}`,
+    type: m[5],
+  };
+}
+
+/**
+ * Lista FIT-filer som service-kontot har tillgång till, filtrerat på datum-prefix.
+ * Cachas inte — Drive-list är billigt och vi vill se nya filer direkt.
+ */
+export async function listFitFiles(datePrefix?: string): Promise<FitFileMeta[]> {
+  const drive = getDrive();
+  const q = [
+    "name contains '.fit'",
+    "trashed = false",
+    ...(datePrefix ? [`name contains '${datePrefix}'`] : []),
+    FOLDER_ID ? `(('${FOLDER_ID}' in parents) or sharedWithMe)` : "",
+  ].filter(Boolean).join(" and ");
+  const res = await drive.files.list({
+    q,
+    fields: "files(id, name, modifiedTime)",
+    pageSize: 200,
+    orderBy: "name desc",
+  });
+  const files = res.data.files ?? [];
+  const out: FitFileMeta[] = [];
+  for (const f of files) {
+    if (!f.id || !f.name) continue;
+    const parsed = parseFitName(f.name);
+    if (!parsed) continue;
+    out.push({ id: f.id, modifiedTime: f.modifiedTime ?? "", ...parsed });
+  }
+  return out;
+}
+
+/**
+ * Hitta FIT-fil för ett pass givet datum + (valfri) HH:MM-prefix + (valfri) typ.
+ * Tidsmatchning är tolerant — passhistoriken har HH:MM, filnamnet HHMMSS.
+ */
+export async function findFitFileForWorkout(
+  date: string,
+  time?: string,
+  type?: string,
+): Promise<FitFileMeta | null> {
+  const files = await listFitFiles(date);
+  if (files.length === 0) return null;
+  const hhmm = time ? time.replace(":", "").slice(0, 4) : null;
+  const typeLower = type?.toLowerCase().replace(/\s+/g, "");
+
+  // Poängsätt varje kandidat — viktiga kriterier väger mer.
+  let best: { file: FitFileMeta; score: number } | null = null;
+  for (const f of files) {
+    if (f.date !== date) continue;
+    let score = 1; // matchande datum
+    if (hhmm && f.time.replace(":", "").slice(0, 4) === hhmm) score += 10;
+    else if (hhmm) {
+      // Räkna minuter-diff — närmare är bättre
+      const [fh, fm] = f.time.split(":").map((s) => parseInt(s, 10));
+      const [wh, wm] = [parseInt(hhmm.slice(0, 2), 10), parseInt(hhmm.slice(2), 10)];
+      const diffMin = Math.abs((fh * 60 + fm) - (wh * 60 + wm));
+      if (diffMin <= 5) score += 5;
+      else if (diffMin <= 30) score += 2;
+    }
+    if (typeLower && f.type.toLowerCase().replace(/\s+/g, "") === typeLower) score += 3;
+    if (!best || score > best.score) best = { file: f, score };
+  }
+  return best?.file ?? null;
+}
+
+/** Ladda ner en FIT-fil som Buffer med 30-min cache. */
+export async function downloadFitFile(fileId: string): Promise<{ buffer: Buffer; filename: string } | null> {
+  const cached = fitCache.get(fileId);
+  if (cached && Date.now() - cached.timestamp < FIT_CACHE_TTL) {
+    return { buffer: cached.buffer, filename: cached.filename };
+  }
+  const drive = getDrive();
+  const meta = await drive.files.get({ fileId, fields: "name" });
+  const filename = meta.data.name ?? `${fileId}.fit`;
+  const res = await drive.files.get({ fileId, alt: "media" }, { responseType: "arraybuffer" });
+  const buffer = Buffer.from(res.data as ArrayBuffer);
+  fitCache.set(fileId, { timestamp: Date.now(), buffer, filename, fileId });
+  return { buffer, filename };
+}
+
 /** Hämta senaste Health_Metrics_vN.xlsx som Buffer. */
 export async function getLatestHealthMetricsXlsx(): Promise<{ buffer: Buffer; filename: string } | null> {
   const cached = cache.get("health");

@@ -22,6 +22,10 @@ export interface Workout {
   elevationGainM: number;
   /** Aktiv förbränning (kcal) */
   activeCalories: number;
+  /** Total förbränning inkl. vilometabolism (kcal) */
+  totalCalories: number | null;
+  /** Snittkadens (SPM / varv/min) */
+  avgCadence: number | null;
   minHR: number | null;
   avgHR: number | null;
   maxHR: number | null;
