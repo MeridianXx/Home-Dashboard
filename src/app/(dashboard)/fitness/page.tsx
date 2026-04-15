@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import ErrorBanner from "@/components/ErrorBanner";
@@ -58,6 +57,16 @@ function daysUntil(iso: string): number | null {
 
 function zoneColor(z: "Z1" | "Z2" | "Z3" | "Z4" | "Z5"): string {
   return { Z1: "#a7c4ff", Z2: "#7fb8a3", Z3: "#fab849", Z4: "#ef8a5c", Z5: "#e5484d" }[z];
+}
+
+function zoneLabel(z: "Z1" | "Z2" | "Z3" | "Z4" | "Z5"): string {
+  return {
+    Z1: "Mycket lätt",
+    Z2: "Lätt",
+    Z3: "Måttlig",
+    Z4: "Hårt",
+    Z5: "Mycket hårt",
+  }[z];
 }
 
 /** Kategorisera en HealthFit-passtyp. */
@@ -201,37 +210,57 @@ function ProfileEditor() {
             Nytt mål
           </button>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {profile.goals.map((g, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                value={g.label}
-                onChange={(e) => updGoal(i, { label: e.target.value })}
-                className="flex-1 rounded-lg px-3 py-1.5 text-sm"
-                style={{
-                  backgroundColor: "var(--color-surface-container-lowest)",
-                  color: "var(--color-on-surface)",
-                  border: "1px solid var(--color-outline-variant)",
-                }}
-              />
-              <input
-                type="date"
-                value={g.deadline ?? ""}
-                onChange={(e) => updGoal(i, { deadline: e.target.value || undefined })}
-                className="rounded-lg px-2 py-1.5 text-sm tabular-nums"
-                style={{
-                  backgroundColor: "var(--color-surface-container-lowest)",
-                  color: "var(--color-on-surface)",
-                  border: "1px solid var(--color-outline-variant)",
-                }}
-              />
-              <button
-                onClick={() => removeGoal(i)}
-                aria-label="Ta bort mål"
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-on-surface-variant)" }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>delete</span>
-              </button>
+            <div
+              key={i}
+              className="rounded-lg"
+              style={{
+                backgroundColor: "var(--color-surface-container-lowest)",
+                border: "1px solid var(--color-outline-variant)",
+                padding: 8,
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  value={g.label}
+                  onChange={(e) => updGoal(i, { label: e.target.value })}
+                  placeholder="Mål"
+                  className="flex-1 min-w-0 text-sm"
+                  style={{
+                    backgroundColor: "transparent",
+                    color: "var(--color-on-surface)",
+                    border: "none",
+                    outline: "none",
+                    padding: "4px 6px",
+                  }}
+                />
+                <button
+                  onClick={() => removeGoal(i)}
+                  aria-label="Ta bort mål"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-on-surface-variant)", flexShrink: 0 }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>delete</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-2 mt-1 px-1.5">
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-on-surface-variant)" }}>event</span>
+                <input
+                  type="date"
+                  value={g.deadline ?? ""}
+                  onChange={(e) => updGoal(i, { deadline: e.target.value || undefined })}
+                  className="text-xs tabular-nums"
+                  style={{
+                    backgroundColor: "transparent",
+                    color: "var(--color-on-surface-variant)",
+                    border: "none",
+                    outline: "none",
+                    padding: 0,
+                    minWidth: 0,
+                    flex: 1,
+                  }}
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -289,13 +318,11 @@ function EditField({
 function ProfileCard({ metrics }: { metrics: MetricsResponse | undefined }) {
   const profile = useFitnessProfile((s) => s.profile);
   const [editing, setEditing] = useState(false);
-  const age = profile.birthYear ? new Date().getFullYear() - profile.birthYear : null;
-  // Vikt och vilopuls hämtas från HealthFit. Maxpuls sätts manuellt av användaren
-  // (svårt att mäta automatiskt — kräver max-effort-test).
+  // Vikt, vilopuls och VO₂ max hämtas från HealthFit. Maxpuls sätts manuellt.
   const weightKg = metrics?.weightKg ?? profile.weightKg ?? null;
   const maxHR = profile.maxHR;
   const restingHR = metrics?.restingHR ?? profile.restingHR;
-  const hrReserve = maxHR - restingHR;
+  const vo2Max = metrics?.vo2Max ?? null;
 
   return (
     <Card>
@@ -323,90 +350,95 @@ function ProfileCard({ metrics }: { metrics: MetricsResponse | undefined }) {
         </button>
       </div>
 
-      <AnimatePresence initial={false}>
-        {editing && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            style={{ overflow: "hidden" }}
+      {editing ? (
+        <ProfileEditor />
+      ) : (
+        <>
+          <div
+            className="grid"
+            style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, marginBottom: 24 }}
           >
-            <ProfileEditor />
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Stat label="Maxpuls" value={`${maxHR}`} unit="bpm" />
+            <Stat label="Vilopuls 7d" value={`${restingHR}`} unit="bpm" source={metrics?.restingHR != null} />
+            <Stat
+              label="VO₂ max"
+              value={vo2Max != null ? vo2Max.toFixed(1) : "–"}
+              unit="ml/kg/min"
+              source={vo2Max != null}
+            />
+            <Stat
+              label="Vikt"
+              value={weightKg != null ? weightKg.toFixed(1) : "–"}
+              unit="kg"
+              source={metrics?.weightKg != null}
+            />
+          </div>
 
-      <div style={{ marginBottom: 20 }}>
-        <div className="text-2xl font-bold leading-tight" style={{ color: "var(--color-on-surface)" }}>
-          {profile.name ?? "–"}
-        </div>
-        <div className="text-sm mt-1" style={{ color: "var(--color-on-surface-variant)" }}>
-          {age ? `${age} år` : ""}{age && weightKg ? " · " : ""}{weightKg ? `${weightKg.toFixed(1)} kg` : ""}
-        </div>
-      </div>
+          <div>
+            <div className="text-xs font-semibold mb-3" style={{ color: "var(--color-on-surface-variant)" }}>
+              Pulszoner
+            </div>
+            <div>
+              {(["Z5", "Z4", "Z3", "Z2", "Z1"] as const).map((z, idx) => {
+                const [lo, hi] = profile.zones[z];
+                const loPct = Math.round((lo / maxHR) * 100);
+                const hiPct = Math.round((hi / maxHR) * 100);
+                return (
+                  <div
+                    key={z}
+                    className="flex items-start gap-3"
+                    style={{
+                      paddingTop: idx === 0 ? 0 : 12,
+                      paddingBottom: 12,
+                      borderBottom: "1px solid var(--color-outline-variant)",
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 10, height: 10, borderRadius: "50%",
+                        backgroundColor: zoneColor(z),
+                        flexShrink: 0,
+                        marginTop: 5,
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>
+                        Zon {z.slice(1)} · <span style={{ fontWeight: 500, color: "var(--color-on-surface-variant)" }}>{zoneLabel(z)}</span>
+                      </div>
+                      <div className="text-xs tabular-nums mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>
+                        {z === "Z5" ? `≥ ${loPct} %` : `${loPct}–${hiPct} %`}
+                        <span style={{ margin: "0 6px" }}>·</span>
+                        {z === "Z5" ? `≥ ${lo} bpm` : `${lo}–${hi} bpm`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-      <div
-        className="grid"
-        style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 20 }}
-      >
-        <Stat label="Maxpuls" value={`${maxHR}`} unit="bpm" />
-        <Stat label="Vilopuls 7d" value={`${restingHR}`} unit="bpm" source={metrics?.restingHR != null} />
-        <Stat
-          label="VO₂ max"
-          value={metrics?.vo2Max != null ? metrics.vo2Max.toFixed(1) : "–"}
-          unit="ml/kg/min"
-          source={metrics?.vo2Max != null}
-        />
-      </div>
-
-
-      <div className="space-y-1.5">
-        <div className="text-xs font-semibold mb-1.5" style={{ color: "var(--color-on-surface-variant)" }}>
-          Pulszoner
-        </div>
-        {(["Z1", "Z2", "Z3", "Z4", "Z5"] as const).map((z) => {
-          const [lo, hi] = profile.zones[z];
-          const pct = ((hi - restingHR) / Math.max(1, hrReserve)) * 100;
-          return (
-            <div key={z} className="flex items-center gap-3">
-              <div className="text-xs font-bold w-6" style={{ color: "var(--color-on-surface)" }}>{z}</div>
-              <div className="flex-1 rounded-full h-2 overflow-hidden" style={{ backgroundColor: "var(--color-surface-container-high)" }}>
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${Math.min(100, Math.max(0, pct))}%`,
-                    backgroundColor: zoneColor(z),
-                  }}
-                />
-              </div>
-              <div className="text-xs tabular-nums" style={{ color: "var(--color-on-surface-variant)", minWidth: 60, textAlign: "right" }}>
-                {z === "Z5" ? `>${lo}` : `${lo}–${hi}`}
+          {profile.goals.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-on-surface-variant)" }}>Mål</div>
+              <div className="space-y-1.5">
+                {profile.goals.map((g, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm" style={{ color: "var(--color-on-surface)" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>
+                      flag
+                    </span>
+                    <span>{g.label}</span>
+                    {g.deadline && (
+                      <span className="ml-auto text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                        {formatShortDate(g.deadline)}
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
-          );
-        })}
-      </div>
-
-      {profile.goals.length > 0 && (
-        <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--color-outline-variant)" }}>
-          <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-on-surface-variant)" }}>Mål</div>
-          <div className="space-y-1.5">
-            {profile.goals.map((g, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm" style={{ color: "var(--color-on-surface)" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>
-                  flag
-                </span>
-                <span>{g.label}</span>
-                {g.deadline && (
-                  <span className="ml-auto text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                    {formatShortDate(g.deadline)}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+          )}
+        </>
       )}
     </Card>
   );
@@ -415,8 +447,15 @@ function ProfileCard({ metrics }: { metrics: MetricsResponse | undefined }) {
 function Stat({ label, value, unit, source }: { label: string; value: string; unit?: string; source?: boolean }) {
   return (
     <div
-      className="rounded-xl p-3"
-      style={{ backgroundColor: "var(--color-surface-container)" }}
+      className="rounded-xl"
+      style={{
+        backgroundColor: "var(--color-surface-container)",
+        padding: "12px 14px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        minHeight: 86,
+      }}
     >
       <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--color-on-surface-variant)" }}>
         <span>{label}</span>
@@ -431,11 +470,15 @@ function Stat({ label, value, unit, source }: { label: string; value: string; un
           </span>
         )}
       </div>
-      <div className="flex items-baseline gap-1 mt-1">
-        <div className="text-lg font-bold tabular-nums" style={{ color: "var(--color-on-surface)" }}>
+      <div>
+        <div className="text-xl font-bold tabular-nums leading-none" style={{ color: "var(--color-on-surface)" }}>
           {value}
         </div>
-        {unit && <div className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{unit}</div>}
+        {unit && (
+          <div className="text-[11px] mt-1 leading-none" style={{ color: "var(--color-on-surface-variant)" }}>
+            {unit}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -663,7 +706,6 @@ export default function FitnessPage() {
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(1, minmax(0, 1fr))" }}>
-        <ProfileCard metrics={metricsData} />
         <NextPlannedCard
           plans={plansData?.plans ?? []}
           error={plansError}
@@ -676,6 +718,7 @@ export default function FitnessPage() {
           onRetry={() => mutateWorkouts()}
           metrics={metricsData}
         />
+        <ProfileCard metrics={metricsData} />
       </div>
 
       {workoutsData?.sourceFile && (
