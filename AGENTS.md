@@ -202,7 +202,37 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 
 **Aktiv branch:** `v2` (origin/v2 — detta är den enda aktiva branchen, main är övergiven)  
 **Preview-server:** konfigurerad i `.claude/launch.json`, starta med `preview_start("home-dashboard")`  
-**Färdiga sektioner:** Hem/Översikt (med grafer), Hem/Belysning (med våningsplan + scener), Hem/Media (Sonos + Apple TV), Homelab (Servrar/Containers/Media/Nätverk), Fitness (stub), Trädgård (stub)
+**Färdiga sektioner:** Hem/Översikt (med grafer), Hem/Belysning (med våningsplan + scener), Hem/Media (Sonos + Apple TV), Homelab (Servrar/Containers/Media/Nätverk), Fitness (Session A — profil + Drive-data + Notion-planer), Trädgård (stub)
+
+---
+
+## Deploy & GitHub-secrets
+
+**Deploy-flöde:** push till `v2` → GitHub Actions (`.github/workflows/deploy.yml`) → bygger Docker-image till `ghcr.io/meridianxx/home-dashboard:latest` → self-hosted runner gör `docker pull` + `docker run` med secrets injicerade som `-e VAR="…"`. `.env.local` läses **bara** av `next dev` lokalt — inte i produktion.
+
+**Alla secrets måste finnas under Repo → Settings → Secrets and variables → Actions innan deploy:**
+
+| Secret | Kommentar |
+|---|---|
+| `PROXMOX_TOKEN_ID`, `PROXMOX_TOKEN_SECRET` | Hemlab-servrar |
+| `UNRAID_URL`, `UNRAID_API_KEY` | GraphQL-endpoint + API-nyckel |
+| `PORTAINER_URL`, `PORTAINER_API_TOKEN`, `PORTAINER_ENDPOINT_ID` | Container-hantering |
+| `HA_URL`, `HA_TOKEN` | Home Assistant long-lived access token |
+| `GOOGLE_CLIENT_EMAIL` | Service-account e-post |
+| `GOOGLE_PRIVATE_KEY` | **PEM på en rad, `\n`-escaped, inkl. omslutande `"`** — kopiera exakt från `.env.local`. Multiradig text bryter `docker run`-kommandot. `drive.ts` kör `.replace(/\\n/g, '\n')` för att återskapa radbrytningarna. |
+| `GOOGLE_DRIVE_HEALTHFIT_FOLDER_ID` | ID till HealthFit-mappen i Drive |
+| `NOTION_TOKEN` | Integration-token (`ntn_…`) för *Träningscoach*-integrationen |
+| `NOTION_FITNESS_PLANS_DB` | DB-id för "Planerade pass" |
+| `NOTION_FITNESS_LOG_DB` | **Kan vara tom sträng** tills `scripts/create-fitness-log-db.mjs` körts — UI hanterar det gracefully |
+| `ANTHROPIC_API_KEY` | `sk-ant-api03-…` för coach/analys (Session C+) |
+
+**Snabb-sanity efter deploy:**
+```bash
+curl https://dash.inicio.cloud/api/fitness/metrics
+# → { "weightKg": 67.8, "restingHR": 57, "vo2Max": 44.1, ... }
+```
+
+Om svaret blir `{"error":"GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY saknas i env"}` → secret saknas eller har fel format. Om det blir `error:1E08010C:DECODER routines::unsupported` → `\n`-escapingen i `GOOGLE_PRIVATE_KEY` är trasig (klistrades sannolikt med riktiga radbrytningar istället för `\n`-tecken).
 
 ---
 
