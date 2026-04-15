@@ -202,7 +202,39 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 
 **Aktiv branch:** `v2` (origin/v2 — detta är den enda aktiva branchen, main är övergiven)  
 **Preview-server:** konfigurerad i `.claude/launch.json`, starta med `preview_start("home-dashboard")`  
-**Färdiga sektioner:** Hem/Översikt (med grafer), Belysning (med våningsplan), Homelab (Servrar/Containers/Media/Nätverk), Fitness (stub), Trädgård (stub)
+**Färdiga sektioner:** Hem/Översikt (med grafer), Hem/Belysning (med våningsplan + scener), Hem/Media (Sonos + Apple TV), Homelab (Servrar/Containers/Media/Nätverk), Fitness (stub), Trädgård (stub)
+
+---
+
+## Multi-user arkitektur
+
+Dashboarden autentiseras via **Authelia** bakom Nginx Proxy Manager. Authelia vidarebefordrar användaridentiteten som HTTP-headers till Next.js:
+- `X-Forwarded-User` — användarnamn
+- `X-Forwarded-Email` — e-postadress
+
+**Upplägg (förberett från start, aktiveras fullt i ett senare steg):**
+```ts
+// src/lib/users.ts
+const USER_PROFILES = {
+  "adam@inicio.cloud": {
+    tabs: ["home", "fitness", "garden", "homelab"],
+    isAdmin: true,
+  },
+  "sambo@...": {
+    tabs: ["home", "garden"],
+    isAdmin: false,
+  },
+}
+```
+- Läs identitet server-side: `headers().get('X-Forwarded-Email')` i App Router
+- Layout renderar bara tabs användaren har tillgång till
+- Otillåten route → redirect till `/home`
+- Fitness-data fetchas **bara** om användaren har `fitness` i sin tabs-lista
+
+**Regler för ny kod:**
+- Hårdkoda aldrig personlig data inne i komponenter
+- Håll user-context separerat från UI-logik
+- All fitness-specifik fetch är tab-gatad
 
 ---
 
@@ -226,7 +258,7 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - **FavTile / knappar i grid:** Tailwinds `w-full` är otillförlitligt på mobil — lägg alltid till `width: "100%"` och `minHeight` som inline style på tiles för konsekvent storlek
 - **Haptic feedback:** `navigator.vibrate()` stöds **inte** i iOS Safari — implementera inte haptic för iOS, det är en platform-begränsning
 - **TempSlider:** generisk komponent i `home/page.tsx` för temperaturreglage; använd `key={value}` för att tvinga remount när servervärde ändras (uncontrolled input-mönster)
-- **Page transitions:** Framer Motion `motion.div` med `key={pathname}` i dashboard layout — ren horisontell slide (15%, 450ms ease-out `[0.25, 0.8, 0.25, 1] as const`). Riktning beräknas **under render** (inte useEffect!) genom att jämföra `pathname` med `prevPathnameRef` — useEffect körs efter render och missar första mount av nya motion.div. `onAnimationComplete` nollställer direction så app-switch inte triggar om. Undvik `AnimatePresence mode="wait"` (dubbel-laddning), spring (studsar), och Card-level entrance-animationer (diagonal rörelse).
+- **Page transitions:** Framer Motion `motion.div` med `key={pathname}` i dashboard layout — ren opacity-crossfade (200ms `[0.4, 0, 0.2, 1]` cubic-bezier), konstant `FADE_EASE`. Horisontell slide ersattes eftersom den kändes "tung". Riktning beräknas **under render** (inte useEffect!) via `prevPathnameRef`/`directionRef` — useEffect körs efter render och missar första mount. `onAnimationComplete` nollställer direction. Undvik `AnimatePresence mode="wait"` (dubbel-laddning), spring (studsar), och Card-level entrance-animationer.
 - **iOS app-switch:** `onTouchCancel` + `visibilitychange`-lyssnare krävs för att nollställa inline swipe-transform. Utan det fastnar `translateX` när iOS avbryter touch (app-switch, samtal, notis).
 - **Expand/collapse:** `AnimatePresence initial={false}` + `motion.div` med `height: 0/auto` + `opacity: 0/1`, duration 0.2s ease-out, `overflow: hidden`. Används på belysningsrum, temperaturpaneler, HVAC-selects.
 - **Pull-to-refresh:** Custom touch-gest i layout.tsx. Kräver `scrollY === 0`, 80px threshold, undviker horisontell swipe-konflikt. Bekräftelse: bock + "Uppdaterat" i 800ms. **Viktigt:** använd `"0px"` (sträng) istället för `0` (number) i inline styles för height — annars hydration-mismatch.
@@ -241,7 +273,6 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - **Media-artwork-proxy:** HA:s `entity_picture` pekar på intern HA-URL som inte nås publikt. `/api/homeassistant/image?path=…` proxar igenom Next.js-servern. Sniffar magic bytes (PNG/JPEG/GIF/WebP) och forcerar `image/*` MIME eftersom HA returnerar `application/octet-stream`.
 - **Apple TV services:** `media_player.media_play_pause` (toggle) är trasig på pyatv-integrationen — returnerar 200 men ändrar aldrig state. Använd specifika `media_play` / `media_pause`. `media_next_track` / `media_previous_track` fungerar. Power: `media_player.turn_on` / `turn_off` på samma entitet. Apple TV exponerar `media_position` + `media_duration` + `entity_picture` när app spelar — visas som progress-bar på mediasidan.
 - **Scen-endpoint no-cache:** `/api/homeassistant/scenes` har `export const dynamic = "force-dynamic"` — utan det cachar Next en tom/error-respons om första hit timeout:ar, vilket tystar scen-detektionen externt tills deploy.
-- **Page transition:** Ren opacity-crossfade (200ms `[0.4, 0, 0.2, 1]` cubic-bezier) i `(dashboard)/layout.tsx`. `FADE_EASE`-konstanten. Horisontell slide ersatt eftersom den kändes "tung".
 
 ---
 
@@ -292,3 +323,109 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 - [x] Delad SWR-fetcher i `src/lib/fetcher.ts` — kastar vid HTTP-fel så att SWR:s `error`-prop faktiskt triggas
 - [x] `ErrorBanner`-komponent (`src/components/ErrorBanner.tsx`) — visas vid API-fel på hem-, belysnings- och mediesidan med retry-knapp
 - [x] `aria-label` på ljusstyrke-slider (`lighting/page.tsx`) och volym-slider (`media/page.tsx`)
+
+### Fitness — Sessionsplan A–F
+
+> Vision: Personlig PT i dashboarden för löpning och styrketräning. Känner till fysiologi och historik, agerar coach, analyserar pass med AI och utvärderar formen löpande.
+
+#### Datakällor & verifierade ID:n
+
+**Google Drive — mapp `HealthFit/`** (auto-export via HealthFit-appen från Apple Watch):
+- `Workouts_vN.xlsx` — flikar per sporttyp: Workouts, Running, Cycling, Others m.fl. En rad per pass, skrivs över vid ny export. Hitta senaste version via filnamn (högst N). Datum = Excel-serienummer: `datetime(1899,12,30) + timedelta(days=N)`. Kolumner Running-fliken: Date, Time, Type, Total Time, Moving Time, Elapsed Time, Temperature, Humidity, Distance, Elevation Gain, Active Calories, Min HR, Avg HR, Max HR, TRIMP, RPE, METs, HR Zone Type, HRZ0–HRZ5, Source, Avg Speed, Max Speed, Avg Power, Max Power, Ground Contact Time, Vertical Oscillation, Stride Length, Steps. HRZ0–5 = andel av total tid per zon (0–1), faktisk tid = `HRZn × Total_Time`.
+- `Health_Metrics_vN.xlsx` — flikar: **Daily Metrics (ingen header-rad! — skippa rad 1 vid parsning)**: Active Energy, Resting Energy, Resting HR, HRV, Steps, VO₂ max, Exercise Minutes, Stand Hours. **Sleep**: Date, Main, Start, End, InBed, Asleep, Awake, REM, Core, Deep, Wake Count, Efficiency, Fall Asleep, Min/Max/Avg Respiration Rate, Wrist Temp, Low/High/Avg SpO2, Low/High/Avg HRV (primärkälla för återhämtning — klockan bärs varje natt). **Weight**: Date, Weight, Fat, BMI. **Nutrition**: Date, Water, Dietary Energy, Total Fat, Protein, Carbs. **Mindfulness**: ignorera.
+- FIT-filer per pass: `YYYY-MM-DD-HHMMSS-Typ-Enhet.fit`. Innehåll: session (summary), lap, record (per sekund: GPS, HR, power, speed, kadence), workout_step. GPS i semicircles: `grader = semicircles × (180 / 2³¹)`.
+
+**Notion:**
+- Träningscoach-sida ID: `31e9b5da-2245-805a-a8b3-e676a81fbb8b`
+- Planerade pass DB ID: `31e9b5da-2245-8082-9fb2-ea3c5fadbc51` — schema: Passnamn (title), Datum (date), Typ (select), Status (status), Syfte, Passdetaljer, Pulsintervall, Tempo, Tid, Underlag (select). `Run ID` ignoreras/tas bort.
+- Träningslogg DB — skapas i Session A. Schema: Passnamn (title), Datum (date), Typ (select), Distans (number, km), Total tid (text), Snittempo (text, bara löpning), Avg HR (number), Max HR (number), Avg Power (number), TRIMP (number), RPE (number 1–10), HRZ0–5 (number 0–1), FIT-fil (text), Planerat pass (relation → Planerade pass), AI-analys (text).
+
+**Env-variabler (`.env.local`):**
+```
+GOOGLE_CLIENT_EMAIL=...@....gserviceaccount.com
+GOOGLE_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
+GOOGLE_DRIVE_FOLDER_ID=...          # mappen HealthFit/ i Drive
+NOTION_TOKEN=...                    # finns i traningscoach-app/.env
+NOTION_FITNESS_PLANS_DB=31e9b5da-2245-8082-9fb2-ea3c5fadbc51
+NOTION_FITNESS_LOG_DB=...           # skapas i Session A
+ANTHROPIC_API_KEY=...               # finns i traningscoach-app/.env
+```
+
+**Npm-paket:** `googleapis`, `xlsx`, `@notionhq/client`, `fit-file-parser`
+
+**Referenskod (port från traningscoach-app, ändra inte originalet):**
+- `traningscoach-app/services/claude.js` → `src/lib/fitness/claude.ts`
+- `traningscoach-app/services/notion.js` → `src/lib/fitness/notion.ts`
+- `traningscoach-app/services/context.js` → `src/lib/fitness/context.ts`
+- `traningscoach-app/profile.json` → `src/lib/fitness/profile.ts`
+
+**Design:** Matchar dashboard design system. Amber (`#fab849`) för pulsdata, indigo för accent. Samma card-mönster som EnergyCard. Inga borders — depth via bakgrundsnivåer. Inline `style={{}}` för all mobilanpassning.
+
+---
+
+#### Session A — Profil, Google Drive & passhistorik ✅ Klar
+- [x] `src/lib/fitness/types.ts` — delade typer (Workout, PlannedWorkout, FitnessProfile …)
+- [x] `src/lib/fitness/drive.ts` — Google Drive-klient. Söker med `sharedWithMe`-fallback och hanterar både native `.xlsx` och Google Sheets (exporteras via `files.export` som xlsx). 5 min in-memory cache.
+- [x] `src/lib/fitness/parser.ts` — Running-fliken i Workouts_vN. Headers normaliseras tolerant (`Avg. Heart Rate` ↔ `Avg HR`), tider konverteras från Excel-dygnsfraktion → sek, distans km → m, hastighet km/h → m/s.
+- [x] `src/lib/fitness/profile.ts` — `useFitnessProfile` Zustand-store med `persist` (`fitness-profile`), default från `traningscoach-app/profile.json`. Helper `hrZone(bpm, zones)`.
+- [x] `src/lib/fitness/notion.ts` — `getPlannedWorkouts()` via data-source-query (Notion SDK v5 kräver `data_source_id`). `isLogDbReady()` signalerar om träningslogg är konfigurerad.
+- [x] `src/app/api/fitness/workouts/route.ts` — senaste N pass från Running-fliken (default 10).
+- [x] `src/app/api/fitness/plans/route.ts` — planerade pass + `logDbReady`-flagga.
+- [x] `src/app/(dashboard)/fitness/page.tsx` — profilkort med pulszoner + mål, nästa pass (datumrelativ), passhistorik med zonbadge.
+- [x] `scripts/create-fitness-log-db.mjs` — skapar Träningslogg-DB under coachsidan. Kräver att sidan delats med integrationen *Träningscoach* i Notion innan körning; skriv in returnerat DB-id i `NOTION_FITNESS_LOG_DB`.
+
+**Observera:**
+- Notion-token i `.env.local` rättades till den riktiga `ntn_417056773819…` (den felaktiga `…858940…` gav 401).
+- Google Sheets-filen heter `Workouts_v5` (utan `.xlsx`) och ligger inte i HealthFit-mappen — `drive.ts` söker därför även `sharedWithMe` och exporterar via `files.export()`.
+- Korrekt env-namn är `GOOGLE_DRIVE_HEALTHFIT_FOLDER_ID` (inte `GOOGLE_DRIVE_FOLDER_ID` som tidigare angavs).
+
+#### Session B — FIT-parsing, detaljvy & Notion-profil
+- Server-side FIT-parsning från Google Drive (`fit-file-parser`)
+- Per-pass detaljvy: GPS-karta (Leaflet/MapLibre), elevationsprofil, HR-tidsserie, zondistribution (Recharts)
+- Matchning genomfört pass → planerat pass via datum
+- Synk Workouts_vN.xlsx → Notion Träningslogg
+- **Tvåvägssynk av manuellt redigerade profilvärden till Notion** (ersätter `localStorage`-lagringen i Session A — byta primärkälla, behålla Zustand som optimistic cache)
+  - Ny DB `Profil` under coachsidan med properties: `Nyckel` (title), `Värde` (rich_text), `Kategori` (select: `profil`/`zon`/`mål`), `Uppdaterad` (last_edited_time). Rader: `name`, `birthYear`, `maxHR`, `zone.Z1`…`zone.Z5`, `goal.<slug>` + deadline.
+  - `GET /api/fitness/profile` → läser Notion-DB, mergear med `/api/fitness/metrics` (vikt + vilopuls + VO₂ max), 5 min cache.
+  - `PATCH /api/fitness/profile` → skriver tillbaka ändrade nycklar via `notion.pages.update`. Optimistic UI: Zustand-store uppdateras direkt, Notion-anropet sker i bakgrunden.
+  - SWR `revalidateOnFocus: true` på profilkortet → ändringar gjorda direkt i Notion dyker upp nästa gång man öppnar fliken.
+  - Conflict resolution: senaste `Uppdaterad`-timestamp vinner. Visa "synkad för X min sedan"-badge under profilkortet.
+  - Utöka `scripts/create-fitness-log-db.mjs` → `scripts/create-fitness-notion-dbs.mjs` som skapar både `Träningslogg` och `Profil` i samma körning.
+
+- [ ] `src/lib/fitness/fit-parser.ts`
+- [ ] `src/app/api/fitness/fit/route.ts`
+- [ ] `src/app/(dashboard)/fitness/history/page.tsx` — detaljvy
+- [ ] `src/app/api/fitness/profile/route.ts` — GET + PATCH med Notion-backing
+- [ ] `src/lib/fitness/notion.ts` — utöka med `getProfile()` / `updateProfile()`
+- [ ] `src/lib/fitness/profile.ts` — Zustand byter från `persist` till SWR-hydrering; `setProfile()` kallar PATCH
+- [ ] `scripts/create-fitness-notion-dbs.mjs` — skapa både DB:er
+
+#### Session C — AI-analys per pass
+- Anthropic API (`claude-sonnet-4-20250514`) för passanalys
+- Prompt inkluderar: profil, pulszoner, passdata, Sleep HRV senaste 3 dagarna, senaste 10 passens TRIMP
+- Analys visas i UI + sparas i Notion Träningslogg
+
+- [ ] `src/lib/fitness/claude.ts`
+- [ ] `src/lib/fitness/context.ts`
+- [ ] `src/app/api/fitness/analyse/route.ts`
+
+#### Session D — Planering & AI-coach
+- Vecko-/månadsvy för planerade pass
+- AI genererar träningsplan (mål + historik + aktuell form)
+- Skapa/redigera Planerade pass i Notion direkt från UI
+- Modal med textarea → AI-svar → spara till Notion
+
+- [ ] `src/app/api/fitness/coach/route.ts`
+- [ ] `src/app/(dashboard)/fitness/coach/page.tsx`
+
+#### Session E — Dashboard & aktuell form
+- Träningsbelastning: ATL (7d), CTL (42d), TSB = CTL − ATL baserat på TRIMP
+- HRV-trend (Sleep-fliken, Avg HRV 7/28 dagar)
+- Vilopuls-trend + VO₂ max-trend
+- Målprogress-widgets
+- Readiness-poäng 1–100 (HRV vs 7d-medel + sömn > 7h)
+
+#### Session F — Polish & notiser
+- Veckosammanfattning auto-genereras i Notion (måndag)
+- Badge/påminnelse för nästa planerade pass
+- Responsiv mobilanpassning genomgång
