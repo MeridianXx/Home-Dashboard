@@ -65,6 +65,13 @@ jobs:
             -e PORTAINER_ENDPOINT_ID="${{ secrets.PORTAINER_ENDPOINT_ID }}" \
             -e HA_URL="${{ secrets.HA_URL }}" \
             -e HA_TOKEN="${{ secrets.HA_TOKEN }}" \
+            -e GOOGLE_CLIENT_EMAIL="${{ secrets.GOOGLE_CLIENT_EMAIL }}" \
+            -e GOOGLE_PRIVATE_KEY="${{ secrets.GOOGLE_PRIVATE_KEY }}" \
+            -e GOOGLE_DRIVE_HEALTHFIT_FOLDER_ID="${{ secrets.GOOGLE_DRIVE_HEALTHFIT_FOLDER_ID }}" \
+            -e NOTION_TOKEN="${{ secrets.NOTION_TOKEN }}" \
+            -e NOTION_FITNESS_PLANS_DB="${{ secrets.NOTION_FITNESS_PLANS_DB }}" \
+            -e NOTION_FITNESS_LOG_DB="${{ secrets.NOTION_FITNESS_LOG_DB }}" \
+            -e ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
             -l "com.centurylinklabs.watchtower.enable=false" \
             ghcr.io/meridianxx/home-dashboard:latest
           docker image prune -f
