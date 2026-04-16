@@ -10,7 +10,7 @@ import { useFitnessProfile } from "@/lib/fitness/profile";
 import { paceString, durationString } from "@/lib/fitness/parser";
 import type { WorkoutsResponse, Workout, PlansResponse, PlannedWorkout } from "@/lib/fitness/types";
 import type { FitResponse } from "@/app/api/fitness/fit/route";
-import { HRSeriesChart, ElevationChart, ZoneDistribution, LapsList } from "@/components/fitness/PassCharts";
+import { ElevationChart, HeartRateCard, LapsList } from "@/components/fitness/PassCharts";
 import { PassSummary } from "@/components/fitness/PassSummary";
 import { parseSlug } from "@/lib/fitness/slug";
 
@@ -176,11 +176,23 @@ export default function PassDetailPage({ params }: { params: Promise<{ slug: str
       {/* Träningsdetaljer — Apple Fitness-stil */}
       <PassSummary workout={workout} fitSummary={fitData?.summary} />
 
-      {/* Zondistribution direkt under passdetaljer */}
-      {hrz && (
+      {/* Puls — samlad ruta (snittpuls + tidsserie + tid-i-zon) direkt under summary */}
+      {(workout?.avgHR || fitData?.track.some((p) => typeof p.hr === "number")) && (
+        <HeartRateCard
+          track={fitData?.track ?? []}
+          zones={profile.zones}
+          avgHR={workout?.avgHR ?? fitData?.summary.avgHR ?? null}
+          maxHR={workout?.maxHR ?? fitData?.summary.maxHR ?? null}
+          hrz={hrz}
+          totalSec={totalSec}
+        />
+      )}
+
+      {/* Elevationsprofil under pulsen */}
+      {fitData && fitData.track.some((p) => typeof p.alt === "number") && (
         <Card>
-          <SectionTitle icon="speed">Zondistribution</SectionTitle>
-          <ZoneDistribution hrz={hrz} totalSec={totalSec} />
+          <SectionTitle icon="terrain">Elevationsprofil</SectionTitle>
+          <ElevationChart track={fitData.track} />
         </Card>
       )}
 
@@ -210,22 +222,6 @@ export default function PassDetailPage({ params }: { params: Promise<{ slug: str
         <Card>
           <SectionTitle icon="map">Spår</SectionTitle>
           <TrackMap track={fitData.track} bounds={fitData.summary.bounds} zones={profile.zones} />
-        </Card>
-      )}
-
-      {/* Elevationsprofil */}
-      {fitData && fitData.track.some((p) => typeof p.alt === "number") && (
-        <Card>
-          <SectionTitle icon="terrain">Elevationsprofil</SectionTitle>
-          <ElevationChart track={fitData.track} />
-        </Card>
-      )}
-
-      {/* HR-tidsserie */}
-      {fitData && fitData.track.some((p) => typeof p.hr === "number") && (
-        <Card>
-          <SectionTitle icon="monitor_heart">Puls över tid</SectionTitle>
-          <HRSeriesChart track={fitData.track} zones={profile.zones} />
         </Card>
       )}
 

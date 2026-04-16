@@ -88,38 +88,53 @@ export function PassSummary({ workout, fitSummary }: { workout: Workout | null; 
   const totalSec = workout?.totalTimeSec ?? fitSummary?.totalTimeSec ?? 0;
   const rows: StatDef[] = [];
 
+  // Radordning enligt designspec:
+  //   1: Träningstid (amber)       | Distans (indigo)
+  //   2: Aktiva kalorier (röd)     | Snittpuls (röd)
+  //   3: Höjdökning (grön)         | Snittkraft (grön)
+  //   4: Snittkadens (indigo)      | Snittakt (indigo)
+  //   5: Maxpuls (röd)             | TRIMP (indigo)
+  //   6: Ansträngning (egen rad längst ner)
+
+  // Rad 1
   if (totalSec > 0) {
     rows.push({ label: "Träningstid", value: durationString(totalSec), color: "#fab849" });
   }
   if (distanceM > 0) {
     rows.push({ label: "Distans", value: (distanceM / 1000).toFixed(2), unit: "km", color: "var(--color-primary)" });
   }
+
+  // Rad 2
   if (workout?.activeCalories != null && workout.activeCalories > 0) {
     rows.push({ label: "Aktiva kalorier", value: Math.round(workout.activeCalories).toString(), unit: "kcal", color: "#e5484d" });
-  }
-  if (workout?.totalCalories != null && workout.totalCalories > 0) {
-    rows.push({ label: "Kalorier totalt", value: Math.round(workout.totalCalories).toString(), unit: "kcal", color: "#e5484d" });
-  }
-  if (distanceM > 0 && totalSec > 0) {
-    rows.push({ label: "Snittakt", value: paceString(distanceM, totalSec), unit: "/km", color: "#7fb8a3" });
-  }
-  const cadence = workout?.avgCadence ?? fitSummary?.avgCadence;
-  if (cadence != null && cadence > 0) {
-    rows.push({ label: "Snittkadens", value: Math.round(cadence).toString(), unit: "SPM", color: "var(--color-primary)" });
-  }
-  const power = workout?.avgPower ?? fitSummary?.avgPower;
-  if (power != null && power > 0) {
-    rows.push({ label: "Snittkraft", value: Math.round(power).toString(), unit: "W", color: "#7fb8a3" });
   }
   if (workout?.avgHR != null && workout.avgHR > 0) {
     rows.push({ label: "Snittpuls", value: Math.round(workout.avgHR).toString(), unit: "puls", color: "#e5484d" });
   }
-  if (workout?.maxHR != null && workout.maxHR > 0 && workout.maxHR !== workout.avgHR) {
+
+  // Rad 3 — Höjdökning ska alltid visas (även 0 m), Snittkraft grön
+  const elev = workout?.elevationGainM ?? fitSummary?.elevationGainM ?? 0;
+  rows.push({ label: "Höjdökning", value: Math.round(elev).toString(), unit: "m", color: "#7fb8a3" });
+  const power = workout?.avgPower ?? fitSummary?.avgPower;
+  if (power != null && power > 0) {
+    rows.push({ label: "Snittkraft", value: Math.round(power).toString(), unit: "W", color: "#7fb8a3" });
+  }
+
+  // Rad 4
+  const cadence = workout?.avgCadence ?? fitSummary?.avgCadence;
+  if (cadence != null && cadence > 0) {
+    rows.push({ label: "Snittkadens", value: Math.round(cadence).toString(), unit: "SPM", color: "var(--color-primary)" });
+  }
+  if (distanceM > 0 && totalSec > 0) {
+    rows.push({ label: "Snittakt", value: paceString(distanceM, totalSec), unit: "/km", color: "var(--color-primary)" });
+  }
+
+  // Rad 5
+  if (workout?.maxHR != null && workout.maxHR > 0) {
     rows.push({ label: "Maxpuls", value: Math.round(workout.maxHR).toString(), unit: "puls", color: "#e5484d" });
   }
-  const elev = workout?.elevationGainM ?? fitSummary?.elevationGainM;
-  if (elev != null && elev > 0) {
-    rows.push({ label: "Höjdmeter", value: Math.round(elev).toString(), unit: "m", color: "var(--color-primary)" });
+  if (workout?.trimp != null && workout.trimp > 0) {
+    rows.push({ label: "TRIMP", value: Math.round(workout.trimp).toString(), color: "var(--color-primary)" });
   }
 
   return (

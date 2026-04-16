@@ -176,6 +176,140 @@ export function ElevationChart({ track }: { track: FitTrackPoint[] }) {
   );
 }
 
+// ─── Kombinerad Puls-ruta ────────────────────────────────────────────────────
+// Samlar passets puls-data i ett kort: snittpuls-header, HR-tidsserie med
+// zon-band, tid-i-zon-fördelning, samt (om data finns) pulsåterhämtning.
+// Design inspirerad av Apple Fitness men följer dashboardens temavariabler.
+
+function zoneLabelShort(z: "Z1" | "Z2" | "Z3" | "Z4" | "Z5"): string {
+  return {
+    Z1: "Mycket lätt",
+    Z2: "Lätt",
+    Z3: "Måttlig",
+    Z4: "Hårt",
+    Z5: "Mycket hårt",
+  }[z];
+}
+
+export function HeartRateCard({
+  track,
+  zones,
+  avgHR,
+  maxHR,
+  hrz,
+  totalSec,
+}: {
+  track: FitTrackPoint[];
+  zones: FitnessProfile["zones"];
+  avgHR: number | null;
+  maxHR: number | null;
+  hrz: {
+    hrz0: number | null; hrz1: number | null; hrz2: number | null;
+    hrz3: number | null; hrz4: number | null; hrz5: number | null;
+  } | null;
+  totalSec: number;
+}) {
+  const hasChart = track.some((p) => typeof p.hr === "number");
+  const zoneRows = hrz
+    ? ([
+        { key: "Z5", frac: hrz.hrz5 ?? 0, color: zoneColor("Z5") },
+        { key: "Z4", frac: hrz.hrz4 ?? 0, color: zoneColor("Z4") },
+        { key: "Z3", frac: hrz.hrz3 ?? 0, color: zoneColor("Z3") },
+        { key: "Z2", frac: hrz.hrz2 ?? 0, color: zoneColor("Z2") },
+        { key: "Z1", frac: hrz.hrz1 ?? 0, color: zoneColor("Z1") },
+      ] as const).filter((r) => r.frac > 0.001)
+    : [];
+
+  return (
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{
+        backgroundColor: "var(--color-surface-container-lowest)",
+        border: "1px solid var(--color-card-border)",
+        boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
+      }}
+    >
+      {/* Snittpuls-header */}
+      <div className="px-5 pt-4 pb-3">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider" style={{ color: "var(--color-on-surface-variant)" }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>monitor_heart</span>
+          Puls
+        </div>
+        {avgHR != null && (
+          <div className="flex items-baseline gap-1.5 mt-2">
+            <span className="text-[11px] font-semibold" style={{ color: "var(--color-on-surface-variant)" }}>Snittpuls</span>
+          </div>
+        )}
+        {avgHR != null && (
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-3xl font-bold tabular-nums leading-none" style={{ color: "#e5484d" }}>
+              {Math.round(avgHR)}
+            </span>
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#e5484d", opacity: 0.75 }}>
+              puls
+            </span>
+            {maxHR != null && maxHR > 0 && (
+              <span className="text-xs ml-3" style={{ color: "var(--color-on-surface-variant)" }}>
+                max <span className="tabular-nums" style={{ color: "#e5484d" }}>{Math.round(maxHR)}</span>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Puls över tid */}
+      {hasChart && (
+        <div className="px-5 pb-4">
+          <HRSeriesChart track={track} zones={zones} />
+        </div>
+      )}
+
+      {/* Zondistribution */}
+      {zoneRows.length > 0 && (
+        <div className="px-5 py-4 space-y-2" style={{ borderTop: "1px solid var(--color-outline-variant)" }}>
+          <div className="text-[11px] font-semibold mb-2" style={{ color: "var(--color-on-surface-variant)" }}>
+            Tid i pulsintervall
+          </div>
+          {zoneRows.map((r) => (
+            <div key={r.key} className="flex items-center gap-3">
+              <div
+                className="flex items-center gap-1.5"
+                style={{ width: 120, flexShrink: 0 }}
+              >
+                <span style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: r.color }} aria-hidden />
+                <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--color-on-surface)" }}>{r.key}</span>
+                <span className="text-[11px]" style={{ color: "var(--color-on-surface-variant)" }}>
+                  · {zoneLabelShort(r.key as "Z1" | "Z2" | "Z3" | "Z4" | "Z5")}
+                </span>
+              </div>
+              <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--color-surface-container)" }}>
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${Math.max(2, r.frac * 100)}%`,
+                    backgroundColor: r.color,
+                    borderRadius: 999,
+                  }}
+                />
+              </div>
+              <div
+                className="text-xs tabular-nums"
+                style={{ color: "var(--color-on-surface-variant)", minWidth: 90, textAlign: "right" }}
+              >
+                {formatSec(r.frac * totalSec)} · {(r.frac * 100).toFixed(0)} %
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pulsåterhämtning — kräver post-pass-data som HealthFit inte exporterar
+          just nu. Placeholder tas bort när vi har datakällan (kräver
+          HealthKit-integration). */}
+    </div>
+  );
+}
+
 // ─── Lap-lista ───────────────────────────────────────────────────────────────
 // Intervallpass i Apple Watch auto-lap:ar per segment. Vi kategoriserar varje
 // lap som Uppvärmning / Intervall / Vila / Nedvarvning baserat på HR vs
