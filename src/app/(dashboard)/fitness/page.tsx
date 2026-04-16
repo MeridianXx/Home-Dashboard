@@ -48,6 +48,56 @@ function formatShortDate(iso: string): string {
   }
 }
 
+/** Plocka det senaste ISO-datumet ur en lista där null/undefined filtreras bort. */
+function pickLatest(dates: Array<string | null | undefined>): string | undefined {
+  const valid = dates.filter((d): d is string => typeof d === "string" && d.length > 0);
+  if (valid.length === 0) return undefined;
+  return valid.sort().reverse()[0];
+}
+
+/** Formatera ISO-timestamp till "HH:MM i dag" / "HH:MM i går" / "10 apr kl. 13:42". */
+function formatAbsoluteSv(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
+  const d0 = new Date(d); d0.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today.getTime() - d0.getTime()) / 86400000);
+  const hm = d.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+  if (diffDays === 0) return `${hm} idag`;
+  if (diffDays === 1) return `${hm} igår`;
+  return `${d.toLocaleDateString("sv-SE", { day: "numeric", month: "short" })} kl. ${hm}`;
+}
+
+/** Formatera ISO-datum (utan tid) till "16 apr". */
+function formatDateSv(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
+}
+
+/**
+ * Bygg en kompakt tooltip som förklarar både när filen synkades till Drive och
+ * när senaste datapunkt i filen är från. Två olika saker som ofta skiljer sig
+ * åt (HealthFit batchar dagliga summary-metrics 1–2 dagar efter dagens slut).
+ */
+function buildFreshnessTooltip(args: {
+  fileLabel: string | null | undefined;
+  fileTime: string | null | undefined;
+  dataLabel: string;
+  dataDate: string | null | undefined;
+}): string | undefined {
+  const parts: string[] = [];
+  const fileTime = formatAbsoluteSv(args.fileTime);
+  if (fileTime) parts.push(`Fil skriven i Drive: ${fileTime}`);
+  const dataDate = formatDateSv(args.dataDate ?? undefined);
+  if (dataDate) parts.push(`${args.dataLabel}: ${dataDate}`);
+  if (args.fileLabel) parts.push(`Källa: ${args.fileLabel}`);
+  return parts.length > 0 ? parts.join("\n") : undefined;
+}
+
 /**
  * Relativ tid till svensk text — "nyss", "för 12 min sedan", "för 3 h sedan",
  * "för 2 dagar sedan", "den 10 apr." vid >7 dagar.
@@ -852,13 +902,33 @@ export default function FitnessPage() {
             className="flex items-center justify-center gap-3 text-xs flex-wrap"
             style={{ color: "var(--color-on-surface-variant)" }}
           >
-            <span className="flex items-center gap-1.5" title={workoutsData?.sourceFile ?? undefined}>
+            <span
+              className="flex items-center gap-1.5"
+              title={buildFreshnessTooltip({
+                fileLabel: workoutsData?.sourceFile,
+                fileTime: workoutsData?.sourceModifiedAt,
+                dataLabel: "Senaste pass",
+                dataDate: workoutsData?.workouts[0]?.date,
+              })}
+            >
               <span className="material-symbols-outlined" style={{ fontSize: 14 }} aria-hidden>cloud_sync</span>
               <span>
                 Workouts <span className="tabular-nums">{relativeTimeSv(workoutsData?.sourceModifiedAt ?? null) ?? "–"}</span>
               </span>
             </span>
-            <span className="flex items-center gap-1.5" title={metricsData?.sourceFile ?? undefined}>
+            <span
+              className="flex items-center gap-1.5"
+              title={buildFreshnessTooltip({
+                fileLabel: metricsData?.sourceFile,
+                fileTime: metricsData?.sourceModifiedAt,
+                dataLabel: "Senaste datapunkt",
+                // Plocka senaste av resting/vo2/hrv — vilket som finns
+                dataDate: pickLatest([
+                  metricsData?.restingHRDate,
+                  metricsData?.vo2MaxDate,
+                ]),
+              })}
+            >
               <span className="material-symbols-outlined" style={{ fontSize: 14 }} aria-hidden>favorite</span>
               <span>
                 Health Metrics <span className="tabular-nums">{relativeTimeSv(metricsData?.sourceModifiedAt ?? null) ?? "–"}</span>
