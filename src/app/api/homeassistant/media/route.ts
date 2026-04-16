@@ -14,6 +14,7 @@ const PLAYERS: Array<{
   { entity_id: "media_player.allrum_playbar",     room: "Allrum",     type: "sonos" },
   { entity_id: "media_player.allrum_sonos",       room: "Allrum",     type: "sonos" },
   { entity_id: "media_player.kok_sonos",          room: "Kök",        type: "sonos" },
+  { entity_id: "media_player.kok_play",           room: "Kök",        type: "sonos" },
   { entity_id: "media_player.elvira_sonos",       room: "Elvira",     type: "sonos" },
   { entity_id: "media_player.adrian_sonos",       room: "Adrian",     type: "sonos" },
   { entity_id: "media_player.vardagsrum_appletv", room: "Vardagsrum", type: "appletv",
