@@ -671,13 +671,6 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
   const profile = useFitnessProfile((s) => s.profile);
   void metrics; // kvar för framtida dynamisk zon-uppräkning
 
-  // Default = 15 senaste pass. "Visa alla" expanderar till hela listan så att
-  // äldre pass (t.ex. från mars när april tar de första 10 slotarna) syns.
-  const INITIAL = 15;
-  const [expanded, setExpanded] = useState(false);
-  const visible = expanded ? workouts : workouts.slice(0, INITIAL);
-  const hasMore = workouts.length > INITIAL;
-
   return (
     <Card>
       <SectionTitle icon="history">Senaste pass</SectionTitle>
@@ -691,7 +684,7 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
         </div>
       ) : (
         <div className="space-y-2">
-          {visible.map((w, i) => {
+          {workouts.map((w, i) => {
             const zone =
               hasCardioZone(w.type) && w.avgHR
                 ? hrZone(Math.round(w.avgHR), profile.zones)
@@ -766,24 +759,16 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
               </Link>
             );
           })}
-          {hasMore && (
-            <button
-              onClick={() => setExpanded((v) => !v)}
-              className="w-full flex items-center justify-center gap-1 text-xs font-semibold py-2 rounded-xl transition-colors"
-              style={{
-                backgroundColor: "transparent",
-                color: "var(--color-primary)",
-                border: "none",
-                cursor: "pointer",
-                width: "100%",
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-                {expanded ? "expand_less" : "expand_more"}
-              </span>
-              {expanded ? "Visa färre" : `Visa alla (${workouts.length})`}
-            </button>
-          )}
+          {/* "Se all historik →" leder till dedikerad /fitness/history-sida
+              (byggs i kommande session). Håll dashboarden snabb — all historik
+              används främst av AI-coachen via server-side context-modulen, inte
+              av UI:t. */}
+          <div
+            className="flex items-center justify-center gap-1 text-xs font-semibold pt-2"
+            style={{ color: "var(--color-on-surface-variant)" }}
+          >
+            Se all historik — kommer i kommande session
+          </div>
         </div>
       )}
     </Card>
@@ -794,10 +779,12 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
 
 export default function FitnessPage() {
   useHydrateProfile();
-  // Hämta hela listan — WorkoutHistoryCard trunkerar sig själv via "Visa fler".
+  // Dashboarden visar alltid de 10 senaste passen för snabbt svar + mobil-
+  // vänlig layout. Full historik (för både användaren och AI-coachen) hämtas
+  // via en egen historik-sida + server-side context-modul i senare session.
   const {
     data: workoutsData, error: workoutsError, isLoading: workoutsLoading, mutate: mutateWorkouts,
-  } = useSWR<WorkoutsResponse>("/api/fitness/workouts?limit=200", fetcher, {
+  } = useSWR<WorkoutsResponse>("/api/fitness/workouts?limit=10", fetcher, {
     refreshInterval: 5 * 60 * 1000,
     revalidateOnFocus: false,
   });
@@ -821,7 +808,7 @@ export default function FitnessPage() {
     setSyncing(true);
     try {
       await Promise.all([
-        fetch("/api/fitness/workouts?limit=200&refresh=1", { cache: "no-store" }),
+        fetch("/api/fitness/workouts?limit=10&refresh=1", { cache: "no-store" }),
         fetch("/api/fitness/metrics?refresh=1", { cache: "no-store" }),
       ]);
       await Promise.all([mutateWorkouts(), mutateMetrics()]);
@@ -859,7 +846,7 @@ export default function FitnessPage() {
         <ProfileCard metrics={metricsData} />
       </div>
 
-      <div className="flex flex-col items-center gap-2.5">
+      <div className="flex flex-col items-center gap-4">
         {(workoutsData?.sourceModifiedAt || metricsData?.sourceModifiedAt) && (
           <div
             className="flex items-center justify-center gap-3 text-xs flex-wrap"
