@@ -12,6 +12,10 @@ export interface MetricsResponse {
   vo2MaxDate: string | null;
   hrvMs: number | null;
   hrv7dAvg: number | null;
+  /** Filnamn på källan — Health Metrics_vN */
+  sourceFile: string | null;
+  /** Drive `modifiedTime` = när HealthFit senast skrev Health Metrics-filen */
+  sourceModifiedAt: string | null;
   updatedAt: string;
 }
 
@@ -33,6 +37,8 @@ export async function GET() {
       vo2MaxDate: metrics.vo2MaxDate,
       hrvMs: metrics.hrvMs,
       hrv7dAvg: metrics.hrv7dAvg,
+      sourceFile: healthFile?.filename ?? null,
+      sourceModifiedAt: healthFile?.modifiedTime ?? null,
       updatedAt: new Date().toISOString(),
     };
     return NextResponse.json(body);

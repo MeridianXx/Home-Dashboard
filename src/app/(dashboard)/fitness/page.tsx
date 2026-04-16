@@ -384,12 +384,19 @@ function ProfileCard({ metrics }: { metrics: MetricsResponse | undefined }) {
             style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, marginBottom: 24 }}
           >
             <Stat label="Maxpuls" value={`${maxHR}`} unit="bpm" />
-            <Stat label="Vilopuls 7d" value={`${restingHR}`} unit="bpm" source={metrics?.restingHR != null} />
+            <Stat
+              label="Vilopuls 7d"
+              value={`${restingHR}`}
+              unit="bpm"
+              source={metrics?.restingHR != null}
+              dataDate={metrics?.restingHRDate ?? null}
+            />
             <Stat
               label="VO₂ max"
               value={vo2Max != null ? vo2Max.toFixed(1) : "–"}
               unit="ml/kg/min"
               source={vo2Max != null}
+              dataDate={metrics?.vo2MaxDate ?? null}
             />
             <Stat
               label="Vikt"
@@ -483,7 +490,16 @@ function ProfileCard({ metrics }: { metrics: MetricsResponse | undefined }) {
   );
 }
 
-function Stat({ label, value, unit, source }: { label: string; value: string; unit?: string; source?: boolean }) {
+function Stat({ label, value, unit, source, dataDate }: {
+  label: string;
+  value: string;
+  unit?: string;
+  source?: boolean;
+  /** ISO-datum för den faktiska datapunkten (från HealthFit). Visas som liten
+      notering om datan är äldre än igår — så man ser att HealthFit är släpet. */
+  dataDate?: string | null;
+}) {
+  const staleLabel = dataDate ? staleFreshnessLabel(dataDate) : null;
   return (
     <div
       className="rounded-xl"
@@ -513,14 +529,40 @@ function Stat({ label, value, unit, source }: { label: string; value: string; un
         <div className="text-xl font-bold tabular-nums leading-none" style={{ color: "var(--color-on-surface)" }}>
           {value}
         </div>
-        {unit && (
-          <div className="text-[11px] mt-1 leading-none" style={{ color: "var(--color-on-surface-variant)" }}>
-            {unit}
-          </div>
-        )}
+        <div className="flex items-baseline gap-1.5 mt-1">
+          {unit && (
+            <span className="text-[11px] leading-none" style={{ color: "var(--color-on-surface-variant)" }}>
+              {unit}
+            </span>
+          )}
+          {staleLabel && (
+            <span
+              className="text-[10px] leading-none"
+              style={{ color: "var(--color-outline)" }}
+              title={`Senaste datapunkt: ${dataDate}`}
+            >
+              · {staleLabel}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
+}
+
+/**
+ * Returnerar "14 apr" (eller motsv.) om datapunkten är äldre än igår, annars null.
+ * Tanken är att tyst flagga Health Metrics-data som är batchad från en tidigare dag.
+ */
+function staleFreshnessLabel(iso: string): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today.getTime() - d.getTime()) / 86400000);
+  if (diffDays <= 1) return null; // Idag eller igår är "färskt nog"
+  return d.toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
 }
 
 // ─── Nästa planerade pass ────────────────────────────────────────────────────
@@ -773,20 +815,22 @@ export default function FitnessPage() {
         <ProfileCard metrics={metricsData} />
       </div>
 
-      {(workoutsData?.sourceModifiedAt || workoutsData?.sourceFile) && (
+      {(workoutsData?.sourceModifiedAt || metricsData?.sourceModifiedAt) && (
         <div
-          className="flex items-center justify-center gap-1.5 text-xs"
+          className="flex items-center justify-center gap-3 text-xs flex-wrap"
           style={{ color: "var(--color-on-surface-variant)" }}
-          title={workoutsData.sourceFile ?? undefined}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }} aria-hidden>
-            cloud_sync
+          <span className="flex items-center gap-1.5" title={workoutsData?.sourceFile ?? undefined}>
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }} aria-hidden>cloud_sync</span>
+            <span>
+              Workouts <span className="tabular-nums">{relativeTimeSv(workoutsData?.sourceModifiedAt ?? null) ?? "–"}</span>
+            </span>
           </span>
-          <span>
-            HealthFit synkad
-            {workoutsData.sourceModifiedAt && (
-              <> <span className="tabular-nums">{relativeTimeSv(workoutsData.sourceModifiedAt)}</span></>
-            )}
+          <span className="flex items-center gap-1.5" title={metricsData?.sourceFile ?? undefined}>
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }} aria-hidden>favorite</span>
+            <span>
+              Health Metrics <span className="tabular-nums">{relativeTimeSv(metricsData?.sourceModifiedAt ?? null) ?? "–"}</span>
+            </span>
           </span>
         </div>
       )}
