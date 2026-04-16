@@ -323,6 +323,8 @@ const USER_PROFILES = {
 - **Recharts kurvtyper:** `type="monotone"` = mjuk (bra för HR, spot-priser), `type="basis"` = B-spline, extra mjuk (bra för sensorer som brusar mycket), `type="linear"` = raka segment (bra för elevation där små spikar är meningsfulla — `monotone` utjämnar topparna så de försvinner). Välj kurvtyp efter datasetets karaktär, inte efter estetik.
 - **Geocoding — policy-medveten proxy:** Server-side `User-Agent` + språk-header krävs för Nominatim (annars rate-limited). Cache in-memory per rundad lat/lon (3 decimaler ≈ 100 m) med 24 h TTL — samma runda hamnar alltid i samma bucket. Vid `fetch` utan `AbortSignal.timeout` riskerar en långsam extern tjänst att blockera hela route-handlern; använd `AbortSignal.timeout(5000)` som i övriga API-klienter (`ha.ts`-mönstret).
 - **Apple Watch RPE (Borg CR10):** Kolumnen `RPE` i HealthFit-exporten är 1–10. Svenska etiketter (samma som Apple Fitness app): 1 Lätt · 2 Ganska lätt · 3 Måttlig · 4 Lite jobbig · 5 Jobbig · 6 Ganska svår · 7 Svår · 8 Mycket svår · 9 Extremt svår · 10 Maximal. Använd färgskala i buckets (1–3 grön / 4–6 blå / 7–8 lila / 9–10 röd) — rätt antal distinkta nivåer för att göra samma färg lätt tolkbar utan chart-legend.
+- **Imperativt DOM-bibliotek (Leaflet, etc.) + React HMR:** Bibliotek som själva äger sin DOM-container (Leaflet `MapContainer`, Chart.js, mapbox, vissa wysiwyg-editorer) kraschar vid HMR eller route-byte med "container is being reused"-fel. **Alltid ge komponenten en stabil, värde-baserad `key`** så React ser det som nytt element och remounter rent istället för att försöka återanvända. Exempel: `key={\`${minLat.toFixed(4)},${minLon.toFixed(4)}\`}`. Index-baserade keys räcker inte — de förblir samma vid route-byte mellan olika instanser.
+- **Stale HMR-errors vs faktiska fel:** När man ser ReferenceErrors för variabler som inte längre finns i koden (t.ex. `recovery is not defined`, `ZoneDistribution is not defined`) är det nästan alltid HMR-cache som kör gammal koden. Full reload (`window.location.reload()`) eller radera `.next/` löser det. Verklig kodfel syns i `preview_logs --level=error` (server-side kompileringsfel) — inte bara i `preview_console_logs`.
 
 ---
 
@@ -446,7 +448,16 @@ ANTHROPIC_API_KEY=...               # finns i traningscoach-app/.env
 - [x] `src/lib/fitness/useHydrateProfile.ts` — SWR-hook som anropas från `FitnessPage`, hydrerar Zustand-storen. `revalidateOnFocus: true` + 30-min refresh så Notion-ändringar dyker upp automatiskt.
 - [x] `scripts/create-fitness-notion-dbs.mjs` — skapar både `Träningslogg` och `Profil` idempotent (hoppar rätt DB om `NOTION_FITNESS_*_DB` redan satt).
 - [x] `.github/workflows/deploy.yml` — `NOTION_FITNESS_PROFILE_DB` injiceras som `-e` i `docker run`.
-- [x] `src/components/fitness/PassSummary.tsx` — Apple Fitness-stil 2×N-grid; färgsatta värden (tid=amber, distans=indigo, kcal=röd, kraft=grön, kadens=indigo, takt=grön, puls=röd). Ansträngning som egen rad nederst med färgad nummerring + svensk RPE-etikett + 5-stegs signalstapel. Ordning: Tid/Distans → Aktiva kalorier/Snittakt → Snittkadens/Snittkraft → Snittpuls/Maxpuls → Höjdmeter.
+- [x] `src/components/fitness/PassSummary.tsx` — Apple Fitness-stil 2×N-grid; kompakt layout (`px-4 py-2.5`, `text-xl`). Radordning och färg-palett är fast:
+    1. Träningstid (amber) · Distans (indigo)
+    2. Aktiva kalorier (röd) · Snittpuls (röd)
+    3. Höjdökning (grön, visas alltid; "–" när altituddata saknas) · Snittkraft (grön)
+    4. Snittkadens (indigo) · Snittakt (indigo)
+    5. Maxpuls (röd) · TRIMP (indigo)
+    6. Ansträngning — färgad nummerring + svensk RPE-etikett + signalstapel. Färgen följer RPE-buckets: 1–3 grön, 4–6 blå, 7–8 lila, 9–10 röd.
+
+    HR-enhet: "bpm" (inte "puls").
+- [x] `src/components/fitness/PassCharts.tsx` — `HeartRateCard` slår ihop snittpuls-header, HR-tidsserie (med zon-band) och tid-i-zon-rader i en och samma ruta. Pulsåterhämtning exkluderad tills det finns en HealthKit-källa — HealthFit exporterar inte post-pass-HR.
 - [x] `src/components/fitness/TrackMap.tsx` — `segmentByZone()` delar upp track i polyline-segment per pulszon (Z1 blå → Z5 röd). Zon-legend under kartan. Fallback till enfärgad amber om `zones` saknas.
 - [x] `src/components/fitness/PassCharts.tsx` — `categorizeLaps()` kategoriserar via **session-snittempo** (inte puls eller median): ≤90 % → intervall, ≥120 % → vila, första långa + "slow" → warmup, sista efter sista intervall → cooldown. Micro-laps (<50 m) klassas alltid som vila.
 - [x] RPE-färgskala per nivå: 1–3 grön, 4–6 blå, 7–8 lila, 9–10 röd — används på ringens border, siffran, etiketten och signalstaplarna.
@@ -466,6 +477,10 @@ ANTHROPIC_API_KEY=...               # finns i traningscoach-app/.env
 - **Training Load Focus** (över 42d): viktar varje pass TRIMP med zon-fraktionerna — `Anaerobic = Σ(TRIMP × HRZ5)`, `High Aerobic = Σ(TRIMP × (HRZ3 + HRZ4))`, `Low Aerobic = Σ(TRIMP × (HRZ1 + HRZ2))`. Visas som andelar + absolut TRIMP per kategori.
 - **Dashboardplacering v/s pass-placering av PMC-kort**: testades först på dashboard, sedan flyttades till pass-sidan, slutligen borttaget helt eftersom `CTL=19, ATL=42, TLR=2.14` var vilseledande för en tom backlog (TRIMP-historik på <42 dagar ger aldrig stabil CTL). API-endpointen `/api/fitness/load` finns kvar för framtida statistics-sida när tillräcklig historik har ackumulerats.
 - **Turbopack + `inline-flex`**: vissa className-kombinationer med `inline-flex items-center justify-center` plockas inte upp — computed `display: block`. Workaround: `style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}` inline. Händelse-triggad (osäkert vilka kombinationer som krockar); detektera via `preview_inspect` och flytta till inline-style när det kommer upp igen.
+- **FIT `session.total_ascent` är ofta 0 eller saknas** trots att altitude-records finns (Apple Watch skriver inte summary-fältet konsekvent). Lösning i `fit-parser.ts`: när summaryn är 0/null men altitude-records finns, beräkna själv med glidande 3-punkters medelvärde (sample var 5:e sek) och summera positiva deltas. Ger ~105 m för Sjömarken-rundan där `total_ascent=0`. `elevationGainM` är nu `number | null` — null = ingen altitudedata alls (styrkepass), 0 = plant pass (sällsynt, men korrekt).
+- **Leaflet `MapContainer` kräver stabil `key`** för att inte kraschna vid HMR eller navigation mellan pass: `"Map container is being reused by another instance"` + `Cannot read properties of undefined (reading 'appendChild')`. Använd något passunikt som key — jag använder bbox-koordinaterna (`${minLat.toFixed(4)},${minLon.toFixed(4)}`). Alternativet är att genom unmounta/remounta föräldern via nyckling, vilket också fungerar. Utan detta overleva HMR-fel mellan fast-refresh-cykler.
+- **HR-enhet = "bpm"** i UI, inte "puls". `slag/min` är också OK i läsbar text men `bpm` är koncist nog för kompakta stat-kort.
+- **RPE-färgbuckets** (Borg CR10, svensk mapping): 1–3 grön (Lätt/Ganska lätt/Måttlig), 4–6 blå (Lite jobbig/Jobbig/Ganska svår), 7–8 lila (Svår/Mycket svår), 9–10 röd (Extremt svår/Maximal). Färgen drivs av `rpeColor()` och används på ringens border, siffran, etiketten och signalstaplarna samtidigt — en enda sanningskälla.
 
 #### Session C — AI-analys per pass
 - Anthropic API (`claude-sonnet-4-20250514`) för passanalys
