@@ -669,9 +669,14 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
   metrics: MetricsResponse | undefined;
 }) {
   const profile = useFitnessProfile((s) => s.profile);
-  // Zon-tilldelning baseras på profilens zonintervall (bpm).
-  // `metrics` är med i signaturen för att senare kunna räkna dynamiskt — inte använt just nu.
-  void metrics;
+  void metrics; // kvar för framtida dynamisk zon-uppräkning
+
+  // Default = 15 senaste pass. "Visa alla" expanderar till hela listan så att
+  // äldre pass (t.ex. från mars när april tar de första 10 slotarna) syns.
+  const INITIAL = 15;
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? workouts : workouts.slice(0, INITIAL);
+  const hasMore = workouts.length > INITIAL;
 
   return (
     <Card>
@@ -686,7 +691,7 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
         </div>
       ) : (
         <div className="space-y-2">
-          {workouts.map((w, i) => {
+          {visible.map((w, i) => {
             const zone =
               hasCardioZone(w.type) && w.avgHR
                 ? hrZone(Math.round(w.avgHR), profile.zones)
@@ -761,6 +766,24 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
               </Link>
             );
           })}
+          {hasMore && (
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="w-full flex items-center justify-center gap-1 text-xs font-semibold py-2 rounded-xl transition-colors"
+              style={{
+                backgroundColor: "transparent",
+                color: "var(--color-primary)",
+                border: "none",
+                cursor: "pointer",
+                width: "100%",
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                {expanded ? "expand_less" : "expand_more"}
+              </span>
+              {expanded ? "Visa färre" : `Visa alla (${workouts.length})`}
+            </button>
+          )}
         </div>
       )}
     </Card>
@@ -771,9 +794,10 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
 
 export default function FitnessPage() {
   useHydrateProfile();
+  // Hämta hela listan — WorkoutHistoryCard trunkerar sig själv via "Visa fler".
   const {
     data: workoutsData, error: workoutsError, isLoading: workoutsLoading, mutate: mutateWorkouts,
-  } = useSWR<WorkoutsResponse>("/api/fitness/workouts?limit=10", fetcher, {
+  } = useSWR<WorkoutsResponse>("/api/fitness/workouts?limit=200", fetcher, {
     refreshInterval: 5 * 60 * 1000,
     revalidateOnFocus: false,
   });
@@ -783,10 +807,30 @@ export default function FitnessPage() {
     refreshInterval: 10 * 60 * 1000,
     revalidateOnFocus: false,
   });
-  const { data: metricsData } = useSWR<MetricsResponse>("/api/fitness/metrics", fetcher, {
+  const { data: metricsData, mutate: mutateMetrics } = useSWR<MetricsResponse>("/api/fitness/metrics", fetcher, {
     refreshInterval: 15 * 60 * 1000,
     revalidateOnFocus: false,
   });
+
+  // "Synka nu" — tvinga fram färskt hämt från Drive förbi 5-min-cachen.
+  // Fetch:ar med ?refresh=1 mot API:erna (som skippar in-memory-cachen) och
+  // låter sedan SWR validera in det nya svaret.
+  const [syncing, setSyncing] = useState(false);
+  const syncNow = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      await Promise.all([
+        fetch("/api/fitness/workouts?limit=200&refresh=1", { cache: "no-store" }),
+        fetch("/api/fitness/metrics?refresh=1", { cache: "no-store" }),
+      ]);
+      await Promise.all([mutateWorkouts(), mutateMetrics()]);
+    } catch (err) {
+      console.error("[fitness/sync]", err);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -815,25 +859,52 @@ export default function FitnessPage() {
         <ProfileCard metrics={metricsData} />
       </div>
 
-      {(workoutsData?.sourceModifiedAt || metricsData?.sourceModifiedAt) && (
-        <div
-          className="flex items-center justify-center gap-3 text-xs flex-wrap"
-          style={{ color: "var(--color-on-surface-variant)" }}
+      <div className="flex flex-col items-center gap-2.5">
+        {(workoutsData?.sourceModifiedAt || metricsData?.sourceModifiedAt) && (
+          <div
+            className="flex items-center justify-center gap-3 text-xs flex-wrap"
+            style={{ color: "var(--color-on-surface-variant)" }}
+          >
+            <span className="flex items-center gap-1.5" title={workoutsData?.sourceFile ?? undefined}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }} aria-hidden>cloud_sync</span>
+              <span>
+                Workouts <span className="tabular-nums">{relativeTimeSv(workoutsData?.sourceModifiedAt ?? null) ?? "–"}</span>
+              </span>
+            </span>
+            <span className="flex items-center gap-1.5" title={metricsData?.sourceFile ?? undefined}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }} aria-hidden>favorite</span>
+              <span>
+                Health Metrics <span className="tabular-nums">{relativeTimeSv(metricsData?.sourceModifiedAt ?? null) ?? "–"}</span>
+              </span>
+            </span>
+          </div>
+        )}
+        <button
+          onClick={syncNow}
+          disabled={syncing}
+          className="flex items-center gap-1.5 text-xs font-semibold rounded-full"
+          style={{
+            backgroundColor: "var(--color-surface-container)",
+            color: "var(--color-on-surface)",
+            border: "1px solid var(--color-outline-variant)",
+            padding: "6px 14px",
+            cursor: syncing ? "wait" : "pointer",
+            opacity: syncing ? 0.7 : 1,
+          }}
         >
-          <span className="flex items-center gap-1.5" title={workoutsData?.sourceFile ?? undefined}>
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }} aria-hidden>cloud_sync</span>
-            <span>
-              Workouts <span className="tabular-nums">{relativeTimeSv(workoutsData?.sourceModifiedAt ?? null) ?? "–"}</span>
-            </span>
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: 14,
+              animation: syncing ? "spin-anim 0.8s linear infinite" : undefined,
+            }}
+            aria-hidden
+          >
+            sync
           </span>
-          <span className="flex items-center gap-1.5" title={metricsData?.sourceFile ?? undefined}>
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }} aria-hidden>favorite</span>
-            <span>
-              Health Metrics <span className="tabular-nums">{relativeTimeSv(metricsData?.sourceModifiedAt ?? null) ?? "–"}</span>
-            </span>
-          </span>
-        </div>
-      )}
+          {syncing ? "Synkar…" : "Synka nu"}
+        </button>
+      </div>
     </div>
   );
 }

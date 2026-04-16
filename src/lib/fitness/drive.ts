@@ -90,11 +90,14 @@ async function downloadFile(file: drive_v3.Schema$File): Promise<Buffer> {
 /**
  * Hämta senaste Workouts_vN.xlsx som Buffer, med 5-min cache.
  * Returnerar även filnamn och modifiedTime (senaste HealthFit-export till Drive).
+ * Sätt `opts.skipCache=true` för att tvinga fram ett färskt anrop mot Drive.
  */
-export async function getLatestWorkoutsXlsx(): Promise<{ buffer: Buffer; filename: string; modifiedTime: string | null } | null> {
-  const cached = cache.get("workouts");
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return { buffer: cached.buffer, filename: cached.filename, modifiedTime: cached.modifiedTime };
+export async function getLatestWorkoutsXlsx(opts: { skipCache?: boolean } = {}): Promise<{ buffer: Buffer; filename: string; modifiedTime: string | null } | null> {
+  if (!opts.skipCache) {
+    const cached = cache.get("workouts");
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return { buffer: cached.buffer, filename: cached.filename, modifiedTime: cached.modifiedTime };
+    }
   }
   const file = await findLatestFile("Workouts_v");
   if (!file?.id || !file.name) return null;
@@ -216,10 +219,12 @@ export async function downloadFitFile(fileId: string): Promise<{ buffer: Buffer;
 }
 
 /** Hämta senaste Health_Metrics_vN.xlsx som Buffer. */
-export async function getLatestHealthMetricsXlsx(): Promise<{ buffer: Buffer; filename: string; modifiedTime: string | null } | null> {
-  const cached = cache.get("health");
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return { buffer: cached.buffer, filename: cached.filename, modifiedTime: cached.modifiedTime };
+export async function getLatestHealthMetricsXlsx(opts: { skipCache?: boolean } = {}): Promise<{ buffer: Buffer; filename: string; modifiedTime: string | null } | null> {
+  if (!opts.skipCache) {
+    const cached = cache.get("health");
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return { buffer: cached.buffer, filename: cached.filename, modifiedTime: cached.modifiedTime };
+    }
   }
   // HealthFit exporterar som "Health Metrics_vN" (med mellanslag),
   // men äldre versioner kan ha hetat "Health_Metrics_vN".

@@ -19,9 +19,10 @@ export interface MetricsResponse {
   updatedAt: string;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const skipCache = new URL(req.url).searchParams.get("refresh") === "1";
   try {
-    const healthFile = await getLatestHealthMetricsXlsx();
+    const healthFile = await getLatestHealthMetricsXlsx({ skipCache });
     const metrics = healthFile
       ? parseHealthMetrics(healthFile.buffer)
       : {

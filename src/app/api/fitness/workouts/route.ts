@@ -8,9 +8,10 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const limit = parseInt(url.searchParams.get("limit") ?? "10", 10);
+  const skipCache = url.searchParams.get("refresh") === "1";
 
   try {
-    const file = await getLatestWorkoutsXlsx();
+    const file = await getLatestWorkoutsXlsx({ skipCache });
     if (!file) {
       const empty: WorkoutsResponse = {
         workouts: [],
