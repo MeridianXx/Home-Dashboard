@@ -15,6 +15,7 @@ export async function GET(req: Request) {
       const empty: WorkoutsResponse = {
         workouts: [],
         sourceFile: null,
+        sourceModifiedAt: null,
         updatedAt: new Date().toISOString(),
       };
       return NextResponse.json(empty);
@@ -23,6 +24,7 @@ export async function GET(req: Request) {
     const body: WorkoutsResponse = {
       workouts,
       sourceFile: file.filename,
+      sourceModifiedAt: file.modifiedTime,
       updatedAt: new Date().toISOString(),
     };
     return NextResponse.json(body);

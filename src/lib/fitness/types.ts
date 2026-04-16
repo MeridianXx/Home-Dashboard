@@ -97,6 +97,8 @@ export interface FitnessProfile {
 export interface WorkoutsResponse {
   workouts: Workout[];
   sourceFile: string | null;
+  /** Drive `modifiedTime` på källfilen — dvs när HealthFit senast synkade */
+  sourceModifiedAt: string | null;
   updatedAt: string;
 }
 

@@ -29,6 +29,7 @@ interface CacheEntry {
   timestamp: number;
   buffer: Buffer;
   filename: string;
+  modifiedTime: string | null;
 }
 const CACHE_TTL = 5 * 60 * 1000; // 5 min
 const cache = new Map<string, CacheEntry>();
@@ -88,18 +89,19 @@ async function downloadFile(file: drive_v3.Schema$File): Promise<Buffer> {
 
 /**
  * Hämta senaste Workouts_vN.xlsx som Buffer, med 5-min cache.
- * Returnerar även filnamnet för visning/debug.
+ * Returnerar även filnamn och modifiedTime (senaste HealthFit-export till Drive).
  */
-export async function getLatestWorkoutsXlsx(): Promise<{ buffer: Buffer; filename: string } | null> {
+export async function getLatestWorkoutsXlsx(): Promise<{ buffer: Buffer; filename: string; modifiedTime: string | null } | null> {
   const cached = cache.get("workouts");
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return { buffer: cached.buffer, filename: cached.filename };
+    return { buffer: cached.buffer, filename: cached.filename, modifiedTime: cached.modifiedTime };
   }
   const file = await findLatestFile("Workouts_v");
   if (!file?.id || !file.name) return null;
   const buffer = await downloadFile(file);
-  cache.set("workouts", { timestamp: Date.now(), buffer, filename: file.name });
-  return { buffer, filename: file.name };
+  const modifiedTime = file.modifiedTime ?? null;
+  cache.set("workouts", { timestamp: Date.now(), buffer, filename: file.name, modifiedTime });
+  return { buffer, filename: file.name, modifiedTime };
 }
 
 // ─── FIT-filer ───────────────────────────────────────────────────────────────
@@ -214,10 +216,10 @@ export async function downloadFitFile(fileId: string): Promise<{ buffer: Buffer;
 }
 
 /** Hämta senaste Health_Metrics_vN.xlsx som Buffer. */
-export async function getLatestHealthMetricsXlsx(): Promise<{ buffer: Buffer; filename: string } | null> {
+export async function getLatestHealthMetricsXlsx(): Promise<{ buffer: Buffer; filename: string; modifiedTime: string | null } | null> {
   const cached = cache.get("health");
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return { buffer: cached.buffer, filename: cached.filename };
+    return { buffer: cached.buffer, filename: cached.filename, modifiedTime: cached.modifiedTime };
   }
   // HealthFit exporterar som "Health Metrics_vN" (med mellanslag),
   // men äldre versioner kan ha hetat "Health_Metrics_vN".
@@ -226,6 +228,7 @@ export async function getLatestHealthMetricsXlsx(): Promise<{ buffer: Buffer; fi
     (await findLatestFile("Health_Metrics_v"));
   if (!file?.id || !file.name) return null;
   const buffer = await downloadFile(file);
-  cache.set("health", { timestamp: Date.now(), buffer, filename: file.name });
-  return { buffer, filename: file.name };
+  const modifiedTime = file.modifiedTime ?? null;
+  cache.set("health", { timestamp: Date.now(), buffer, filename: file.name, modifiedTime });
+  return { buffer, filename: file.name, modifiedTime };
 }

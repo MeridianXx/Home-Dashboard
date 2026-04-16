@@ -48,6 +48,26 @@ function formatShortDate(iso: string): string {
   }
 }
 
+/**
+ * Relativ tid till svensk text — "nyss", "för 12 min sedan", "för 3 h sedan",
+ * "för 2 dagar sedan", "den 10 apr." vid >7 dagar.
+ */
+function relativeTimeSv(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const diff = Date.now() - d.getTime();
+  const sec = Math.round(diff / 1000);
+  if (sec < 45) return "nyss";
+  const min = Math.round(sec / 60);
+  if (min < 60) return `för ${min} min sedan`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `för ${h} h sedan`;
+  const days = Math.round(h / 24);
+  if (days < 7) return `för ${days} ${days === 1 ? "dag" : "dagar"} sedan`;
+  return `den ${d.toLocaleDateString("sv-SE", { day: "numeric", month: "short" })}`;
+}
+
 function daysUntil(iso: string): number | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -753,9 +773,21 @@ export default function FitnessPage() {
         <ProfileCard metrics={metricsData} />
       </div>
 
-      {workoutsData?.sourceFile && (
-        <div className="text-xs text-center" style={{ color: "var(--color-outline)" }}>
-          Källa: {workoutsData.sourceFile}
+      {(workoutsData?.sourceModifiedAt || workoutsData?.sourceFile) && (
+        <div
+          className="flex items-center justify-center gap-1.5 text-xs"
+          style={{ color: "var(--color-on-surface-variant)" }}
+          title={workoutsData.sourceFile ?? undefined}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }} aria-hidden>
+            cloud_sync
+          </span>
+          <span>
+            HealthFit synkad
+            {workoutsData.sourceModifiedAt && (
+              <> <span className="tabular-nums">{relativeTimeSv(workoutsData.sourceModifiedAt)}</span></>
+            )}
+          </span>
         </div>
       )}
     </div>
