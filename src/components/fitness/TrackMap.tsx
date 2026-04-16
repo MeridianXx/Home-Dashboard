@@ -107,6 +107,10 @@ export default function TrackMap({ track, bounds, height = 260, zones }: Props) 
         onTouchStart={(e) => e.stopPropagation()}
       >
         <MapContainer
+          // Unik key per pass så Leaflet inte försöker återanvända sin DOM-container
+          // vid HMR / navigation mellan pass → undviker "Map container is being
+          // reused by another instance"-felet.
+          key={`${minLat.toFixed(4)},${minLon.toFixed(4)}`}
           bounds={[[minLat, minLon], [maxLat, maxLon]]}
           boundsOptions={{ padding: [20, 20] }}
           scrollWheelZoom={false}
