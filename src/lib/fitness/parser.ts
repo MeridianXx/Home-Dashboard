@@ -137,7 +137,7 @@ export function parseAllWorkouts(buffer: Buffer): Workout[] {
       movingTimeSec: toSec(row[I.movingTime]),
       elapsedTimeSec: toSec(row[I.elapsedTime]),
       distanceM: toMeters(row[I.distance]),
-      elevationGainM: num(row[I.elevation]) ?? 0,
+      elevationGainM: num(row[I.elevation]),
       activeCalories: num(row[I.calories]) ?? 0,
       totalCalories: num(row[I.totalCalories]),
       avgCadence: num(row[I.avgCadence]),

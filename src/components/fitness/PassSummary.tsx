@@ -112,9 +112,14 @@ export function PassSummary({ workout, fitSummary }: { workout: Workout | null; 
     rows.push({ label: "Snittpuls", value: Math.round(workout.avgHR).toString(), unit: "puls", color: "#e5484d" });
   }
 
-  // Rad 3 — Höjdökning ska alltid visas (även 0 m), Snittkraft grön
-  const elev = workout?.elevationGainM ?? fitSummary?.elevationGainM ?? 0;
-  rows.push({ label: "Höjdökning", value: Math.round(elev).toString(), unit: "m", color: "#7fb8a3" });
+  // Rad 3 — Höjdökning visas alltid; "–" om data saknas (0 m betyder plant pass)
+  const elev = workout?.elevationGainM ?? fitSummary?.elevationGainM ?? null;
+  rows.push({
+    label: "Höjdökning",
+    value: elev == null ? "–" : Math.round(elev).toString(),
+    unit: elev == null ? undefined : "m",
+    color: "#7fb8a3",
+  });
   const power = workout?.avgPower ?? fitSummary?.avgPower;
   if (power != null && power > 0) {
     rows.push({ label: "Snittkraft", value: Math.round(power).toString(), unit: "W", color: "#7fb8a3" });

@@ -39,7 +39,8 @@ export interface FitSummary {
   totalTimeSec: number;
   movingTimeSec: number;
   distanceM: number;
-  elevationGainM: number;
+  /** null = ingen altitudedata alls (t.ex. styrkepass), 0 = platt pass */
+  elevationGainM: number | null;
   avgHR: number | null;
   maxHR: number | null;
   avgPower: number | null;
@@ -207,6 +208,33 @@ export async function parseFit(buffer: Buffer, maxTrackPoints = 1200): Promise<P
   const sourcePoints = track.length;
   const decimated = decimate(track, maxTrackPoints);
 
+  // Fall-back-beräkning av höjdökning från track-altituden om session-summaryn
+  // saknar den. Apple Watch skriver ibland inte `total_ascent` trots att altitude-
+  // records finns. Summera bara positiva steg (ignorera tillfälligt brus genom
+  // att kräva ≥0.5 m förändring per steg). Returnerar null om helt utan
+  // altitudedata så UI kan visa "–" istället för "0 m".
+  const hasAltitudeData = track.some((p) => typeof p.alt === "number");
+  const computedAscent = hasAltitudeData ? (() => {
+    // Sampla var 5:e sekund så att 1Hz-brus inte blåser upp summan, och jämför
+    // glidande medelvärde över 3 samplar för att reducera oscillation.
+    const alts: number[] = [];
+    for (let i = 0; i < track.length; i += 5) {
+      const a = track[i]?.alt;
+      if (typeof a === "number") alts.push(a);
+    }
+    if (alts.length < 3) return 0;
+    const smoothed: number[] = alts.map((_, i) => {
+      const win = alts.slice(Math.max(0, i - 1), Math.min(alts.length, i + 2));
+      return win.reduce((s, v) => s + v, 0) / win.length;
+    });
+    let sum = 0;
+    for (let i = 1; i < smoothed.length; i++) {
+      const d = smoothed[i] - smoothed[i - 1];
+      if (d > 0) sum += d;
+    }
+    return sum;
+  })() : null;
+
   // ── Laps ──
   const laps: FitLap[] = rawLaps.map((l, i) => {
     const s = toEpochSec(l.start_time) ?? startSec;
@@ -235,7 +263,16 @@ export async function parseFit(buffer: Buffer, maxTrackPoints = 1200): Promise<P
     totalTimeSec: Math.round(session?.total_timer_time ?? session?.total_elapsed_time ?? 0),
     movingTimeSec: Math.round(session?.total_timer_time ?? 0),
     distanceM: Math.round(session?.total_distance ?? 0),
-    elevationGainM: Math.round(session?.total_ascent ?? 0),
+    // Apple Watch skriver ibland 0 även när altitude-records visar tydlig
+    // höjdskillnad — använd den beräknade datan i det fallet. Om altitude-
+    // records saknas helt → null så UI visar "–".
+    elevationGainM: computedAscent === null
+      ? null
+      : Math.round(
+          (typeof session?.total_ascent === "number" && session.total_ascent > 0)
+            ? session.total_ascent
+            : computedAscent,
+        ),
     avgHR: typeof session?.avg_heart_rate === "number" ? session.avg_heart_rate : null,
     maxHR: typeof session?.max_heart_rate === "number" ? session.max_heart_rate : null,
     avgPower: typeof session?.avg_power === "number" ? session.avg_power : null,

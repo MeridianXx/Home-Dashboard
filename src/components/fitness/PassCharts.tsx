@@ -267,9 +267,6 @@ export function HeartRateCard({
       {/* Zondistribution */}
       {zoneRows.length > 0 && (
         <div className="px-5 py-4 space-y-2" style={{ borderTop: "1px solid var(--color-outline-variant)" }}>
-          <div className="text-[11px] font-semibold mb-2" style={{ color: "var(--color-on-surface-variant)" }}>
-            Tid i pulsintervall
-          </div>
           {zoneRows.map((r) => (
             <div key={r.key} className="flex items-center gap-3">
               <div
@@ -303,9 +300,6 @@ export function HeartRateCard({
         </div>
       )}
 
-      {/* Pulsåterhämtning — kräver post-pass-data som HealthFit inte exporterar
-          just nu. Placeholder tas bort när vi har datakällan (kräver
-          HealthKit-integration). */}
     </div>
   );
 }

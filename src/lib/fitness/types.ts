@@ -18,8 +18,8 @@ export interface Workout {
   elapsedTimeSec: number;
   /** Distans i meter */
   distanceM: number;
-  /** Höjdmeter i meter */
-  elevationGainM: number;
+  /** Höjdmeter i meter — null om kolumnen saknas i exporten */
+  elevationGainM: number | null;
   /** Aktiv förbränning (kcal) */
   activeCalories: number;
   /** Total förbränning inkl. vilometabolism (kcal) */
