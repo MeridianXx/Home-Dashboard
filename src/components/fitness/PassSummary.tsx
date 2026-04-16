@@ -109,7 +109,7 @@ export function PassSummary({ workout, fitSummary }: { workout: Workout | null; 
     rows.push({ label: "Aktiva kalorier", value: Math.round(workout.activeCalories).toString(), unit: "kcal", color: "#e5484d" });
   }
   if (workout?.avgHR != null && workout.avgHR > 0) {
-    rows.push({ label: "Snittpuls", value: Math.round(workout.avgHR).toString(), unit: "puls", color: "#e5484d" });
+    rows.push({ label: "Snittpuls", value: Math.round(workout.avgHR).toString(), unit: "bpm", color: "#e5484d" });
   }
 
   // Rad 3 — Höjdökning visas alltid; "–" om data saknas (0 m betyder plant pass)
@@ -136,7 +136,7 @@ export function PassSummary({ workout, fitSummary }: { workout: Workout | null; 
 
   // Rad 5
   if (workout?.maxHR != null && workout.maxHR > 0) {
-    rows.push({ label: "Maxpuls", value: Math.round(workout.maxHR).toString(), unit: "puls", color: "#e5484d" });
+    rows.push({ label: "Maxpuls", value: Math.round(workout.maxHR).toString(), unit: "bpm", color: "#e5484d" });
   }
   if (workout?.trimp != null && workout.trimp > 0) {
     rows.push({ label: "TRIMP", value: Math.round(workout.trimp).toString(), color: "var(--color-primary)" });

@@ -246,7 +246,7 @@ export function HeartRateCard({
               {Math.round(avgHR)}
             </span>
             <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#e5484d", opacity: 0.75 }}>
-              puls
+              bpm
             </span>
             {maxHR != null && maxHR > 0 && (
               <span className="text-xs ml-3" style={{ color: "var(--color-on-surface-variant)" }}>
