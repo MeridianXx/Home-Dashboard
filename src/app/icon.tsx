@@ -1,13 +1,39 @@
 import { ImageResponse } from "next/og";
 
-export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
 /**
- * PNG favicon fallback — used by Safari on macOS which doesn't support SVG favicons.
- * Modern browsers (Chrome, Firefox, Edge) prefer the SVG icon.svg instead.
+ * Genererar PNG-ikoner i flera storlekar:
+ *   /icon/32   — favicon-fallback för browsers som inte stöder /icon.svg
+ *   /icon/192  — PWA-standard, krävs av iOS "Lägg till på hemskärmen"-dialogen
+ *                när "Öppna som webbapp" är på (annars faller iOS tillbaka till
+ *                en autogenererad bokstavsikon på theme_color-bakgrund)
+ *   /icon/512  — PWA-standard, splash screen och stor app-list-vy
  */
-export default function Icon() {
+export function generateImageMetadata() {
+  return [
+    { contentType: "image/png", size: { width: 32, height: 32 }, id: "32" },
+    { contentType: "image/png", size: { width: 192, height: 192 }, id: "192" },
+    { contentType: "image/png", size: { width: 512, height: 512 }, id: "512" },
+  ];
+}
+
+export default async function Icon({
+  id,
+}: {
+  // Next.js 16: id kommer som Promise (se generate-image-metadata docs)
+  id: Promise<string | number>;
+}) {
+  const iconId = await id;
+  const size = parseInt(String(iconId), 10);
+  // Husikonen får ~83 % av canvas (matchar apple-icon.tsx:s 150/180-proportion).
+  // För 32×32 favicon låter vi den fylla mer (~88 %) så strecken syns.
+  const innerScale = size <= 32 ? 0.88 : 0.83;
+  const innerSize = Math.round(size * innerScale);
+  // Strokebredd skalas med storlek så att linjen är ungefär lika "tjock" visuellt
+  // i alla varianter (1.5 vid 32px → 12 vid 512px).
+  const strokeWidth = Math.max(1.5, Math.round((size / 512) * 12));
+
   return new ImageResponse(
     (
       <div
@@ -17,16 +43,16 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "transparent",
+          background: "#fffcf7",
         }}
       >
         <svg
-          width="32"
-          height="32"
+          width={innerSize}
+          height={innerSize}
           viewBox="0 0 24 24"
           fill="none"
           stroke="#475bc2"
-          strokeWidth="2"
+          strokeWidth={(strokeWidth * 24) / innerSize}
           strokeLinecap="round"
           strokeLinejoin="round"
           xmlns="http://www.w3.org/2000/svg"
@@ -36,6 +62,6 @@ export default function Icon() {
         </svg>
       </div>
     ),
-    size,
+    { width: size, height: size },
   );
 }
