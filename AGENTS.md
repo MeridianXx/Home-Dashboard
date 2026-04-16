@@ -485,15 +485,19 @@ ANTHROPIC_API_KEY=...               # finns i traningscoach-app/.env
 - **HealthFit sync-cadence** (iOS-appen vi konsumerar): triggas när Apple Watch → iPhone-sync landar ett nytt pass i HealthKit + ~minut bakgrundskörning, förutsatt att **Background App Refresh är på** för HealthFit. Ingen "sync nu"-knapp i standard-UI:t — öppna appen för att tvinga igenom en export. Daily summary-metrics går en separat cykel och kommer typiskt dagen efter klocka stämplat klar.
 - **"Synka nu"-knapp + cachebypass:** `drive.ts` har 5-min in-memory-cache → nya Drive-filer syns först efter utgången. Knappen i dashboard-footern anropar API:erna med `?refresh=1`, som propageras via `{ skipCache: true }` till drive-helpers och tvingar nyhämtning. Mönstret: `getLatestWorkoutsXlsx({ skipCache })` / `getLatestHealthMetricsXlsx({ skipCache })`. Använd samma pattern i andra Drive-endpoints om de läggs till. Efter API-anropet: `mutate()` på SWR-hookarna så UI:t reflekterar det nya svaret direkt.
 - **Dashboard-listan = alltid 10 senaste pass.** Tidigare försök: öka till 200 + lokal "Visa alla"-expansion. Det blev kaotiskt när listan växte till 40+ pass + alla ska laddas i hukt minnestillstånd på mobilen. Istället: dashboarden är en **snabb-vy** (10 pass), full historik kommer i en egen `/fitness/history`-sida (paginerad, filtrerbar — byggs i kommande session). AI-coachen får hela historiken via en separat server-side `context.ts`-modul — den behöver aldrig gå via UI-endpoints. Separera UI-context från AI-context från början.
+- **`buildFreshnessTooltip()`-pattern:** När man exponerar "synk-status" från batched externa källor (Drive/cloud-export/cron-jobb) vill användaren ofta veta *både* när filen skrevs *och* när senaste datapunkten är från. Bygg en multi-linje-tooltip som listar båda + källfilnamn för debug: `Fil skriven i Drive: 12:12 idag\nSenaste pass: 15 apr.\nKälla: Workouts_v5`. HTML `title`-attributet klarar `\n` och native browser tooltip respekterar det. På mobil: tap-and-hold triggar tooltipen. Helper-formatterare som är bra att ha kvar: `formatAbsoluteSv()` (HH:MM idag / HH:MM igår / 10 apr kl. 13:42), `formatDateSv()` ("16 apr"), `relativeTimeSv()` ("för 3 h sedan"), `pickLatest()` (senaste ISO-datum ur en array med mixade null/undefined).
+- **Apple Fitness-stil summary-pattern:** `px-4 py-2.5` + `text-xl` ger kompakt men läsbar stat-grid (2 kolumner × N rader + separat rad för ansträngning). Radordningen för pass-summary är låst:  Träningstid/Distans → Aktiva kalorier/Snittpuls → Höjdökning/Snittkraft → Snittkadens/Snittakt → Maxpuls/TRIMP → Ansträngning. Färg-palett: amber (tid), indigo (distans/kadens/takt/TRIMP), röd (kalorier/puls), grön (höjd/kraft), RPE-färg-buckets (ansträngning). Värden och enheter i samma tokenfärg med `opacity: 0.75` på enheten. Visa "–" när datafältet är `null` så man skiljer "saknar data" från "0".
 
-#### Session C — AI-analys per pass
+#### Session C — AI-analys per pass + dedikerad historik-sida
 - Anthropic API (`claude-sonnet-4-20250514`) för passanalys
-- Prompt inkluderar: profil, pulszoner, passdata, Sleep HRV senaste 3 dagarna, senaste 10 passens TRIMP
+- `context.ts` läser hela xlsx-exporten och bygger prompt-paket: profil, pulszoner, senaste 20 pass detaljerat + veckovisa aggregat 20 veckor bakåt, Sleep HRV senaste 3 dygn, TRIMP-trend, TLR/CTL/ATL. Viktigt: context-modulen går *aldrig* via UI-API:erna — den hämtar direkt från `drive.ts` server-side för att slippa limit-paginering.
 - Analys visas i UI + sparas i Notion Träningslogg
+- `/fitness/history` — paginerad historik-sida (ersätter "Visa alla"-stubben i dashboard). Filter på typ + datumintervall, månadsgruppering.
 
 - [ ] `src/lib/fitness/claude.ts`
 - [ ] `src/lib/fitness/context.ts`
 - [ ] `src/app/api/fitness/analyse/route.ts`
+- [ ] `src/app/(dashboard)/fitness/history/page.tsx`
 
 #### Session D — Planering & AI-coach
 - Vecko-/månadsvy för planerade pass
