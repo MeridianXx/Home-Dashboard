@@ -43,8 +43,10 @@ type HvacData     = {
   };
 };
 type VacuumData   = { state: string; battery_pct: number | null; status: string | null; current_room: string | null; cleaned_area: number | null; charging: boolean; cleaning: boolean; do_not_disturb: boolean };
+type WeatherPeriod = { period: string; label: string; date: string; temperature: number; condition: string; precipitation: number };
 type WeatherData  = {
   current: { state: string; temperature: number; humidity: number; wind_speed: number; wind_bearing: number };
+  periods: WeatherPeriod[];
   forecast: Array<{ datetime: string; condition: string; temperature: number; templow: number; precipitation: number; wind_speed: number }>;
 };
 type MediaPlayer  = {
@@ -967,40 +969,42 @@ const DAY_NAMES_SV = ["sön", "mån", "tis", "ons", "tor", "fre", "lör"];
 // ─── Väderrad (kompakt, ovanför favoriter) ──────────────────────────────────
 function WeatherStrip({ data }: { data: WeatherData }) {
   const c = data.current;
-  // Skippa idag ur prognosen — vänster sida visar redan aktuellt väder
-  const today = new Date().toDateString();
-  const upcoming = data.forecast.filter(f => new Date(f.datetime).toDateString() !== today).slice(0, 3);
+  const periods = data.periods ?? [];
+  const forecast = data.forecast ?? [];
   return (
     <div className="flex items-center">
-      {/* Aktuellt — just nu */}
-      <div className="flex items-center gap-2 shrink-0" style={{ marginRight: "auto" }}>
-        <span className="material-symbols-outlined"
-          style={{ fontSize: 22, color: "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1" }}>
-          {weatherIcon(c.state)}
-        </span>
-        <span className="text-base font-bold" style={{ color: "var(--color-on-surface)" }}>
-          {Math.round(c.temperature)}°
-        </span>
-        <span className="text-xs"
-          style={{ color: "var(--color-on-surface-variant)", opacity: 0.6 }}>
-          {Math.round(c.wind_speed)} m/s
-        </span>
-      </div>
+      {/* Perioder: aktuell + 3 kommande (FM/EM/Kväll/Natt) */}
+      {periods.map((p, i) => (
+        <div key={`${p.date}-${p.period}`} className="flex flex-col items-center"
+          style={{ width: 44 }}>
+          <span className="text-[10px] font-medium uppercase"
+            style={{ color: i === 0 ? "var(--color-on-surface)" : "var(--color-on-surface-variant)", opacity: i === 0 ? 0.8 : 0.55, fontWeight: i === 0 ? 700 : 500 }}>
+            {p.label}
+          </span>
+          <span className="material-symbols-outlined"
+            style={{ fontSize: 17, color: "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1", margin: "2px 0" }}>
+            {weatherIcon(i === 0 ? c.state : p.condition)}
+          </span>
+          <span className="text-[11px] font-semibold leading-none" style={{ color: "var(--color-on-surface)" }}>
+            {i === 0 ? Math.round(c.temperature) : p.temperature}°
+          </span>
+        </div>
+      ))}
 
-      {upcoming.length > 0 && (
+      {forecast.length > 0 && (
         <>
           {/* Separator */}
-          <div className="shrink-0" style={{ width: 1, height: 28, backgroundColor: "var(--color-outline-variant)", opacity: 0.3, margin: "0 10px" }} />
+          <div className="shrink-0" style={{ width: 1, height: 28, backgroundColor: "var(--color-outline-variant)", opacity: 0.3, margin: "0 8px 0 4px" }} />
 
-          {/* Prognos — imorgon + 2 dagar */}
-          {upcoming.map((f) => {
+          {/* Dagsprognos — 3 dagar */}
+          {forecast.map((f) => {
             const d = new Date(f.datetime);
             const dayLabel = DAY_NAMES_SV[d.getDay()];
             return (
               <div key={f.datetime} className="flex flex-col items-center"
-                style={{ width: 48 }}>
+                style={{ width: 44 }}>
                 <span className="text-[10px] font-medium uppercase"
-                  style={{ color: "var(--color-on-surface-variant)", opacity: 0.6 }}>{dayLabel}</span>
+                  style={{ color: "var(--color-on-surface-variant)", opacity: 0.55 }}>{dayLabel}</span>
                 <span className="material-symbols-outlined"
                   style={{ fontSize: 17, color: "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1", margin: "2px 0" }}>
                   {weatherIcon(f.condition)}
