@@ -243,11 +243,12 @@ function LightingCard({ data, onRefresh, loadingKey, runAction }: { data: Lights
                     </p>
                   </div>
                 </Pressable>
-                {/* Right: expand — tall touch target with subtle left divider */}
+                {/* Right: expand — full-height touch target, short centered divider */}
                 <button onClick={() => setExpandedId(open ? null : area.area_id)}
                   className="shrink-0 flex items-center justify-center self-stretch"
-                  style={{ width: 44, borderLeft: "1px solid var(--color-outline-variant)", opacity: 0.3 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--color-on-surface-variant)" }}>
+                  style={{ width: 44, position: "relative" }}>
+                  <div style={{ position: "absolute", left: 0, top: "30%", height: "40%", width: 1, backgroundColor: "var(--color-outline-variant)", opacity: 0.3 }} />
+                  <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--color-on-surface-variant)", opacity: 0.3 }}>
                     {open ? "expand_less" : "expand_more"}
                   </span>
                 </button>
