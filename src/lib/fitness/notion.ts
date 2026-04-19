@@ -60,28 +60,141 @@ function mapPlan(page: NotionPageLike): PlannedWorkout {
 
 /**
  * Hämta planerade pass från Notion, sorterade datum stigande.
- * Filtrera på status om given.
+ * Filtrera på status om given. Hämtar alla (paginerat).
  */
 export async function getPlannedWorkouts(status?: string): Promise<PlannedWorkout[]> {
   if (!PLANS_DB) throw new Error("NOTION_FITNESS_PLANS_DB saknas i env");
-  const n = getClient();
   const dsId = await resolveDataSourceId(PLANS_DB);
 
-  // Notion v5: query mot data source, inte database
-  const dsApi = (n as unknown as {
-    dataSources: { query: (args: unknown) => Promise<{ results: NotionPageLike[] }> };
-  }).dataSources;
+  const results: PlannedWorkout[] = [];
+  let cursor: string | undefined;
+  do {
+    const params: {
+      data_source_id: string;
+      sorts?: unknown;
+      page_size?: number;
+      start_cursor?: string;
+      filter?: unknown;
+    } = {
+      data_source_id: dsId,
+      sorts: [{ property: "Datum", direction: "ascending" }],
+      page_size: 100,
+      start_cursor: cursor,
+    };
+    if (status) {
+      params.filter = { property: "Status", status: { equals: status } };
+    }
+    const res = await dsApi().query(params);
+    for (const page of res.results) results.push(mapPlan(page));
+    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return results;
+}
 
-  const params: Record<string, unknown> = {
-    data_source_id: dsId,
-    sorts: [{ property: "Datum", direction: "ascending" }],
-    page_size: 50,
-  };
-  if (status) {
-    params.filter = { property: "Status", status: { equals: status } };
+// ─── CRUD för Planerade pass ─────────────────────────────────────────────────
+
+/** Fält som kan skickas in vid create/update. Alla utom `datum` är valfria. */
+export interface PlannedWorkoutInput {
+  passnamn?: string;
+  typ?: string;
+  datum?: string; // ISO YYYY-MM-DD
+  status?: string;
+  syfte?: string;
+  passdetaljer?: string;
+  pulsintervall?: string;
+  tempo?: string;
+  tid?: string;
+  underlag?: string;
+}
+
+/** Bygg Notion-properties från `PlannedWorkoutInput`. Undvik att skriva
+ *  över fält som inte ingår i patchen — sätt bara de som är definierade. */
+function plannedProps(input: PlannedWorkoutInput): Record<string, unknown> {
+  const p: Record<string, unknown> = {};
+  if (input.passnamn !== undefined) {
+    p["Passnamn"] = { title: [{ text: { content: input.passnamn } }] };
   }
-  const res = await dsApi.query(params);
-  return res.results.map(mapPlan);
+  if (input.typ !== undefined) {
+    p["Typ"] = input.typ ? { select: { name: input.typ } } : { select: null };
+  }
+  if (input.datum !== undefined) {
+    p["Datum"] = input.datum ? { date: { start: input.datum } } : { date: null };
+  }
+  if (input.status !== undefined) {
+    p["Status"] = input.status ? { status: { name: input.status } } : { status: null };
+  }
+  if (input.syfte !== undefined) {
+    p["Syfte"] = { rich_text: [{ text: { content: input.syfte } }] };
+  }
+  if (input.passdetaljer !== undefined) {
+    p["Passdetaljer"] = { rich_text: [{ text: { content: input.passdetaljer } }] };
+  }
+  if (input.pulsintervall !== undefined) {
+    p["Pulsintervall"] = { rich_text: [{ text: { content: input.pulsintervall } }] };
+  }
+  if (input.tempo !== undefined) {
+    p["Tempo"] = { rich_text: [{ text: { content: input.tempo } }] };
+  }
+  if (input.tid !== undefined) {
+    p["Tid"] = { rich_text: [{ text: { content: input.tid } }] };
+  }
+  if (input.underlag !== undefined) {
+    p["Underlag"] = input.underlag ? { select: { name: input.underlag } } : { select: null };
+  }
+  return p;
+}
+
+/** Skapa ett nytt planerat pass. Returnerar det fulla mappade passet. */
+export async function createPlannedWorkout(input: PlannedWorkoutInput): Promise<PlannedWorkout> {
+  if (!PLANS_DB) throw new Error("NOTION_FITNESS_PLANS_DB saknas i env");
+  if (!input.datum) throw new Error("datum krävs vid skapande av planerat pass");
+  const n = getClient();
+  const dsId = await resolveDataSourceId(PLANS_DB);
+  const created = (await n.pages.create({
+    parent: { type: "data_source_id", data_source_id: dsId } as never,
+    properties: plannedProps({
+      // Defaulta passnamn/status så raden är användbar direkt
+      passnamn: input.passnamn ?? input.typ ?? "Nytt pass",
+      status: input.status ?? "Planerat",
+      ...input,
+    }) as never,
+  })) as NotionPageLike;
+  return mapPlan(created);
+}
+
+/** Uppdatera ett planerat pass. Skickar bara de fält som faktiskt ändras. */
+export async function updatePlannedWorkout(
+  id: string,
+  patch: PlannedWorkoutInput,
+): Promise<PlannedWorkout> {
+  const n = getClient();
+  const updated = (await n.pages.update({
+    page_id: id,
+    properties: plannedProps(patch) as never,
+  })) as NotionPageLike;
+  return mapPlan(updated);
+}
+
+/** Arkivera (mjuk-radera) ett planerat pass. Notion behåller raden i papperskorgen. */
+export async function archivePlannedWorkout(id: string): Promise<void> {
+  const n = getClient();
+  await n.pages.update({ page_id: id, archived: true } as never);
+}
+
+/** Batch-skapa planerade pass. Används av AI-coachen när en plan genereras. */
+export async function createPlannedWorkouts(
+  items: PlannedWorkoutInput[],
+): Promise<{ created: PlannedWorkout[]; errors: Array<{ input: PlannedWorkoutInput; error: string }> }> {
+  const created: PlannedWorkout[] = [];
+  const errors: Array<{ input: PlannedWorkoutInput; error: string }> = [];
+  for (const item of items) {
+    try {
+      created.push(await createPlannedWorkout(item));
+    } catch (err) {
+      errors.push({ input: item, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return { created, errors };
 }
 
 /** Retur-värdet speglar om träningslogg-DB är konfigurerad eller ej. */
