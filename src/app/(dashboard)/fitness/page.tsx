@@ -720,11 +720,36 @@ function KV({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Liten AI-stjärna integrerad i nedre högra hörnet av en pass-ikon. */
+function AIAnalysedBadge() {
+  return (
+    <span
+      aria-label="AI-analys finns"
+      title="AI-analys finns"
+      className="material-symbols-outlined"
+      style={{
+        position: "absolute",
+        right: 2,
+        bottom: 2,
+        color: "var(--color-primary)",
+        fontSize: 11,
+        lineHeight: 1,
+        opacity: 0.85,
+        fontVariationSettings: "'FILL' 1",
+        pointerEvents: "none",
+      }}
+    >
+      auto_awesome
+    </span>
+  );
+}
+
 // ─── Passhistorik ────────────────────────────────────────────────────────────
 
-function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
+function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics, analysedKeys }: {
   workouts: Workout[]; error: unknown; isLoading: boolean; onRetry: () => void;
   metrics: MetricsResponse | undefined;
+  analysedKeys: Set<string>;
 }) {
   const profile = useFitnessProfile((s) => s.profile);
   void metrics; // kvar för framtida dynamisk zon-uppräkning
@@ -747,6 +772,7 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
               hasCardioZone(w.type) && w.avgHR
                 ? hrZone(Math.round(w.avgHR), profile.zones)
                 : null;
+            const analysed = analysedKeys.has(`${w.date}|${(w.time ?? "").replace(":", "")}|${w.type}`);
             return (
               <Link
                 key={`${w.date}-${i}`}
@@ -759,7 +785,7 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
                 }}
               >
                 <div
-                  className="flex items-center justify-center rounded-full shrink-0"
+                  className="relative flex items-center justify-center rounded-full shrink-0"
                   style={{
                     width: 40, height: 40,
                     backgroundColor: "var(--color-surface-container-lowest)",
@@ -771,6 +797,7 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
                   >
                     {typeIcon(w.type)}
                   </span>
+                  {analysed && <AIAnalysedBadge />}
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -857,6 +884,11 @@ export default function FitnessPage() {
     refreshInterval: 15 * 60 * 1000,
     revalidateOnFocus: false,
   });
+  const { data: analysedData } = useSWR<{ keys: string[] }>("/api/fitness/analysed", fetcher, {
+    refreshInterval: 5 * 60 * 1000,
+    revalidateOnFocus: false,
+  });
+  const analysedKeys = useMemo(() => new Set(analysedData?.keys ?? []), [analysedData]);
 
   // "Synka nu" — tvinga fram färskt hämt från Drive förbi 5-min-cachen.
   // Fetch:ar med ?refresh=1 mot API:erna (som skippar in-memory-cachen) och
@@ -901,6 +933,7 @@ export default function FitnessPage() {
           isLoading={workoutsLoading}
           onRetry={() => mutateWorkouts()}
           metrics={metricsData}
+          analysedKeys={analysedKeys}
         />
         <ProfileCard metrics={metricsData} />
       </div>

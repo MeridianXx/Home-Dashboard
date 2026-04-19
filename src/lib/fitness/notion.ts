@@ -101,7 +101,8 @@ interface DsApi {
     filter?: unknown;
     sorts?: unknown;
     page_size?: number;
-  }) => Promise<{ results: NotionPageLike[] }>;
+    start_cursor?: string;
+  }) => Promise<{ results: NotionPageLike[]; next_cursor: string | null; has_more?: boolean }>;
 }
 
 function dsApi(): DsApi {
@@ -249,6 +250,32 @@ export async function saveWorkoutAnalysis(workout: Workout, analysis: string): P
     } as never,
   });
   return pageId;
+}
+
+/**
+ * Lista alla pass-nycklar (date|HHMM|type) som har en sparad AI-analys i loggen.
+ * Används för att visa en liten markering på passlistor.
+ */
+export async function listAnalysedKeys(): Promise<string[]> {
+  if (!LOG_DB) return [];
+  const dsId = await resolveDataSourceId(LOG_DB);
+  const keys: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await dsApi().query({
+      data_source_id: dsId,
+      filter: { property: "AI-analys", rich_text: { is_not_empty: true } },
+      page_size: 100,
+      start_cursor: cursor,
+    });
+    for (const page of res.results) {
+      const p = page.properties as Record<string, { rich_text?: Array<{ plain_text: string }> }>;
+      const key = p["FIT-fil"]?.rich_text?.[0]?.plain_text;
+      if (key) keys.push(key);
+    }
+    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return keys;
 }
 
 /** Synka alla pass i batch — returnerar antal skapade/uppdaterade. */

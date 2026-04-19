@@ -130,6 +130,10 @@ export default function FitnessHistoryPage() {
   } = useSWR<WorkoutsResponse>("/api/fitness/workouts?limit=500", fetcher, {
     revalidateOnFocus: false,
   });
+  const { data: analysedData } = useSWR<{ keys: string[] }>("/api/fitness/analysed", fetcher, {
+    revalidateOnFocus: false,
+  });
+  const analysedKeys = useMemo(() => new Set(analysedData?.keys ?? []), [analysedData]);
 
   const filtered = useMemo(() => {
     const all = data?.workouts ?? [];
@@ -227,6 +231,7 @@ export default function FitnessHistoryPage() {
                       hasCardioZone(w.type) && w.avgHR
                         ? hrZone(Math.round(w.avgHR), profile.zones)
                         : null;
+                    const analysed = analysedKeys.has(`${w.date}|${(w.time ?? "").replace(":", "")}|${w.type}`);
                     return (
                       <Link
                         key={`${w.date}-${i}`}
@@ -239,7 +244,7 @@ export default function FitnessHistoryPage() {
                         }}
                       >
                         <div
-                          className="flex items-center justify-center rounded-full shrink-0"
+                          className="relative flex items-center justify-center rounded-full shrink-0"
                           style={{
                             width: 40, height: 40,
                             backgroundColor: "var(--color-surface-container-lowest)",
@@ -251,6 +256,26 @@ export default function FitnessHistoryPage() {
                           >
                             {typeIcon(w.type)}
                           </span>
+                          {analysed && (
+                            <span
+                              aria-label="AI-analys finns"
+                              title="AI-analys finns"
+                              className="material-symbols-outlined"
+                              style={{
+                                position: "absolute",
+                                right: 2,
+                                bottom: 2,
+                                color: "var(--color-primary)",
+                                fontSize: 11,
+                                lineHeight: 1,
+                                opacity: 0.85,
+                                fontVariationSettings: "'FILL' 1",
+                                pointerEvents: "none",
+                              }}
+                            >
+                              auto_awesome
+                            </span>
+                          )}
                         </div>
 
                         <div className="min-w-0 flex-1">

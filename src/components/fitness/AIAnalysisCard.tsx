@@ -95,20 +95,31 @@ export function AIAnalysisCard({
           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>auto_awesome</span>
           AI-analys
         </h2>
-        {analysis && !generating && (
+        {analysis && (
           <button
             onClick={generate}
-            className="text-xs font-semibold rounded-full"
+            disabled={generating}
+            className="flex items-center gap-1 text-xs font-semibold rounded-full"
             style={{
               backgroundColor: "transparent",
               color: "var(--color-on-surface-variant)",
               border: "1px solid var(--color-outline-variant)",
               padding: "4px 10px",
-              cursor: "pointer",
+              cursor: generating ? "wait" : "pointer",
               lineHeight: 1.2,
+              opacity: generating ? 0.7 : 1,
             }}
           >
-            Regenerera
+            <span
+              className="material-symbols-outlined"
+              style={{
+                fontSize: 12,
+                animation: generating ? "spin-anim 0.8s linear infinite" : undefined,
+              }}
+            >
+              {generating ? "progress_activity" : "refresh"}
+            </span>
+            {generating ? "Analyserar…" : "Regenerera"}
           </button>
         )}
       </div>
@@ -127,6 +138,8 @@ export function AIAnalysisCard({
               color: "var(--color-on-surface)",
               lineHeight: 1.55,
               whiteSpace: "pre-wrap",
+              opacity: generating ? 0.5 : 1,
+              transition: "opacity 0.2s ease-out",
             }}
           >
             {analysis}
