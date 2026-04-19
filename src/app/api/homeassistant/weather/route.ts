@@ -1,9 +1,22 @@
 import { NextResponse } from "next/server";
 import { getState, haPost } from "@/lib/ha";
 
-// Periods: FM 06–12, EM 12–18, Kväll 18–00, Natt 00–06
+// Periods: FM 06–12, EM 12–18, Kväll 18–00, Natt 00–06 (Swedish local time)
 type Period = "fm" | "em" | "kvall" | "natt";
 const PERIOD_ORDER: Period[] = ["fm", "em", "kvall", "natt"];
+const TZ = "Europe/Stockholm";
+
+/** Get hour in Swedish local time from a Date or ISO string */
+function swedishHour(d: Date | string): number {
+  const date = typeof d === "string" ? new Date(d) : d;
+  return parseInt(date.toLocaleString("sv-SE", { timeZone: TZ, hour: "2-digit", hour12: false }), 10);
+}
+
+/** Get YYYY-MM-DD in Swedish local time */
+function swedishDate(d: Date | string): string {
+  const date = typeof d === "string" ? new Date(d) : d;
+  return date.toLocaleDateString("sv-SE", { timeZone: TZ });
+}
 
 function hourToPeriod(hour: number): Period {
   if (hour >= 6 && hour < 12) return "fm";
@@ -13,7 +26,7 @@ function hourToPeriod(hour: number): Period {
 }
 
 function currentPeriod(): Period {
-  return hourToPeriod(new Date().getHours());
+  return hourToPeriod(swedishHour(new Date()));
 }
 
 type HourlyEntry = {
@@ -40,12 +53,11 @@ const PERIOD_LABEL: Record<Period, string> = {
 const PERIOD_SORT: Record<Period, number> = { natt: 0, fm: 1, em: 2, kvall: 3 };
 
 function buildPeriodBlocks(hourly: HourlyEntry[]): PeriodBlock[] {
-  // Group hourly entries by date + period
+  // Group hourly entries by Swedish local date + period
   const groups = new Map<string, HourlyEntry[]>();
   for (const h of hourly) {
-    const d = new Date(h.datetime);
-    const dateStr = d.toISOString().slice(0, 10);
-    const period = hourToPeriod(d.getHours());
+    const dateStr = swedishDate(h.datetime);
+    const period = hourToPeriod(swedishHour(h.datetime));
     const key = `${dateStr}|${period}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(h);
@@ -109,9 +121,9 @@ export async function GET() {
 
     // Daily forecast — skip today, take 3
     const dailyArr = dailyRes?.service_response?.["weather.forecast_hem"]?.forecast ?? [];
-    const today = new Date().toDateString();
+    const todayStr = swedishDate(new Date());
     const dailyForecast = dailyArr
-      .filter((f) => new Date((f.datetime as string) ?? "").toDateString() !== today)
+      .filter((f) => swedishDate((f.datetime as string) ?? "") !== todayStr)
       .slice(0, 3)
       .map((f) => ({
         datetime: (f.datetime as string) ?? "",
@@ -137,7 +149,7 @@ export async function GET() {
 
     // Find current period index and take 4 blocks from there
     const nowPeriod = currentPeriod();
-    const todayDate = new Date().toISOString().slice(0, 10);
+    const todayDate = swedishDate(new Date());
     const startIdx = allBlocks.findIndex(
       (b) => b.date === todayDate && b.period === nowPeriod,
     );
