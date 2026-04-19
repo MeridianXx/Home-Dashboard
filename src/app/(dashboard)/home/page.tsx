@@ -1032,8 +1032,8 @@ function NowPlayingStrip({ players }: { players: MediaPlayer[] }) {
   return (
     <div className="space-y-2">
       {playing.map(p => (
-        <div key={p.entity_id} className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-          style={{ backgroundColor: "var(--color-surface-container)" }}>
+        <a key={p.entity_id} href="/home/media" className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+          style={{ backgroundColor: "var(--color-surface-container)", textDecoration: "none" }}>
           {/* Album art */}
           {p.media_image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -1063,7 +1063,7 @@ function NowPlayingStrip({ players }: { players: MediaPlayer[] }) {
             style={{ color: "var(--color-primary)", fontVariationSettings: "'FILL' 1" }}>
             graphic_eq
           </span>
-        </div>
+        </a>
       ))}
     </div>
   );
