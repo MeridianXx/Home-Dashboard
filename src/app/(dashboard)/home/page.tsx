@@ -967,53 +967,69 @@ const DAY_NAMES_SV = ["sön", "mån", "tis", "ons", "tor", "fre", "lör"];
 // ─── Väderrad (kompakt, ovanför favoriter) ──────────────────────────────────
 function WeatherStrip({ data }: { data: WeatherData }) {
   const c = data.current;
+  const hasForecast = data.forecast.length > 0;
   return (
     <div className="rounded-2xl overflow-hidden"
-      style={{ backgroundColor: "var(--color-surface-container)" }}>
-      <div className="flex items-center justify-between px-4 py-2.5">
-        {/* Aktuellt — vänster */}
-        <div className="flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-[22px]"
-            style={{ color: "var(--color-primary)", fontVariationSettings: "'FILL' 1" }}>
+      style={{
+        backgroundColor: "var(--color-surface-container)",
+        boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
+        border: "1px solid var(--color-card-border)",
+      }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: hasForecast ? `1fr repeat(${data.forecast.length}, auto)` : "1fr",
+        alignItems: "center",
+        gap: 0,
+      }}>
+        {/* Aktuellt väder */}
+        <div className="flex items-center gap-3 px-4 py-3"
+          style={hasForecast ? { borderRight: "1px solid var(--color-outline-variant)", opacity: 1 } : {}}>
+          <span className="material-symbols-outlined"
+            style={{ fontSize: 28, color: "var(--color-primary)", fontVariationSettings: "'FILL' 1" }}>
             {weatherIcon(c.state)}
           </span>
-          <span className="text-lg font-black" style={{ color: "var(--color-on-surface)" }}>
-            {Math.round(c.temperature)}°
-          </span>
-          <span className="text-[11px] font-medium"
-            style={{ color: "var(--color-on-surface-variant)" }}>
-            {Math.round(c.wind_speed)} m/s
-          </span>
+          <div>
+            <p className="text-xl font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>
+              {Math.round(c.temperature)}°
+            </p>
+            <p className="text-[10px] font-medium leading-tight" style={{ color: "var(--color-on-surface-variant)" }}>
+              {Math.round(c.wind_speed)} m/s · {c.humidity}%
+            </p>
+          </div>
         </div>
 
-        {/* 3-dagars prognos — höger */}
-        <div className="flex items-center gap-4">
-          {data.forecast.map((f, i) => {
-            const d = new Date(f.datetime);
-            const dayLabel = i === 0 ? "idag" : DAY_NAMES_SV[d.getDay()];
-            return (
-              <div key={f.datetime} className="flex flex-col items-center" style={{ minWidth: 36 }}>
-                <span className="text-[9px] font-semibold uppercase leading-tight"
-                  style={{ color: "var(--color-on-surface-variant)" }}>{dayLabel}</span>
-                <span className="material-symbols-outlined text-[16px] my-0.5"
-                  style={{ color: "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1" }}>
-                  {weatherIcon(f.condition)}
+        {/* Prognos-dagar */}
+        {data.forecast.map((f, i) => {
+          const d = new Date(f.datetime);
+          const dayLabel = i === 0 ? "idag" : DAY_NAMES_SV[d.getDay()];
+          return (
+            <div key={f.datetime} className="flex flex-col items-center py-2.5"
+              style={{ paddingLeft: 12, paddingRight: 12 }}>
+              <span className="text-[9px] font-bold uppercase tracking-wide"
+                style={{ color: "var(--color-on-surface-variant)" }}>{dayLabel}</span>
+              <span className="material-symbols-outlined my-1"
+                style={{ fontSize: 20, color: "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1" }}>
+                {weatherIcon(f.condition)}
+              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xs font-black" style={{ color: "var(--color-on-surface)" }}>
+                  {Math.round(f.temperature)}°
                 </span>
-                <span className="text-[11px] font-bold leading-tight" style={{ color: "var(--color-on-surface)" }}>
-                  {Math.round(f.temperature)}°<span style={{ color: "var(--color-outline)", fontWeight: 500 }}> {Math.round(f.templow)}°</span>
+                <span className="text-[10px] font-medium" style={{ color: "var(--color-outline)" }}>
+                  {Math.round(f.templow)}°
                 </span>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-// ─── Nu spelas (visas bara om något spelar) ─────────────────────────────────
+// ─── Nu spelas (bara Apple TV, visas bara om något spelar) ──────────────────
 function NowPlayingStrip({ players }: { players: MediaPlayer[] }) {
-  const playing = players.filter(p => p.state === "playing");
+  const playing = players.filter(p => p.type === "appletv" && (p.state === "playing" || p.state === "paused") && p.media_title);
   if (playing.length === 0) return null;
   return (
     <div className="space-y-2">
