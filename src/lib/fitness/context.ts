@@ -28,7 +28,7 @@ function isoDate(d: Date): string {
 }
 
 /** Svensk veckodag-förkortning ("mån", "tis", ...) från ISO-datum. */
-function weekdaySv(iso: string): string {
+export function weekdaySv(iso: string): string {
   // Undvik tidszons-drift — tolka som UTC-datum
   const d = new Date(`${iso}T12:00:00Z`);
   if (Number.isNaN(d.getTime())) return "";
@@ -37,7 +37,7 @@ function weekdaySv(iso: string): string {
 }
 
 /** "2026-04-17 fre" — ISO + veckodag. Claude hallucinerar annars veckodagar. */
-function isoWithDow(iso: string): string {
+export function isoWithDow(iso: string): string {
   const dow = weekdaySv(iso);
   return dow ? `${iso} ${dow}` : iso;
 }

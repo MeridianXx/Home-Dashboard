@@ -3,9 +3,73 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Workout } from "./types";
 import type { PlannedWorkoutInput } from "./notion";
-import { buildContext } from "./context";
+import { buildContext, isoWithDow } from "./context";
 import { paceString, durationString } from "./parser";
 import { getCoachPersona } from "./coach-persona";
+
+// ─── Kalender-hjälpare ───────────────────────────────────────────────────────
+// Claude räknar inte veckogränser själv pålitligt — berika prompten med en
+// explicit lista av kommande svenska veckor (mån–sön).
+
+/** Format en Date som YYYY-MM-DD (lokal tid). */
+function isoLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Måndagen i den vecka `d` ligger i (svensk vecka mån–sön). */
+function mondayOf(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const day = x.getDay(); // 0=sön, 1=mån…
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+
+/** Bygg en kalenderöversikt: idag + N kommande veckor (mån–sön) i svensk form. */
+function calendarOverview(today: Date, weeks = 3): string {
+  const todayIso = isoLocal(today);
+  const monThisWeek = mondayOf(today);
+
+  const lines: string[] = [];
+  lines.push(`DAGENS DATUM: ${isoWithDow(todayIso)}.`);
+  lines.push("KALENDER (svenska veckor börjar måndag, slutar söndag):");
+
+  for (let w = 0; w < weeks; w++) {
+    const mon = new Date(monThisWeek);
+    mon.setDate(mon.getDate() + w * 7);
+    const sun = new Date(mon);
+    sun.setDate(sun.getDate() + 6);
+    const monIso = isoLocal(mon);
+    const sunIso = isoLocal(sun);
+    const label = w === 0
+      ? "Denna vecka"
+      : w === 1
+        ? "Nästa vecka"
+        : `Veckan efter nästa${w > 2 ? ` (+${w - 1})` : ""}`;
+    lines.push(`- ${label}: mån ${monIso} – sön ${sunIso}.`);
+  }
+  lines.push(
+    "Använd alltid veckodagen exakt som den står bredvid ISO-datumet. " +
+    "Räkna aldrig själv ut vilken veckodag ett datum föll på.",
+  );
+  return lines.join("\n");
+}
+
+/** Mappning datum → veckodag för ett batch av pass — hjälper Claude referera
+ *  korrekt till en befintlig plan när den pratar om dagar. */
+function planDatumOverview(plan: GeneratedPlanItem[]): string {
+  if (plan.length === 0) return "";
+  const lines = ["DATUM I FÖRRA PLANEN (datum → veckodag):"];
+  for (let i = 0; i < plan.length; i++) {
+    const p = plan[i];
+    lines.push(`- [${i}] ${isoWithDow(p.datum)} — ${p.passnamn ?? p.typ ?? "pass"}`);
+  }
+  return lines.join("\n");
+}
 
 // Sonnet 4.6 är senaste modell per jan 2026. Migrera här när nyare släpps.
 const MODEL = "claude-sonnet-4-6";
@@ -142,20 +206,28 @@ export interface PlanGenerationResult {
 }
 
 /** Första JSON-array-hashen i en LLM-respons. Claude svarar ibland med text före
- *  och efter JSON-blocket trots instruktion — så vi letar efter "[...]"-substring
- *  och parsar den. */
+ *  och efter JSON-blocket trots instruktion (kodstaket, "[pass 1]" i kommentar,
+ *  etc.) — så vi kan inte bara ta första `[` till sista `]`. Istället: prova
+ *  alla kombinationer av start/end tills en ger en giltig JSON-array. O(n²) men
+ *  texten är kort. */
 function extractJsonArray(text: string): unknown[] | null {
-  // Greedy match över hela texten — `[` till sista `]`
-  const start = text.indexOf("[");
-  const end = text.lastIndexOf("]");
-  if (start === -1 || end === -1 || end <= start) return null;
-  const slice = text.slice(start, end + 1);
-  try {
-    const parsed = JSON.parse(slice);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
+  const starts: number[] = [];
+  for (let i = 0; i < text.length; i++) if (text[i] === "[") starts.push(i);
+  const ends: number[] = [];
+  for (let i = text.length - 1; i >= 0; i--) if (text[i] === "]") ends.push(i);
+
+  for (const start of starts) {
+    for (const end of ends) {
+      if (end <= start) break;
+      try {
+        const parsed = JSON.parse(text.slice(start, end + 1));
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {
+        // prova nästa kombination
+      }
+    }
   }
+  return null;
 }
 
 /** Filtrera ett råobjekt från LLM:en till bara kända fält + validera ISO-datum. */
@@ -191,7 +263,8 @@ export async function generateTrainingPlan(userPrompt: string): Promise<PlanGene
     getCoachPersona().catch(() => null),
   ]);
 
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const calendar = calendarOverview(today, 4);
 
   const systemParts: string[] = [];
   if (persona) systemParts.push(persona);
@@ -202,13 +275,17 @@ export async function generateTrainingPlan(userPrompt: string): Promise<PlanGene
       "Du ska returnera **både** en kort introducerande kommentar (2–4 meningar) **och** en JSON-array med planerade pass.",
       "Variera mellan uthållighet (Z2), tröskel, intervaller och återhämtning. Lägg alltid minst en vilodag per vecka.",
       "Respektera adeptens nuvarande form (CTL/TSB/TLR) — undvik stor ökning i veckobelastning om hen just nu är trött eller detränar.",
+      "En svensk vecka börjar MÅNDAG och slutar SÖNDAG. När adepten säger \"nästa vecka\" menas mån–sön enligt kalendern nedan — aldrig mer.",
+      "Använd veckodagen exakt som den står bredvid ISO-datumet. Räkna aldrig själv ut vilken veckodag ett datum föll på.",
     ].join(" "),
   );
   const system = systemParts.join("\n\n---\n\n");
 
   const prompt = `Planera pass utifrån följande förfrågan: "${userPrompt.trim()}"
 
-Dagens datum är ${todayIso}. Alla pass ska ligga på eller efter detta datum.
+${calendar}
+
+Alla pass ska ligga på eller efter dagens datum. Om adepten sagt "nästa vecka" (eller motsvarande) ska planen hålla sig inom den vecka som är markerad "Nästa vecka" ovan — lägg inte till dagar efter söndagen.
 
 ${bundle.text}
 
@@ -263,5 +340,245 @@ Viktigt:
     inputTokens: response.usage.input_tokens,
     outputTokens: response.usage.output_tokens,
     sourceFile: bundle.sourceFile,
+  };
+}
+
+// ─── Revidera en befintlig plan (chat-fortsättning) ──────────────────────────
+
+export class PlanParseError extends Error {
+  constructor(message: string, public rawText: string) {
+    super(message);
+    this.name = "PlanParseError";
+  }
+}
+
+/**
+ * Ersätt hela planen utifrån användarens feedback på det förra förslaget.
+ * Claude får se ursprungsprompt + förra planen + feedbacken och producerar
+ * en ny komplett plan + kommentar.
+ */
+export async function reviseTrainingPlan(args: {
+  originalPrompt: string;
+  previousPlan: GeneratedPlanItem[];
+  feedback: string;
+}): Promise<PlanGenerationResult> {
+  const [bundle, persona] = await Promise.all([
+    buildContext({ recentCount: 15, weeklyWeeks: 12 }),
+    getCoachPersona().catch(() => null),
+  ]);
+  const today = new Date();
+  const calendar = calendarOverview(today, 4);
+  const datumOverview = planDatumOverview(args.previousPlan);
+
+  const systemParts: string[] = [];
+  if (persona) systemParts.push(persona);
+  systemParts.push(
+    [
+      "Du är en erfaren löpcoach som planerar pass åt din adept. Alla svar på svenska.",
+      "Tilltala alltid adepten med \"du\".",
+      "Du ska returnera **både** en kort kommentar (2–4 meningar) **och** en JSON-array med den reviderade planen.",
+      "Utgå från den tidigare planen — behåll det som fungerar, ändra bara det som adepten har begärt (eller det som behövs för att respektera feedbacken).",
+      "Variera mellan uthållighet (Z2), tröskel, intervaller och återhämtning. Lägg alltid minst en vilodag per vecka.",
+      "En svensk vecka börjar MÅNDAG och slutar SÖNDAG. När adepten säger \"nästa vecka\" menas mån–sön enligt kalendern — aldrig mer.",
+      "Använd veckodagen exakt som den står bredvid ISO-datumet i kalendern/datum-översikten. Räkna aldrig själv ut vilken veckodag ett datum föll på.",
+    ].join(" "),
+  );
+  const system = systemParts.join("\n\n---\n\n");
+
+  const prompt = `Ursprunglig förfrågan: "${args.originalPrompt.trim()}"
+
+${calendar}
+
+${datumOverview}
+
+FÖRRA FÖRSLAGET (JSON):
+${JSON.stringify(args.previousPlan, null, 2)}
+
+ADEPTENS FEEDBACK: "${args.feedback.trim()}"
+
+Alla pass ska ligga på eller efter dagens datum. Håll dig inom samma vecko-omfattning som ursprungsförslaget om inte feedbacken uttryckligen ber om något annat.
+
+${bundle.text}
+
+FORMAT — svara exakt så här, i denna ordning:
+1. En kort kommentar på 2–4 meningar i löpande svenska som förklarar vad du ändrat och varför.
+2. En tom rad.
+3. En JSON-array med den **kompletta** reviderade planen (samma schema som tidigare — datum, passnamn, typ, syfte, passdetaljer, pulsintervall, tempo, tid, underlag).
+
+Viktigt:
+- Svara ALDRIG med JSON inuti kodstaket (\`\`\`). Returnera rå array.
+- "datum" måste vara ISO YYYY-MM-DD.
+- Returnera hela planen, inte bara det du ändrat.`;
+
+  const n = getClient();
+  const response = await n.messages.create({
+    model: MODEL,
+    // Högre än initial generering — revise-prompten har den tidigare planen
+    // inbakad som JSON, plus svaret ska innehålla hela nya planen. 3500 ger
+    // utrymme för ~15 pass innan trunkering.
+    max_tokens: 3500,
+    system,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const rawText = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
+
+  const jsonArr = extractJsonArray(rawText);
+  const plan: GeneratedPlanItem[] = Array.isArray(jsonArr)
+    ? jsonArr.map(sanitizePlanItem).filter((x): x is GeneratedPlanItem => x !== null)
+    : [];
+
+  if (plan.length === 0) {
+    console.error(
+      "[fitness/revise] Kunde inte parsa plan ur Claude-svar.\n" +
+      `stop_reason=${response.stop_reason} tokens_out=${response.usage.output_tokens}\n` +
+      `Råtext (${rawText.length} tecken):\n`,
+      rawText,
+    );
+    throw new PlanParseError(
+      response.stop_reason === "max_tokens"
+        ? "Svaret blev för långt och avbröts. Prova en kortare revision."
+        : "Claude returnerade ingen giltig plan-JSON",
+      rawText,
+    );
+  }
+
+  const jsonStart = rawText.indexOf("[");
+  const commentary = (jsonStart >= 0 ? rawText.slice(0, jsonStart) : rawText).trim();
+
+  return {
+    commentary,
+    plan,
+    model: response.model,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    sourceFile: bundle.sourceFile,
+  };
+}
+
+// ─── Regenerera ett enskilt pass ─────────────────────────────────────────────
+
+export interface RegenerateItemResult {
+  item: GeneratedPlanItem;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** Första JSON-objekthashen i en LLM-respons — robust mot kommentar runt JSON. */
+function extractJsonObject(text: string): Record<string, unknown> | null {
+  const starts: number[] = [];
+  for (let i = 0; i < text.length; i++) if (text[i] === "{") starts.push(i);
+  const ends: number[] = [];
+  for (let i = text.length - 1; i >= 0; i--) if (text[i] === "}") ends.push(i);
+
+  for (const start of starts) {
+    for (const end of ends) {
+      if (end <= start) break;
+      try {
+        const parsed = JSON.parse(text.slice(start, end + 1));
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>;
+        }
+      } catch {
+        // prova nästa
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Ersätt ett enskilt pass i planen. Resten av planen förblir intakt — Claude
+ * får se hela planen som kontext och ombeds returnera ett nytt pass på samma
+ * datum som det ersatta.
+ */
+export async function regeneratePlanItem(args: {
+  previousPlan: GeneratedPlanItem[];
+  index: number;
+  originalPrompt: string;
+  /** Valfri: "gör detta lättare" / "byt till intervaller" etc. Lämnas tom för
+   *  en helt ny variant utifrån samma träningsbild. */
+  hint?: string;
+}): Promise<RegenerateItemResult> {
+  if (args.index < 0 || args.index >= args.previousPlan.length) {
+    throw new Error(`Ogiltigt pass-index: ${args.index}`);
+  }
+  const target = args.previousPlan[args.index];
+
+  const [bundle, persona] = await Promise.all([
+    buildContext({ recentCount: 15, weeklyWeeks: 12 }),
+    getCoachPersona().catch(() => null),
+  ]);
+  const datumOverview = planDatumOverview(args.previousPlan);
+
+  const systemParts: string[] = [];
+  if (persona) systemParts.push(persona);
+  systemParts.push(
+    [
+      "Du är en erfaren löpcoach som planerar pass åt din adept.",
+      "Du ska byta ut **ett** pass i en befintlig plan. Returnera bara det nya passet som ett JSON-objekt.",
+      "Behåll samma datum som det gamla passet. Variera gärna innehållet/typen så länge det passar träningsbilden.",
+      "Använd veckodagen exakt som den står bredvid ISO-datumet. Räkna aldrig själv ut vilken veckodag ett datum föll på.",
+    ].join(" "),
+  );
+  const system = systemParts.join("\n\n---\n\n");
+
+  const prompt = `Ursprunglig förfrågan: "${args.originalPrompt.trim()}"
+
+${datumOverview}
+
+NUVARANDE PLAN (hela — för kontext):
+${JSON.stringify(args.previousPlan, null, 2)}
+
+BYT UT: pass på index ${args.index} (${isoWithDow(target.datum)}, "${target.passnamn ?? target.typ ?? "pass"}").
+${args.hint ? `ADEPTENS ÖNSKAN FÖR DETTA PASS: "${args.hint.trim()}"` : "Ingen specifik önskan — skapa en meningsfull variant som passar träningsbilden."}
+
+${bundle.text}
+
+FORMAT — svara med exakt ett JSON-objekt (inga kodstaket, ingen extra text) med samma fält som resten av planen:
+{
+  "datum": "${target.datum}",
+  "passnamn": "...",
+  "typ": "Löpning | Cykling | Styrka | Annat",
+  "syfte": "...",
+  "passdetaljer": "...",
+  "pulsintervall": "...",
+  "tempo": "...",
+  "tid": "...",
+  "underlag": "..."
+}`;
+
+  const n = getClient();
+  const response = await n.messages.create({
+    model: MODEL,
+    max_tokens: 800,
+    system,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const rawText = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
+
+  const rawObj = extractJsonObject(rawText);
+  const parsed = rawObj ? sanitizePlanItem(rawObj) : null;
+  if (!parsed) {
+    throw new Error("Claude returnerade inget giltigt pass-objekt");
+  }
+  // Tvinga samma datum som originalet för att inte krocka mot resten av planen
+  const item: GeneratedPlanItem = { ...parsed, datum: target.datum };
+
+  return {
+    item,
+    model: response.model,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
   };
 }

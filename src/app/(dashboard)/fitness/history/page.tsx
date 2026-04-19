@@ -107,13 +107,11 @@ type TypeFilter = "all" | "run" | "walk" | "bike" | "strength" | "core" | "swim"
 const TYPE_FILTERS: Array<{ value: TypeFilter; label: string }> = [
   { value: "all", label: "Alla" },
   { value: "run", label: "Löpning" },
-  { value: "walk", label: "Promenad" },
-  { value: "bike", label: "Cykling" },
   { value: "strength", label: "Styrka" },
   { value: "core", label: "Core" },
-  { value: "swim", label: "Simning" },
-  { value: "ski", label: "Skidor" },
+  { value: "walk", label: "Promenad" },
   { value: "padel", label: "Padel" },
+  { value: "bike", label: "Cykling" },
 ];
 
 const PAGE_SIZE = 30;
@@ -170,24 +168,20 @@ export default function FitnessHistoryPage() {
         </p>
       </div>
 
-      {/* Typ-filter som horisontell chip-rad */}
-      <div
-        className="flex items-center gap-2 overflow-x-auto"
-        style={{ paddingBottom: 4, scrollbarWidth: "none" }}
-        onTouchStart={(e) => e.stopPropagation()}
-      >
+      {/* Typ-filter — wrappar till flera rader på mobil så inget trycks ut */}
+      <div className="flex items-center flex-wrap gap-2">
         {TYPE_FILTERS.map((t) => {
           const active = typeFilter === t.value;
           return (
             <button
               key={t.value}
               onClick={() => { setTypeFilter(t.value); setPage(1); }}
-              className="text-xs font-semibold rounded-full shrink-0"
+              className="text-xs font-semibold rounded-full"
               style={{
                 backgroundColor: active ? "var(--color-primary-container)" : "var(--color-surface-container)",
                 color: active ? "var(--color-on-primary-container)" : "var(--color-on-surface-variant)",
                 border: "1px solid var(--color-outline-variant)",
-                padding: "6px 14px",
+                padding: "6px 12px",
                 cursor: "pointer",
                 lineHeight: 1.2,
                 whiteSpace: "nowrap",

@@ -132,6 +132,10 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+/* Alias så `animation: "spin-anim …"` inline fungerar lika bra som klassen. */
+@keyframes spin-anim {
+  to { transform: rotate(360deg); }
+}
 .spin-anim {
   animation: spin 0.8s linear infinite;
 }

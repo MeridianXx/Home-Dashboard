@@ -851,9 +851,14 @@ function SelectBox({ value, options, onChange, placeholder }: {
 
 // ─── AI-plan-sektion ─────────────────────────────────────────────────────────
 
+type DraftItem = Partial<PlannedWorkout> & { datum: string };
+
 interface CoachDraft {
+  /** Originalprompten som triggade förslaget — sparas så regen/revise kan anropas
+   *  även efter att textrutan rensats. */
+  originalPrompt: string;
   commentary: string;
-  plan: Array<Partial<PlannedWorkout> & { datum: string }>;
+  plan: DraftItem[];
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -866,6 +871,13 @@ function AIPlanSection({ onApplied }: { onApplied: () => Promise<void> }) {
   const [err, setErr] = useState<string | null>(null);
   const [draft, setDraft] = useState<CoachDraft | null>(null);
   const [justSaved, setJustSaved] = useState<{ created: number; errors: number } | null>(null);
+  // Regen-per-pass: index för pass som just nu uppdateras
+  const [regenIndex, setRegenIndex] = useState<number | null>(null);
+  // Chat-revision: feedback-text + loading
+  const [feedback, setFeedback] = useState("");
+  const [revising, setRevising] = useState(false);
+  // Fel lokalt i draft-vyn (revise/regen) — separat från det stora err högst upp
+  const [draftErr, setDraftErr] = useState<{ message: string; rawText?: string } | null>(null);
 
   const generate = async () => {
     if (generating || !prompt.trim()) return;
@@ -876,18 +888,104 @@ function AIPlanSection({ onApplied }: { onApplied: () => Promise<void> }) {
       const res = await fetch("/api/fitness/coach", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt, save: false }),
+        body: JSON.stringify({ prompt }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
       if (!body.plan || body.plan.length === 0) {
         throw new Error("Claude returnerade ingen strukturerad plan. Prova att formulera om.");
       }
-      setDraft(body);
+      setDraft({ ...body, originalPrompt: prompt });
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setGenerating(false);
+    }
+  };
+
+  /** Byt ut ett enskilt pass. `hint` är valfritt — om satt skickas det med som
+   *  adeptens specifika önskan för det passet. */
+  const regenerateOne = async (index: number, hint?: string) => {
+    if (!draft || regenIndex !== null) return;
+    setRegenIndex(index);
+    setDraftErr(null);
+    try {
+      const res = await fetch("/api/fitness/coach", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          regenerate: {
+            prompt: draft.originalPrompt,
+            plan: draft.plan,
+            index,
+            hint,
+          },
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setDraftErr({ message: body.error ?? `HTTP ${res.status}`, rawText: body.rawText });
+        return;
+      }
+      if (!body.item) {
+        setDraftErr({ message: "Claude returnerade inget pass-objekt." });
+        return;
+      }
+      setDraft({
+        ...draft,
+        plan: draft.plan.map((p, i) => (i === index ? body.item : p)),
+        inputTokens: draft.inputTokens + (body.inputTokens ?? 0),
+        outputTokens: draft.outputTokens + (body.outputTokens ?? 0),
+      });
+    } catch (e) {
+      setDraftErr({ message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setRegenIndex(null);
+    }
+  };
+
+  /** Revidera hela planen utifrån fri-text-feedback. */
+  const revise = async () => {
+    if (!draft || revising || !feedback.trim()) return;
+    setRevising(true);
+    setDraftErr(null);
+    try {
+      const res = await fetch("/api/fitness/coach", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          revise: {
+            prompt: draft.originalPrompt,
+            plan: draft.plan,
+            feedback,
+          },
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setDraftErr({ message: body.error ?? `HTTP ${res.status}`, rawText: body.rawText });
+        return;
+      }
+      if (!body.plan || body.plan.length === 0) {
+        setDraftErr({
+          message: "Claude returnerade ingen strukturerad plan.",
+          rawText: body.rawText,
+        });
+        return;
+      }
+      setDraft({
+        originalPrompt: draft.originalPrompt,
+        commentary: body.commentary,
+        plan: body.plan,
+        model: body.model,
+        inputTokens: draft.inputTokens + (body.inputTokens ?? 0),
+        outputTokens: draft.outputTokens + (body.outputTokens ?? 0),
+      });
+      setFeedback("");
+    } catch (e) {
+      setDraftErr({ message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setRevising(false);
     }
   };
 
@@ -910,6 +1008,7 @@ function AIPlanSection({ onApplied }: { onApplied: () => Promise<void> }) {
       setJustSaved({ created, errors: errs });
       setDraft(null);
       setPrompt("");
+      setFeedback("");
       await onApplied();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -922,44 +1021,51 @@ function AIPlanSection({ onApplied }: { onApplied: () => Promise<void> }) {
     <Card>
       <SectionTitle icon="auto_awesome">AI-planering</SectionTitle>
 
-      <p className="text-sm mb-3" style={{ color: "var(--color-on-surface-variant)" }}>
-        Beskriv vad du vill träna så föreslår coachen pass utifrån din profil, nuvarande form och historik. Du får granska innan något sparas.
-      </p>
+      {/* Prompt-input visas bara när inget förslag är genererat. När draft finns
+          är originalprompten redan bakad in i förslaget — att ha inputen kvar
+          är bara redundant. */}
+      {!draft && (
+        <>
+          <p className="text-sm mb-3" style={{ color: "var(--color-on-surface-variant)" }}>
+            Beskriv vad du vill träna så föreslår coachen pass utifrån din profil, nuvarande form och historik. Du får granska innan något sparas.
+          </p>
 
-      <textarea
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        rows={3}
-        placeholder="t.ex. Planera 2 veckor med en långpass per vecka och ett intervallpass. Ingen träning på onsdagar."
-        style={{ ...inputStyle(), resize: "vertical", fontFamily: "inherit" }}
-      />
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            rows={3}
+            placeholder="t.ex. Planera 2 veckor med en långpass per vecka och ett intervallpass. Ingen träning på onsdagar."
+            style={{ ...inputStyle(), resize: "vertical", fontFamily: "inherit" }}
+          />
 
-      <div className="flex items-center justify-end mt-3">
-        <button
-          onClick={generate}
-          disabled={generating || !prompt.trim()}
-          className="flex items-center gap-1.5 text-xs font-semibold rounded-full"
-          style={{
-            backgroundColor: "var(--color-primary-container)",
-            color: "var(--color-on-primary-container)",
-            border: "1px solid var(--color-outline-variant)",
-            padding: "8px 16px",
-            cursor: generating ? "wait" : prompt.trim() ? "pointer" : "not-allowed",
-            opacity: generating || !prompt.trim() ? 0.7 : 1,
-          }}
-        >
-          <span
-            className="material-symbols-outlined"
-            style={{
-              fontSize: 14,
-              animation: generating ? "spin-anim 0.8s linear infinite" : undefined,
-            }}
-          >
-            {generating ? "progress_activity" : "auto_awesome"}
-          </span>
-          {generating ? "Planerar…" : "Generera förslag"}
-        </button>
-      </div>
+          <div className="flex items-center justify-end mt-3">
+            <button
+              onClick={generate}
+              disabled={generating || !prompt.trim()}
+              className="flex items-center gap-1.5 text-xs font-semibold rounded-full"
+              style={{
+                backgroundColor: "var(--color-primary-container)",
+                color: "var(--color-on-primary-container)",
+                border: "1px solid var(--color-outline-variant)",
+                padding: "8px 16px",
+                cursor: generating ? "wait" : prompt.trim() ? "pointer" : "not-allowed",
+                opacity: generating || !prompt.trim() ? 0.7 : 1,
+              }}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{
+                  fontSize: 14,
+                  animation: generating ? "spin-anim 0.8s linear infinite" : undefined,
+                }}
+              >
+                {generating ? "progress_activity" : "auto_awesome"}
+              </span>
+              {generating ? "Planerar…" : "Generera förslag"}
+            </button>
+          </div>
+        </>
+      )}
 
       {err && (
         <div
@@ -989,12 +1095,33 @@ function AIPlanSection({ onApplied }: { onApplied: () => Promise<void> }) {
 
       {draft && (
         <div
-          className="mt-4 rounded-xl"
+          className="rounded-xl mt-3"
           style={{
             backgroundColor: "var(--color-surface-container)",
             padding: 14,
           }}
         >
+          {/* Originalprompten som en quote högst upp — ger kontext utan att ta
+              samma plats som full input-ruta. */}
+          <div
+            className="flex items-start gap-2 mb-3"
+            style={{ color: "var(--color-on-surface-variant)" }}
+          >
+            <span
+              className="material-symbols-outlined shrink-0"
+              style={{ fontSize: 14, marginTop: 2 }}
+              aria-hidden="true"
+            >
+              format_quote
+            </span>
+            <span
+              className="text-xs italic flex-1 min-w-0"
+              style={{ lineHeight: 1.4 }}
+            >
+              {draft.originalPrompt}
+            </span>
+          </div>
+
           {draft.commentary && (
             <p
               className="text-sm mb-3"
@@ -1008,72 +1135,206 @@ function AIPlanSection({ onApplied }: { onApplied: () => Promise<void> }) {
             </p>
           )}
           <div className="space-y-2">
-            {draft.plan.map((p, i) => (
-              <div
-                key={i}
-                className="rounded-lg"
+            {draft.plan.map((p, i) => {
+              const isRegenerating = regenIndex === i;
+              const anyRegenerating = regenIndex !== null;
+              return (
+                <div
+                  key={`${p.datum}-${i}`}
+                  className="rounded-lg"
+                  style={{
+                    backgroundColor: "var(--color-surface-container-lowest)",
+                    border: "1px solid var(--color-outline-variant)",
+                    borderLeft: `3px solid ${typeColor(p.typ ?? "")}`,
+                    padding: "10px 12px",
+                    opacity: isRegenerating ? 0.5 : 1,
+                    transition: "opacity 0.2s ease-out",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="material-symbols-outlined shrink-0"
+                      style={{ fontSize: 16, color: typeColor(p.typ ?? "") }}
+                    >
+                      {typeIcon(p.typ ?? "")}
+                    </span>
+                    <span
+                      className="text-sm font-semibold flex-1 min-w-0 truncate"
+                      style={{ color: "var(--color-on-surface)" }}
+                    >
+                      {p.passnamn || p.typ || "Pass"}
+                    </span>
+                    <span
+                      className="text-[11px] tabular-nums shrink-0"
+                      style={{ color: "var(--color-on-surface-variant)" }}
+                    >
+                      {p.datum}
+                    </span>
+                    <button
+                      onClick={() => regenerateOne(i)}
+                      disabled={anyRegenerating || revising || saving}
+                      aria-label="Regenerera detta pass"
+                      title="Byt ut detta pass"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: anyRegenerating || revising || saving ? "wait" : "pointer",
+                        color: "var(--color-on-surface-variant)",
+                        padding: 2,
+                        display: "inline-flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        className="material-symbols-outlined"
+                        style={{
+                          fontSize: 16,
+                          animation: isRegenerating
+                            ? "spin-anim 0.8s linear infinite"
+                            : undefined,
+                        }}
+                      >
+                        {isRegenerating ? "progress_activity" : "refresh"}
+                      </span>
+                    </button>
+                  </div>
+                  {p.syfte && (
+                    <div
+                      className="text-xs mt-1"
+                      style={{ color: "var(--color-on-surface-variant)" }}
+                    >
+                      {p.syfte}
+                    </div>
+                  )}
+                  {(p.tid || p.tempo || p.pulsintervall) && (
+                    <div
+                      className="text-[11px] mt-1 tabular-nums"
+                      style={{ color: "var(--color-on-surface-variant)" }}
+                    >
+                      {[p.tid, p.tempo, p.pulsintervall].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
+                  {p.passdetaljer && (
+                    <div
+                      className="text-[11px] mt-1"
+                      style={{
+                        color: "var(--color-on-surface-variant)",
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      {p.passdetaljer}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Feedback-ruta för chat-revision — "fortsätt chatten" */}
+          <div
+            className="mt-4 rounded-lg"
+            style={{
+              backgroundColor: "var(--color-surface-container-lowest)",
+              border: "1px solid var(--color-outline-variant)",
+              padding: 14,
+            }}
+          >
+            <div
+              className="text-[10px] font-semibold uppercase tracking-wider"
+              style={{ color: "var(--color-on-surface-variant)", marginBottom: 10 }}
+            >
+              Ändra förslaget
+            </div>
+            <textarea
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              rows={3}
+              disabled={revising || regenIndex !== null || saving}
+              placeholder="t.ex. Byt tisdagspasset till en lugn promenad istället, och gör långpasset lite kortare."
+              style={{
+                ...inputStyle(),
+                resize: "vertical",
+                fontFamily: "inherit",
+                fontSize: 13,
+                lineHeight: 1.45,
+                minHeight: 72,
+              }}
+            />
+            <div className="flex items-center justify-end mt-3">
+              <button
+                onClick={revise}
+                disabled={revising || !feedback.trim() || regenIndex !== null || saving}
+                className="flex items-center gap-1.5 text-xs font-semibold rounded-full"
                 style={{
-                  backgroundColor: "var(--color-surface-container-lowest)",
+                  backgroundColor: "var(--color-primary-container)",
+                  color: "var(--color-on-primary-container)",
                   border: "1px solid var(--color-outline-variant)",
-                  borderLeft: `3px solid ${typeColor(p.typ ?? "")}`,
-                  padding: "10px 12px",
+                  padding: "6px 14px",
+                  cursor: revising ? "wait" : feedback.trim() ? "pointer" : "not-allowed",
+                  opacity: revising || !feedback.trim() ? 0.7 : 1,
                 }}
               >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="material-symbols-outlined shrink-0"
-                    style={{ fontSize: 16, color: typeColor(p.typ ?? "") }}
-                  >
-                    {typeIcon(p.typ ?? "")}
+                <span
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: 14,
+                    animation: revising ? "spin-anim 0.8s linear infinite" : undefined,
+                  }}
+                >
+                  {revising ? "progress_activity" : "send"}
+                </span>
+                {revising ? "Uppdaterar…" : "Uppdatera plan"}
+              </button>
+            </div>
+
+            {draftErr && (
+              <div
+                className="mt-3 rounded-lg"
+                style={{
+                  border: "1px solid var(--color-error, #b3261e)",
+                  padding: "8px 10px",
+                }}
+              >
+                <div
+                  className="text-xs flex items-start gap-1.5"
+                  style={{ color: "var(--color-error, #b3261e)" }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, marginTop: 1 }}>
+                    error
                   </span>
-                  <span
-                    className="text-sm font-semibold flex-1 min-w-0 truncate"
-                    style={{ color: "var(--color-on-surface)" }}
-                  >
-                    {p.passnamn || p.typ || "Pass"}
-                  </span>
-                  <span
-                    className="text-[11px] tabular-nums shrink-0"
-                    style={{ color: "var(--color-on-surface-variant)" }}
-                  >
-                    {p.datum}
-                  </span>
+                  <span style={{ lineHeight: 1.4 }}>{draftErr.message}</span>
                 </div>
-                {p.syfte && (
-                  <div
-                    className="text-xs mt-1"
-                    style={{ color: "var(--color-on-surface-variant)" }}
-                  >
-                    {p.syfte}
-                  </div>
-                )}
-                {(p.tid || p.tempo || p.pulsintervall) && (
-                  <div
-                    className="text-[11px] mt-1 tabular-nums"
-                    style={{ color: "var(--color-on-surface-variant)" }}
-                  >
-                    {[p.tid, p.tempo, p.pulsintervall].filter(Boolean).join(" · ")}
-                  </div>
-                )}
-                {p.passdetaljer && (
-                  <div
-                    className="text-[11px] mt-1"
-                    style={{
-                      color: "var(--color-on-surface-variant)",
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
-                    {p.passdetaljer}
-                  </div>
+                {draftErr.rawText && (
+                  <details className="mt-2">
+                    <summary
+                      className="text-[11px] cursor-pointer"
+                      style={{ color: "var(--color-on-surface-variant)" }}
+                    >
+                      Visa Claudes råsvar
+                    </summary>
+                    <pre
+                      className="text-[10px] mt-2 rounded overflow-x-auto"
+                      style={{
+                        backgroundColor: "var(--color-surface-container)",
+                        color: "var(--color-on-surface-variant)",
+                        padding: 8,
+                        maxHeight: 180,
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {draftErr.rawText}
+                    </pre>
+                  </details>
                 )}
               </div>
-            ))}
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-2 mt-4">
             <button
               onClick={() => setDraft(null)}
-              disabled={saving}
+              disabled={saving || revising || regenIndex !== null}
               className="text-xs font-semibold rounded-full"
               style={{
                 backgroundColor: "transparent",
@@ -1087,7 +1348,7 @@ function AIPlanSection({ onApplied }: { onApplied: () => Promise<void> }) {
             </button>
             <button
               onClick={save}
-              disabled={saving}
+              disabled={saving || revising || regenIndex !== null}
               className="flex items-center gap-1.5 text-xs font-semibold rounded-full"
               style={{
                 backgroundColor: "var(--color-primary)",
@@ -1095,7 +1356,7 @@ function AIPlanSection({ onApplied }: { onApplied: () => Promise<void> }) {
                 border: "none",
                 padding: "8px 16px",
                 cursor: saving ? "wait" : "pointer",
-                opacity: saving ? 0.7 : 1,
+                opacity: saving || revising || regenIndex !== null ? 0.7 : 1,
               }}
             >
               {saving && (
