@@ -213,7 +213,12 @@ function SonosTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () =
 
 function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: () => void }) {
   const playing = isPlaying(player.state);
-  const isOff = player.state === "off" || player.state === "standby";
+  // Power state: use the remote entity (power_state) when available —
+  // media_player.turn_on/off return 200 but don't actually wake/sleep the device.
+  // remote.turn_on/off works correctly (verified via curl testing).
+  const isOff = player.power_state != null
+    ? player.power_state === "off"
+    : player.state === "off" || player.state === "standby";
 
   // Apple TV: use media_player.* with SPECIFIC services (media_pause/media_play).
   // The toggle service media_play_pause is broken on the pyatv integration —
@@ -231,7 +236,11 @@ function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: ()
     onRefresh();
   };
   const togglePower = async () => {
-    await callMedia(isOff ? "turn_on" : "turn_off", player.entity_id);
+    if (player.power_entity_id) {
+      await callRemote(isOff ? "turn_on" : "turn_off", player.power_entity_id);
+    } else {
+      await callMedia(isOff ? "turn_on" : "turn_off", player.entity_id);
+    }
     onRefresh();
   };
 
