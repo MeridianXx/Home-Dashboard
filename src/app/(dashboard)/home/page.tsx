@@ -967,9 +967,12 @@ const DAY_NAMES_SV = ["sön", "mån", "tis", "ons", "tor", "fre", "lör"];
 // ─── Väderrad (kompakt, ovanför favoriter) ──────────────────────────────────
 function WeatherStrip({ data }: { data: WeatherData }) {
   const c = data.current;
+  // Skippa idag ur prognosen — vänster sida visar redan aktuellt väder
+  const today = new Date().toDateString();
+  const upcoming = data.forecast.filter(f => new Date(f.datetime).toDateString() !== today).slice(0, 3);
   return (
-    <div className="flex items-center" style={{ gap: 0 }}>
-      {/* Aktuellt — ikon + temp */}
+    <div className="flex items-center">
+      {/* Aktuellt — just nu */}
       <div className="flex items-center gap-2 shrink-0" style={{ marginRight: "auto" }}>
         <span className="material-symbols-outlined"
           style={{ fontSize: 22, color: "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1" }}>
@@ -984,28 +987,35 @@ function WeatherStrip({ data }: { data: WeatherData }) {
         </span>
       </div>
 
-      {/* Prognos-dagar */}
-      {data.forecast.map((f, i) => {
-        const d = new Date(f.datetime);
-        const dayLabel = i === 0 ? "idag" : DAY_NAMES_SV[d.getDay()];
-        return (
-          <div key={f.datetime} className="flex flex-col items-center"
-            style={{ width: 48 }}>
-            <span className="text-[10px] font-medium uppercase"
-              style={{ color: "var(--color-on-surface-variant)", opacity: 0.6 }}>{dayLabel}</span>
-            <span className="material-symbols-outlined"
-              style={{ fontSize: 17, color: "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1", margin: "2px 0" }}>
-              {weatherIcon(f.condition)}
-            </span>
-            <span className="text-[11px] font-semibold leading-none" style={{ color: "var(--color-on-surface)" }}>
-              {Math.round(f.temperature)}°
-              <span style={{ fontWeight: 400, color: "var(--color-outline)", marginLeft: 1 }}>
-                {Math.round(f.templow)}°
-              </span>
-            </span>
-          </div>
-        );
-      })}
+      {upcoming.length > 0 && (
+        <>
+          {/* Separator */}
+          <div className="shrink-0" style={{ width: 1, height: 28, backgroundColor: "var(--color-outline-variant)", opacity: 0.3, margin: "0 10px" }} />
+
+          {/* Prognos — imorgon + 2 dagar */}
+          {upcoming.map((f) => {
+            const d = new Date(f.datetime);
+            const dayLabel = DAY_NAMES_SV[d.getDay()];
+            return (
+              <div key={f.datetime} className="flex flex-col items-center"
+                style={{ width: 48 }}>
+                <span className="text-[10px] font-medium uppercase"
+                  style={{ color: "var(--color-on-surface-variant)", opacity: 0.6 }}>{dayLabel}</span>
+                <span className="material-symbols-outlined"
+                  style={{ fontSize: 17, color: "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1", margin: "2px 0" }}>
+                  {weatherIcon(f.condition)}
+                </span>
+                <span className="text-[11px] font-semibold leading-none" style={{ color: "var(--color-on-surface)" }}>
+                  {Math.round(f.temperature)}°
+                  <span style={{ fontWeight: 400, color: "var(--color-outline)", marginLeft: 1 }}>
+                    {Math.round(f.templow)}°
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }

@@ -20,7 +20,7 @@ export async function GET() {
     const forecastArr =
       forecastRes?.service_response?.["weather.forecast_hem"]?.forecast ?? [];
 
-    const forecast = forecastArr.slice(0, 3).map((f) => ({
+    const forecast = forecastArr.slice(0, 4).map((f) => ({
       datetime: (f.datetime as string) ?? "",
       condition: (f.condition as string) ?? "",
       temperature: (f.temperature as number) ?? 0,
