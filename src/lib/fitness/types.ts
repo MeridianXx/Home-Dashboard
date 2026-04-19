@@ -77,6 +77,8 @@ export interface FitnessProfile {
   birthYear?: number;
   /** Vikt i kg */
   weightKg?: number;
+  /** Längd i cm */
+  heightCm?: number;
   /** Maxpuls (bpm) */
   maxHR: number;
   /** Vilopuls (bpm) */

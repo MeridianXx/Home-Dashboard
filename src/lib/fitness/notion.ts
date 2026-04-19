@@ -204,6 +204,53 @@ export async function syncWorkoutToLog(w: Workout): Promise<{ pageId: string; cr
   return { pageId: created.id, created: true };
 }
 
+// ─── AI-analys per logg-rad ──────────────────────────────────────────────────
+
+/** Returnerar sparad AI-analys + senaste modifierings-tid för log-raden. */
+export async function getWorkoutAnalysis(
+  w: Pick<Workout, "date" | "time" | "type">,
+): Promise<{ analysis: string | null; updatedAt: string | null; pageId: string | null }> {
+  if (!LOG_DB) return { analysis: null, updatedAt: null, pageId: null };
+  const key = logKey(w);
+  const dsId = await resolveDataSourceId(LOG_DB);
+  const res = await dsApi().query({
+    data_source_id: dsId,
+    filter: { property: "FIT-fil", rich_text: { contains: key } },
+    page_size: 1,
+  });
+  const page = res.results[0];
+  if (!page) return { analysis: null, updatedAt: null, pageId: null };
+  const p = page.properties as Record<string, {
+    rich_text?: Array<{ plain_text: string }>;
+    last_edited_time?: string;
+  }>;
+  const text = (p["AI-analys"]?.rich_text ?? []).map((t) => t.plain_text).join("");
+  const updatedAt = p["AI-analys"]?.last_edited_time ?? null;
+  return { analysis: text.length > 0 ? text : null, updatedAt, pageId: page.id };
+}
+
+/**
+ * Skriv AI-analys till log-raden för passet. Skapar raden först om den saknas —
+ * så analysen alltid får en plats att bo i. Returnerar page-id.
+ */
+export async function saveWorkoutAnalysis(workout: Workout, analysis: string): Promise<string> {
+  if (!LOG_DB) throw new Error("NOTION_FITNESS_LOG_DB saknas i env");
+  // Notion rich_text har en 2 000-teckens gräns per text-block. Klipp om så inget svar avvisas.
+  const clipped = analysis.length > 1900 ? analysis.slice(0, 1900) + "…" : analysis;
+
+  // Säkerställ att raden finns — syncWorkoutToLog är idempotent.
+  const { pageId } = await syncWorkoutToLog(workout);
+
+  const n = getClient();
+  await n.pages.update({
+    page_id: pageId,
+    properties: {
+      "AI-analys": { rich_text: [{ text: { content: clipped } }] },
+    } as never,
+  });
+  return pageId;
+}
+
 /** Synka alla pass i batch — returnerar antal skapade/uppdaterade. */
 export async function syncWorkoutsToLog(workouts: Workout[]): Promise<{ created: number; updated: number }> {
   let created = 0, updated = 0;
@@ -277,6 +324,7 @@ export async function getProfile(fallback: FitnessProfile): Promise<FitnessProfi
     else if (r.key === "maxHR") profile.maxHR = parseInt(v, 10) || profile.maxHR;
     else if (r.key === "restingHR") profile.restingHR = parseInt(v, 10) || profile.restingHR;
     else if (r.key === "weightKg") profile.weightKg = parseFloat(v) || undefined;
+    else if (r.key === "heightCm") profile.heightCm = parseFloat(v) || undefined;
     else if (r.key.startsWith("zone.")) {
       // zone.Z1.lo / zone.Z1.hi
       const [, z, side] = r.key.split(".");
@@ -351,6 +399,7 @@ export async function updateProfile(patch: Partial<FitnessProfile>): Promise<voi
   if (patch.maxHR !== undefined) await upsertProfileRow("maxHR", String(patch.maxHR), "profil");
   if (patch.restingHR !== undefined) await upsertProfileRow("restingHR", String(patch.restingHR), "profil");
   if (patch.weightKg !== undefined) await upsertProfileRow("weightKg", String(patch.weightKg ?? ""), "profil");
+  if (patch.heightCm !== undefined) await upsertProfileRow("heightCm", String(patch.heightCm ?? ""), "profil");
 
   if (patch.zones) {
     for (const z of ["Z1", "Z2", "Z3", "Z4", "Z5"] as const) {

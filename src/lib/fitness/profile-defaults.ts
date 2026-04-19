@@ -10,7 +10,8 @@ import type { FitnessProfile } from "./types";
 export const DEFAULT_PROFILE: FitnessProfile = {
   name: "Adam",
   birthYear: 1985,
-  weightKg: 78,
+  weightKg: 68,
+  heightCm: 185,
   maxHR: 209,
   restingHR: 55,
   zones: {

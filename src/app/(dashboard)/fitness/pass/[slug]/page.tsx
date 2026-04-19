@@ -12,6 +12,7 @@ import type { WorkoutsResponse, Workout, PlansResponse, PlannedWorkout } from "@
 import type { FitResponse } from "@/app/api/fitness/fit/route";
 import { ElevationChart, HeartRateCard, LapsList } from "@/components/fitness/PassCharts";
 import { PassSummary } from "@/components/fitness/PassSummary";
+import { AIAnalysisCard } from "@/components/fitness/AIAnalysisCard";
 import { parseSlug } from "@/lib/fitness/slug";
 
 // Leaflet måste laddas client-side — SSR:ar inte
@@ -196,6 +197,9 @@ export default function PassDetailPage({ params }: { params: Promise<{ slug: str
           <ElevationChart track={fitData.track} />
         </Card>
       )}
+
+      {/* AI-analys — Claude kör profil + PMC + historik för att tolka passet */}
+      <AIAnalysisCard date={parsed.date} time={parsed.time} type={parsed.type} />
 
       {/* Matchat planerat pass */}
       {plannedMatch && (

@@ -235,6 +235,12 @@ function ProfileEditor() {
           value={profile.maxHR.toString()}
           onChange={(v) => upd({ maxHR: parseInt(v, 10) || profile.maxHR })}
         />
+        <EditField
+          label="Längd (cm)"
+          type="number"
+          value={profile.heightCm?.toString() ?? ""}
+          onChange={(v) => upd({ heightCm: v ? parseInt(v, 10) : undefined })}
+        />
       </div>
 
       <div>
@@ -811,16 +817,17 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics }: {
               </Link>
             );
           })}
-          {/* "Se all historik →" leder till dedikerad /fitness/history-sida
-              (byggs i kommande session). Håll dashboarden snabb — all historik
-              används främst av AI-coachen via server-side context-modulen, inte
-              av UI:t. */}
-          <div
+          {/* Se all historik → /fitness/history (paginerad, filtrerbar).
+              Dashboarden håller sig till 10 pass för snabbt svar. AI-coachen
+              läser hela historiken via server-side context-modulen. */}
+          <Link
+            href="/fitness/history"
             className="flex items-center justify-center gap-1 text-xs font-semibold pt-2"
-            style={{ color: "var(--color-on-surface-variant)" }}
+            style={{ color: "var(--color-primary)", textDecoration: "none" }}
           >
-            Se all historik — kommer i kommande session
-          </div>
+            Se all historik
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+          </Link>
         </div>
       )}
     </Card>
