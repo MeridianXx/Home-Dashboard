@@ -231,7 +231,11 @@ function AppleTvTile({ player, onRefresh }: { player: MediaPlayer; onRefresh: ()
     onRefresh();
   };
   const togglePower = async () => {
-    await callMedia(isOff ? "turn_on" : "turn_off", player.entity_id);
+    if (player.power_entity_id) {
+      await callRemote(isOff ? "turn_on" : "turn_off", player.power_entity_id);
+    } else {
+      await callMedia(isOff ? "turn_on" : "turn_off", player.entity_id);
+    }
     onRefresh();
   };
 

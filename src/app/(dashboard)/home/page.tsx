@@ -43,6 +43,15 @@ type HvacData     = {
   };
 };
 type VacuumData   = { state: string; battery_pct: number | null; status: string | null; current_room: string | null; cleaned_area: number | null; charging: boolean; cleaning: boolean; do_not_disturb: boolean };
+type WeatherData  = {
+  current: { state: string; temperature: number; humidity: number; wind_speed: number; wind_bearing: number };
+  forecast: Array<{ datetime: string; condition: string; temperature: number; templow: number; precipitation: number; wind_speed: number }>;
+};
+type MediaPlayer  = {
+  entity_id: string; name: string; room: string; type: "sonos" | "appletv" | "tv";
+  state: string; media_title: string | null; media_artist: string | null;
+  media_image_url: string | null; source: string | null;
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -235,7 +244,7 @@ function LightingCard({ data, onRefresh, loadingKey, runAction }: { data: Lights
                 {/* Right: expand — tall touch target with subtle left divider */}
                 <button onClick={() => setExpandedId(open ? null : area.area_id)}
                   className="shrink-0 flex items-center justify-center self-stretch"
-                  style={{ width: 48, borderLeft: "1px solid var(--color-outline-variant)", opacity: 0.5 }}>
+                  style={{ width: 44, borderLeft: "1px solid var(--color-outline-variant)", opacity: 0.3 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--color-on-surface-variant)" }}>
                     {open ? "expand_less" : "expand_more"}
                   </span>
@@ -331,21 +340,21 @@ function CarsCard({ data }: { data: CarsData }) {
       <SectionLabel>Elbilar &amp; laddning</SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {data.cars.map(car => {
-          const battColor = car.soc < 20 ? "var(--color-error)" : "var(--color-primary)";
+          const green = "#22c55e";
+          const barColor = car.plugged_in ? green : car.soc < 20 ? "var(--color-error)" : "var(--color-outline)";
           return (
             <div key={car.id} className="p-4 rounded-xl"
               style={{ backgroundColor: "var(--color-surface-container)" }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-[20px]"
-                    style={{ color: "var(--color-on-surface-variant)" }}>electric_car</span>
+                    style={{ color: car.plugged_in ? green : "var(--color-on-surface-variant)" }}>electric_car</span>
                   <span className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>{car.name}</span>
                 </div>
-                {/* Badge: kontakt (binary_sensor.vanster/hoger_kontakt) */}
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full"
                   style={{
-                    backgroundColor: "var(--color-surface-container-high)",
-                    color: car.plugged_in ? "var(--color-on-surface)" : "var(--color-outline)",
+                    backgroundColor: car.plugged_in ? `${green}18` : "var(--color-surface-container-high)",
+                    color: car.plugged_in ? green : "var(--color-outline)",
                   }}>
                   {car.plugged_in ? "Inkopplad" : "Ej inkopplad"}
                 </span>
@@ -353,12 +362,18 @@ function CarsCard({ data }: { data: CarsData }) {
 
               {/* SOC bar */}
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-3xl font-black" style={{ color: battColor }}>{car.soc}%</span>
+                <span className="text-3xl font-black" style={{ color: "var(--color-on-surface)" }}>{car.soc}%</span>
                 <div className="flex-1">
                   <div className="h-2 rounded-full overflow-hidden"
                     style={{ backgroundColor: "var(--color-surface-container-high)" }}>
                     <div className="h-full rounded-full transition-all"
-                      style={{ width: `${car.soc}%`, backgroundColor: battColor }} />
+                      style={{
+                        width: `${car.soc}%`,
+                        backgroundColor: barColor,
+                        ...(car.charging ? {
+                          animation: "charge-pulse 1.5s ease-in-out infinite",
+                        } : {}),
+                      }} />
                   </div>
                   {car.target_soc < 100 && (
                     <p className="text-[10px] mt-0.5" style={{ color: "var(--color-outline)" }}>
@@ -369,16 +384,23 @@ function CarsCard({ data }: { data: CarsData }) {
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  ["Räckvidd",  `ca ${car.range_km} km`],
-                  /* Laddning: binary_sensor.vanster/hoger_laddning */
-                  ["Laddning",  car.charging ? "Aktiv" : "Inaktiv"],
-                ].map(([k, v]) => (
-                  <div key={k}>
-                    <p className="text-[10px] font-bold uppercase" style={{ color: "var(--color-outline)" }}>{k}</p>
-                    <p className="text-xs font-bold" style={{ color: "var(--color-on-surface)" }}>{v}</p>
+                <div>
+                  <p className="text-[10px] font-bold uppercase" style={{ color: "var(--color-outline)" }}>Räckvidd</p>
+                  <p className="text-xs font-bold" style={{ color: "var(--color-on-surface)" }}>ca {car.range_km} km</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase" style={{ color: "var(--color-outline)" }}>Laddning</p>
+                  <div className="flex items-center gap-1">
+                    {car.charging && (
+                      <span className="material-symbols-outlined text-[14px]"
+                        style={{ color: green, fontVariationSettings: "'FILL' 1" }}>bolt</span>
+                    )}
+                    <p className="text-xs font-bold"
+                      style={{ color: car.charging ? green : "var(--color-on-surface)" }}>
+                      {car.charging ? "Laddar" : "Inaktiv"}
+                    </p>
                   </div>
-                ))}
+                </div>
               </div>
             </div>
           );
@@ -930,6 +952,109 @@ function MiniTile({ label, icon, color, active, loading, onClick }: {
   );
 }
 
+// ─── Väder-ikon mappning (HA condition → Material Symbol) ─────────────────────
+const WEATHER_ICON: Record<string, string> = {
+  "clear-night": "dark_mode", sunny: "light_mode", partlycloudy: "partly_cloudy_day",
+  cloudy: "cloud", fog: "foggy", rainy: "rainy", pouring: "thunderstorm",
+  snowy: "weather_snowy", "snowy-rainy": "weather_mix", hail: "weather_hail",
+  lightning: "thunderstorm", "lightning-rainy": "thunderstorm", windy: "air",
+  "windy-variant": "air", exceptional: "warning",
+};
+function weatherIcon(condition: string) { return WEATHER_ICON[condition] ?? "thermostat"; }
+
+const DAY_NAMES_SV = ["sön", "mån", "tis", "ons", "tor", "fre", "lör"];
+
+// ─── Väderrad (kompakt, ovanför favoriter) ──────────────────────────────────
+function WeatherStrip({ data }: { data: WeatherData }) {
+  const c = data.current;
+  return (
+    <div className="rounded-2xl overflow-hidden"
+      style={{ backgroundColor: "var(--color-surface-container)" }}>
+      <div className="flex items-center justify-between px-4 py-2.5">
+        {/* Aktuellt — vänster */}
+        <div className="flex items-center gap-2.5">
+          <span className="material-symbols-outlined text-[22px]"
+            style={{ color: "var(--color-primary)", fontVariationSettings: "'FILL' 1" }}>
+            {weatherIcon(c.state)}
+          </span>
+          <span className="text-lg font-black" style={{ color: "var(--color-on-surface)" }}>
+            {Math.round(c.temperature)}°
+          </span>
+          <span className="text-[11px] font-medium"
+            style={{ color: "var(--color-on-surface-variant)" }}>
+            {Math.round(c.wind_speed)} m/s
+          </span>
+        </div>
+
+        {/* 3-dagars prognos — höger */}
+        <div className="flex items-center gap-4">
+          {data.forecast.map((f, i) => {
+            const d = new Date(f.datetime);
+            const dayLabel = i === 0 ? "idag" : DAY_NAMES_SV[d.getDay()];
+            return (
+              <div key={f.datetime} className="flex flex-col items-center" style={{ minWidth: 36 }}>
+                <span className="text-[9px] font-semibold uppercase leading-tight"
+                  style={{ color: "var(--color-on-surface-variant)" }}>{dayLabel}</span>
+                <span className="material-symbols-outlined text-[16px] my-0.5"
+                  style={{ color: "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1" }}>
+                  {weatherIcon(f.condition)}
+                </span>
+                <span className="text-[11px] font-bold leading-tight" style={{ color: "var(--color-on-surface)" }}>
+                  {Math.round(f.temperature)}°<span style={{ color: "var(--color-outline)", fontWeight: 500 }}> {Math.round(f.templow)}°</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Nu spelas (visas bara om något spelar) ─────────────────────────────────
+function NowPlayingStrip({ players }: { players: MediaPlayer[] }) {
+  const playing = players.filter(p => p.state === "playing");
+  if (playing.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      {playing.map(p => (
+        <div key={p.entity_id} className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+          style={{ backgroundColor: "var(--color-surface-container)" }}>
+          {/* Album art */}
+          {p.media_image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={p.media_image_url} alt=""
+              style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+          ) : (
+            <div style={{
+              width: 44, height: 44, borderRadius: 8, flexShrink: 0,
+              backgroundColor: "var(--color-surface-container-high)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <span className="material-symbols-outlined text-[20px]"
+                style={{ color: "var(--color-on-surface-variant)" }}>music_note</span>
+            </div>
+          )}
+          {/* Title + artist */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
+              {p.media_title ?? "Spelar"}
+            </p>
+            <p className="text-xs truncate" style={{ color: "var(--color-on-surface-variant)" }}>
+              {[p.media_artist, p.room].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+          {/* Equalizer animation icon */}
+          <span className="material-symbols-outlined text-[20px] shrink-0"
+            style={{ color: "var(--color-primary)", fontVariationSettings: "'FILL' 1" }}>
+            graphic_eq
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -951,6 +1076,8 @@ export default function HomePage() {
   const { data: cars }                         = useSWR<CarsData>    ("/api/homeassistant/cars",    fetcher, { refreshInterval: 60_000 });
   const { data: hvac,    mutate: mHvac    }    = useSWR<HvacData>    ("/api/homeassistant/hvac",    fetcher, { refreshInterval: 15_000 });
   const { data: vacuum,  mutate: mVacuum  }    = useSWR<VacuumData>  ("/api/homeassistant/vacuum",  fetcher, { refreshInterval: 10_000 });
+  const { data: weather }                      = useSWR<WeatherData> ("/api/homeassistant/weather", fetcher, { refreshInterval: 300_000 });
+  const { data: mediaData }                    = useSWR<{ players: MediaPlayer[] }>("/api/homeassistant/media", fetcher, { refreshInterval: 5_000 });
 
   // Awaitable refresh — waits for HA to process the command before revalidating
   const delay = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
@@ -1213,6 +1340,12 @@ export default function HomePage() {
           </div>
         );
       })()}
+
+      {/* Väder — kompakt ambient-rad */}
+      {weather && "current" in weather && <WeatherStrip data={weather} />}
+
+      {/* Nu spelas — visas bara om minst en mediaspelare spelar */}
+      {mediaData?.players && <NowPlayingStrip players={mediaData.players} />}
 
       {/* Favoriter */}
       <Card>

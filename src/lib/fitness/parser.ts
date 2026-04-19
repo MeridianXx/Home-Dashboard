@@ -132,7 +132,11 @@ export function parseAllWorkouts(buffer: Buffer): Workout[] {
     out.push({
       date,
       time: timeSerial !== null ? excelSerialToTime(timeSerial) : undefined,
-      type: (str(row[I.type]) ?? "Running"),
+      type: (() => {
+        const raw = str(row[I.type]) ?? "Running";
+        if (/tennis/i.test(raw)) return "Padel";
+        return raw;
+      })(),
       totalTimeSec,
       movingTimeSec: toSec(row[I.movingTime]),
       elapsedTimeSec: toSec(row[I.elapsedTime]),

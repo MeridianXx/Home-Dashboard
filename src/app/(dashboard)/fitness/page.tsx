@@ -143,7 +143,7 @@ function zoneLabel(z: "Z1" | "Z2" | "Z3" | "Z4" | "Z5"): string {
 }
 
 /** Kategorisera en HealthFit-passtyp. */
-function typeCategory(type: string): "run" | "walk" | "bike" | "swim" | "ski" | "yoga" | "core" | "strength" | "other" {
+function typeCategory(type: string): "run" | "walk" | "bike" | "swim" | "ski" | "yoga" | "core" | "strength" | "padel" | "other" {
   const t = type.toLowerCase();
   if (t.includes("run")) return "run";
   if (t.includes("walk")) return "walk";
@@ -153,6 +153,7 @@ function typeCategory(type: string): "run" | "walk" | "bike" | "swim" | "ski" | 
   if (t.includes("yoga")) return "yoga";
   if (t.includes("core")) return "core";
   if (t.includes("strength")) return "strength";
+  if (t.includes("padel")) return "padel";
   return "other";
 }
 
@@ -169,6 +170,7 @@ function typeIcon(type: string): string {
     // delar därför hantel-ikonen.
     case "core": return "exercise";
     case "strength": return "exercise";
+    case "padel": return "sports_tennis";
     default: return "fitness_center";
   }
 }

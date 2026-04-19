@@ -96,6 +96,7 @@ function typeLabel(type: string): string {
   if (t.includes("core")) return "Core";
   if (t.includes("swim")) return "Simning";
   if (t.includes("ski")) return "Skidåkning";
+  if (t.includes("padel")) return "Padel";
   return type;
 }
 

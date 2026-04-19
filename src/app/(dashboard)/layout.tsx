@@ -27,8 +27,8 @@ function getTabIndex(pathname: string) {
   return suffixes.indexOf(current);
 }
 
-// Smooth slide — slower, deeper deceleration for less "jumpy" feel
-const FADE_EASE = { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const };
+// Smooth slide — longer duration + gentle cubic-bezier for fluid feel
+const FADE_EASE = { duration: 0.32, ease: [0.25, 0.1, 0.25, 1] as const };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const collapsed = useDashboardStore((s) => s.sidebarCollapsed);
@@ -191,7 +191,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (pullDistance >= PULL_THRESHOLD && !refreshing) {
       setRefreshing(true);
       setPullDistance(PULL_THRESHOLD);
-      await mutate(() => true, undefined, { revalidate: true });
+      // Force SWR to revalidate all keys by clearing dedupe interval
+      await mutate(
+        (key) => typeof key === "string" && key.startsWith("/api/"),
+        undefined,
+        { revalidate: true },
+      );
       setRefreshing(false);
       // Show done checkmark briefly
       setRefreshDone(true);

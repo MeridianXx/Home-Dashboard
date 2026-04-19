@@ -42,9 +42,13 @@ export function detectActiveScene(
     let allMatch = true;
     for (const [eid, target] of targetEntries) {
       const live = byId.get(eid);
-      if (!live) { allMatch = false; break; }
+      if (!live) {
+        if (target.state === "off") continue; // missing = off, matches
+        allMatch = false; break;
+      }
 
-      if (live.state !== target.state) { allMatch = false; break; }
+      const liveState = live.state === "unavailable" ? "off" : live.state;
+      if (liveState !== target.state) { allMatch = false; break; }
 
       if (target.state === "on" && target.brightness_pct != null && live.brightness_pct != null) {
         if (Math.abs(live.brightness_pct - target.brightness_pct) > BRIGHTNESS_TOLERANCE) {

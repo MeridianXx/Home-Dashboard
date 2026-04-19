@@ -86,7 +86,7 @@ function RoomRow({ area, expanded, onToggleExpand, onToggleArea, onToggleLight, 
         {/* Right: expand — tall touch target with subtle divider */}
         <button onClick={onToggleExpand}
           className="shrink-0 flex items-center justify-center self-stretch"
-          style={{ width: 48, borderLeft: "1px solid var(--color-outline-variant)", opacity: 0.5 }}>
+          style={{ width: 44, borderLeft: "1px solid var(--color-outline-variant)", opacity: 0.3 }}>
           <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--color-on-surface-variant)" }}>
             {expanded ? "expand_less" : "expand_more"}
           </span>

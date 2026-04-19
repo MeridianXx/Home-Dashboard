@@ -269,3 +269,8 @@ input[type="range"]::-moz-range-thumb {
   --color-outline:                   #919188;
   --color-card-border:               #3e3e38;
 }
+
+@keyframes charge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

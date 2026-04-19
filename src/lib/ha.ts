@@ -37,7 +37,7 @@ export async function haPost(path: string, body: unknown): Promise<unknown> {
 }
 
 /** Render a Jinja2 template via /api/template and return the raw string result */
-async function haTemplate(template: string): Promise<string> {
+export async function haTemplate(template: string): Promise<string> {
   if (!BASE || !TOKEN) throw new Error("HA_URL / HA_TOKEN saknas");
   const res = await fetch(`${BASE}/api/template`, {
     method: "POST",
