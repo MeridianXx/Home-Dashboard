@@ -27,6 +27,21 @@ function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Svensk veckodag-förkortning ("mån", "tis", ...) från ISO-datum. */
+function weekdaySv(iso: string): string {
+  // Undvik tidszons-drift — tolka som UTC-datum
+  const d = new Date(`${iso}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return "";
+  const days = ["sön", "mån", "tis", "ons", "tor", "fre", "lör"];
+  return days[d.getUTCDay()];
+}
+
+/** "2026-04-17 fre" — ISO + veckodag. Claude hallucinerar annars veckodagar. */
+function isoWithDow(iso: string): string {
+  const dow = weekdaySv(iso);
+  return dow ? `${iso} ${dow}` : iso;
+}
+
 function sumTrimpByDay(workouts: Workout[]): Map<string, number> {
   const m = new Map<string, number>();
   for (const w of workouts) {
@@ -90,7 +105,7 @@ function profileText(p: FitnessProfile): string {
 }
 
 function workoutLine(w: Workout): string {
-  const parts: string[] = [`${w.date}${w.time ? ` ${w.time}` : ""}: ${w.type}`];
+  const parts: string[] = [`${isoWithDow(w.date)}${w.time ? ` ${w.time}` : ""}: ${w.type}`];
   if (w.distanceM > 0) parts.push(`${(w.distanceM / 1000).toFixed(2)} km`);
   if (w.totalTimeSec > 0) parts.push(durationString(w.totalTimeSec));
   if (w.distanceM > 0 && w.totalTimeSec > 0) parts.push(`${paceString(w.distanceM, w.totalTimeSec)}/km`);
@@ -176,7 +191,7 @@ function weeklyLine(w: WeeklyAgg): string {
     .map(([t, n]) => `${n}×${t.replace(/\s+/g, " ")}`)
     .join(", ");
   const parts = [
-    `v.${w.weekStart}`,
+    `v. som börjar ${w.weekStart} (mån)`,
     `${w.count} pass`,
   ];
   if (w.distanceKm > 0) parts.push(`${w.distanceKm.toFixed(1)} km`);
@@ -188,7 +203,7 @@ function weeklyLine(w: WeeklyAgg): string {
 }
 
 function plannedLine(p: PlannedWorkout): string {
-  const bits = [`${p.datum}: ${p.passnamn || p.typ || "okänt"}`];
+  const bits = [`${isoWithDow(p.datum)}: ${p.passnamn || p.typ || "okänt"}`];
   if (p.typ) bits.push(p.typ);
   if (p.tid) bits.push(p.tid);
   if (p.tempo) bits.push(`tempo ${p.tempo}`);
@@ -281,14 +296,17 @@ export async function buildContext(opts: BuildContextOptions = {}): Promise<Fitn
 
   const lines: string[] = [];
   if (isHistorical) {
-    lines.push(`ANALYS AV ÄLDRE PASS: passet nedan är från ${anchorIso}. All kontext (form, senaste pass, veckoaggregat, planerade pass) är tagen som den såg ut runt det datumet — inte idag. Prata om passet i dåtid, som något som redan hände.`);
+    lines.push(`ANALYS AV ÄLDRE PASS: passet nedan är från ${isoWithDow(anchorIso)}. All kontext (form, senaste pass, veckoaggregat, planerade pass) är tagen som den såg ut runt det datumet — inte idag. Prata om passet i dåtid, som något som redan hände.`);
+    lines.push("");
+  } else {
+    lines.push(`DAGENS DATUM: ${isoWithDow(anchorIso)}. Alla pass nedan anges med ISO-datum + svensk veckodagsförkortning (mån/tis/ons/tor/fre/lör/sön) — använd veckodagen exakt som den står, räkna aldrig själv ut vilken dag ett datum föll på.`);
     lines.push("");
   }
   lines.push("LÖPARPROFIL:");
   lines.push(profileText(profile));
   lines.push("");
 
-  lines.push(isHistorical ? `FORM VID PASSETS DATUM (${anchorIso}, Coggan PMC):` : "AKTUELL FORM (Coggan PMC):");
+  lines.push(isHistorical ? `FORM VID PASSETS DATUM (${isoWithDow(anchorIso)}, Coggan PMC):` : "AKTUELL FORM (Coggan PMC):");
   lines.push(
     `- CTL ${load.ctl} (kondition, 42d EMA av TRIMP)` +
     `, ATL ${load.atl} (trötthet, 7d EMA)` +
@@ -327,7 +345,7 @@ export async function buildContext(opts: BuildContextOptions = {}): Promise<Fitn
   if (recent.length > 0) {
     lines.push(
       isHistorical
-        ? `PASS FÖRE OCH INKL. ${anchorIso} (nyast först — ingen framtida data):`
+        ? `PASS FÖRE OCH INKL. ${isoWithDow(anchorIso)} (nyast först — ingen framtida data):`
         : `SENASTE ${recent.length} PASS (nyast först):`,
     );
     for (const w of recent) lines.push(workoutLine(w));
