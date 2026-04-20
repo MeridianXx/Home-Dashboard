@@ -1012,30 +1012,21 @@ function SolarCoolingCard({ data, onRefresh, loadingKey, runAction }: {
     onRefresh();
   }
 
-  async function handleAutomationToggle(entityId: string, enabled: boolean) {
-    vibrate();
-    await callAction("automation", enabled ? "turn_off" : "turn_on", entityId);
-    onRefresh();
-  }
-
-  function formatTriggered(iso: string | null) {
-    if (!iso) return "Aldrig";
-    const d = new Date(iso);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    if (diffMs < 60_000) return "Just nu";
-    if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)} min sedan`;
-    if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)} h sedan`;
-    return d.toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
-  }
-
-  // Context chips — only show meaningful values
-  const ctx = data.context;
-  const chips: { icon: string; label: string; value: string }[] = [];
-  if (ctx.outdoor_temp != null) chips.push({ icon: "device_thermostat", label: "Ute", value: `${Math.round(ctx.outdoor_temp)}°` });
-  if (ctx.sun_elevation != null && ctx.sun_elevation > 0) chips.push({ icon: "light_mode", label: "Sol", value: `${ctx.sun_elevation.toFixed(0)}°` });
-  if (ctx.cloud_coverage != null) chips.push({ icon: "cloud", label: "Moln", value: `${Math.round(ctx.cloud_coverage)}%` });
-  if (ctx.uv_index != null && ctx.uv_index > 0) chips.push({ icon: "wb_sunny", label: "UV", value: `${ctx.uv_index}` });
+  // Automations summary
+  const enabledCount = data.automations.filter(a => a.enabled).length;
+  const lastTriggered = data.automations
+    .map(a => a.last_triggered)
+    .filter((t): t is string => t != null)
+    .sort()
+    .pop();
+  const triggeredLabel = lastTriggered
+    ? (() => {
+        const diffMs = Date.now() - new Date(lastTriggered).getTime();
+        if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)} min sedan`;
+        if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)} h sedan`;
+        return new Date(lastTriggered).toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
+      })()
+    : null;
 
   return (
     <Card>
@@ -1051,32 +1042,27 @@ function SolarCoolingCard({ data, onRefresh, loadingKey, runAction }: {
       </div>
 
       {/* Score + AC status */}
-      <div className="flex items-center gap-4 mb-4">
-        {/* Solar gain score */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div style={{
-            width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
-            backgroundColor: active ? "rgba(245,158,11,0.15)" : "var(--color-surface-container)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <span className="material-symbols-outlined"
-              style={{ fontSize: 24, color: scoreColor, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>
-              solar_power
-            </span>
-          </div>
-          <div className="min-w-0">
-            <p className="text-2xl font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>
-              {score != null ? `${score}%` : "–"}
-            </p>
-            <p className="text-[11px] font-medium" style={{ color: active ? "#f59e0b" : "var(--color-outline)" }}>
-              {active ? "Solvärmelast" : "Inaktiv"}
-            </p>
-          </div>
+      <div className="flex items-center gap-3 mb-3">
+        <div style={{
+          width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+          backgroundColor: active ? "rgba(245,158,11,0.15)" : "var(--color-surface-container)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <span className="material-symbols-outlined"
+            style={{ fontSize: 20, color: scoreColor, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>
+            solar_power
+          </span>
         </div>
-
-        {/* AC status pill + room temp */}
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
+        <div className="flex-1 min-w-0">
+          <p className="text-lg font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>
+            {score != null ? `${score}%` : "–"}
+            <span className="text-xs font-medium ml-1.5" style={{ color: active ? "#f59e0b" : "var(--color-outline)" }}>
+              {active ? "solvärme" : "inaktiv"}
+            </span>
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-0.5 shrink-0">
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
             style={{
               backgroundColor: acOn ? "rgba(71,91,194,0.15)" : "var(--color-surface-container)",
               color: acOn ? "#475bc2" : "var(--color-outline)",
@@ -1084,60 +1070,20 @@ function SolarCoolingCard({ data, onRefresh, loadingKey, runAction }: {
             {acMode}{acOn && data.ac.target_temp != null ? ` ${data.ac.target_temp}°` : ""}
           </span>
           {data.room_temp != null && (
-            <span className="text-xs font-semibold" style={{ color: "var(--color-on-surface-variant)" }}>
+            <span className="text-[11px] font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
               {data.room_temp.toFixed(1)}° rum
             </span>
           )}
         </div>
       </div>
 
-      {/* Context chips */}
-      {chips.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {chips.map(chip => (
-            <span key={chip.label} className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full"
-              style={{ backgroundColor: "var(--color-surface-container)", color: "var(--color-on-surface-variant)" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 13 }}>{chip.icon}</span>
-              {chip.value}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Automations */}
-      <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${data.automations.length}, minmax(0, 1fr))` }}>
-        {data.automations.map(auto => {
-          const key = `solkyla-auto-${auto.entity_id}`;
-          const isLoading = loadingKey === key;
-          const dotColor = auto.enabled ? "#22c55e" : "var(--color-outline)";
-          return (
-            <Pressable key={auto.entity_id}
-              onClick={() => runAction(key, async () => { await handleAutomationToggle(auto.entity_id, auto.enabled); })}
-              loading={isLoading}
-              className="flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-xl text-center"
-              style={{ backgroundColor: "var(--color-surface-container)" }}>
-              {isLoading ? (
-                <svg className="spin-anim" viewBox="0 0 24 24" fill="none"
-                  style={{ width: 14, height: 14, flexShrink: 0, color: dotColor }}>
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25"/>
-                  <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-              ) : (
-                <span style={{
-                  width: 8, height: 8, borderRadius: "50%", backgroundColor: dotColor,
-                  display: "block", flexShrink: 0,
-                }} />
-              )}
-              <span className="text-[10px] font-bold leading-tight w-full truncate"
-                style={{ color: auto.enabled ? "var(--color-on-surface)" : "var(--color-outline)" }}>
-                {auto.name}
-              </span>
-              <span className="text-[9px] leading-tight" style={{ color: "var(--color-outline)" }}>
-                {formatTriggered(auto.last_triggered)}
-              </span>
-            </Pressable>
-          );
-        })}
+      {/* Footer — context + automations summary */}
+      <div className="text-[11px]" style={{ color: "var(--color-outline)" }}>
+        <span>{data.context.outdoor_temp != null ? `${Math.round(data.context.outdoor_temp)}° ute` : ""}</span>
+        {data.context.cloud_coverage != null && <span> · {Math.round(data.context.cloud_coverage)}% moln</span>}
+        {data.context.uv_index != null && data.context.uv_index > 0 && <span> · UV {data.context.uv_index}</span>}
+        <span> · {enabledCount}/{data.automations.length} regler aktiva</span>
+        {triggeredLabel && <span> · senast {triggeredLabel}</span>}
       </div>
     </Card>
   );
