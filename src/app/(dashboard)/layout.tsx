@@ -11,7 +11,7 @@ import { useDashboardStore } from "@/lib/store";
 
 const CONTEXT_TABS: Record<string, string[]> = {
   "/home":     ["", "/lighting", "/media", "/automations"],
-  "/homelab":  ["", "/servers", "/containers", "/media", "/network"],
+  "/homelab":  ["", "/servers", "/network"],
   "/fitness":  ["", "/coach", "/history"],
   "/garden":   ["", "/planner"],
 };

@@ -24,9 +24,7 @@ const CONTEXT_META: Record<
     label: "Homelab",
     tabs: [
       { label: "Översikt",   suffix: "",          icon: "dashboard"   },
-      { label: "Servrar",    suffix: "/servers",  icon: "dns"         },
-      { label: "Containers", suffix: "/containers",icon: "view_in_ar" },
-      { label: "Media",      suffix: "/media",    icon: "queue_music" },
+      { label: "Infra",      suffix: "/servers",  icon: "dns"         },
       { label: "Nätverk",    suffix: "/network",  icon: "router"      },
     ],
   },

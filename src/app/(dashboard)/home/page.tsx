@@ -186,11 +186,12 @@ function LightingCard({ data, onRefresh, loadingKey, runAction }: { data: Lights
   return (
     <Card className="md:col-span-2 xl:col-span-3">
       <div className="flex items-center justify-between mb-3">
-        <a href="/home/lighting" className="flex items-center gap-1" style={{ textDecoration: "none" }}>
-          <SectionLabel>Belysning</SectionLabel>
-          <span className="material-symbols-outlined -mt-3" style={{ fontSize: 14, color: "var(--color-on-surface-variant)", opacity: 0.5 }}>chevron_right</span>
+        <a href="/home/lighting" className="flex items-center gap-0.5" style={{ textDecoration: "none" }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest"
+            style={{ color: "var(--color-on-surface-variant)" }}>Belysning</p>
+          <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-on-surface-variant)", opacity: 0.4 }}>chevron_right</span>
         </a>
-        <div className="flex items-center gap-2 -mt-3">
+        <div className="flex items-center gap-2">
           <span className="text-xs font-bold" style={{ color: totalOn > 0 ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
             {totalOn}/{totalAll} på
           </span>
@@ -327,12 +328,6 @@ function LightingCard({ data, onRefresh, loadingKey, runAction }: { data: Lights
           );
         })}
       </div>
-      <a href="/home/lighting"
-        className="flex items-center justify-center gap-1.5 mt-4 text-sm font-semibold"
-        style={{ color: "var(--color-primary)", opacity: 0.8 }}>
-        <span>Visa alla rum</span>
-        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
-      </a>
     </Card>
   );
 }
