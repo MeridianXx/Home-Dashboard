@@ -533,55 +533,68 @@ function VacuumCard({ data, onRefresh }: { data: VacuumData; onRefresh: () => vo
   const statusLabel = data.cleaning
     ? (data.current_room ? `Städar · ${data.current_room}` : "Städar")
     : data.charging ? "Laddar"
-    : data.state === "docked" ? "Hemma · Dockat"
+    : data.state === "docked" ? "Dockat"
     : data.state === "idle" ? "Vilar"
     : data.state ?? "–";
 
   const statusColor = data.cleaning
     ? "var(--color-secondary)"
     : data.charging
-    ? "var(--color-tertiary)"
+    ? "#22c55e"
     : "var(--color-on-surface-variant)";
+
+  // Battery icon — stepped + green
+  const battPct = data.battery_pct ?? 0;
+  const battIcon = battPct >= 95 ? "battery_full" : battPct >= 75 ? "battery_5_bar" : battPct >= 50 ? "battery_4_bar" : battPct >= 25 ? "battery_2_bar" : "battery_1_bar";
+  const battColor = battPct >= 25 ? "#22c55e" : "var(--color-error)";
 
   return (
     <Card>
       <SectionLabel>Dammsugare</SectionLabel>
       {/* Status row */}
       <div className="flex items-center gap-3 mb-4">
-        <span className="material-symbols-outlined text-[24px]" style={{ color: statusColor }}>
-          {data.cleaning ? "robot_2" : "dock"}
-        </span>
+        <div style={{
+          width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+          backgroundColor: data.cleaning ? "var(--color-secondary-container)" : "var(--color-surface-container)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 22, color: statusColor, fontVariationSettings: "'FILL' 1" }}>
+            smart_toy
+          </span>
+        </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>Chomper</p>
           <p className="text-xs" style={{ color: statusColor }}>{statusLabel}</p>
         </div>
-        <div className="flex items-center gap-1 text-xs font-bold"
-          style={{ color: data.charging ? "var(--color-tertiary)" : "var(--color-on-surface-variant)" }}>
-          <span className="material-symbols-outlined text-[15px]">battery_horiz_075</span>
-          {data.battery_pct != null ? `${data.battery_pct}%` : "–"}
-        </div>
-        {data.cleaning && data.cleaned_area != null && (
-          <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-            style={{ backgroundColor: "var(--color-secondary-container)", color: "var(--color-secondary)" }}>
-            {data.cleaned_area.toFixed(0)} m²
+        <div className="flex items-center gap-1">
+          {data.cleaning && data.cleaned_area != null && (
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full mr-1"
+              style={{ backgroundColor: "var(--color-secondary-container)", color: "var(--color-secondary)" }}>
+              {data.cleaned_area.toFixed(0)} m²
+            </span>
+          )}
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: battColor, fontVariationSettings: "'FILL' 1" }}>{battIcon}</span>
+          <span className="text-xs font-bold" style={{ color: battColor }}>
+            {data.battery_pct != null ? `${data.battery_pct}%` : "–"}
           </span>
-        )}
+        </div>
       </div>
-      {/* Action buttons */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Quick actions — 5 buttons */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 6 }}>
         {[
-          { label: "Efter maten",  icon: "restaurant",        action: () => callAction("button", "press", "button.chomper_after_meals") },
-          { label: "Damm + Mopp", icon: "cleaning_services",  action: () => callAction("button", "press", "button.chomper_vac_followed_by_mop") },
-          { label: "Till docka",  icon: "home",               action: () => callAction("vacuum", "return_to_base", "vacuum.chomper") },
+          { label: "Damm\n+ Mopp",   icon: "cleaning_services", action: () => callAction("button", "press", "button.chomper_vac_followed_by_mop") },
+          { label: "Djup",           icon: "speed",             action: () => callAction("button", "press", "button.dammsugare_djup") },
+          { label: "Efter\nmaten",   icon: "restaurant",        action: () => callAction("button", "press", "button.chomper_after_meals") },
+          { label: "Kök\n& hall",    icon: "sprint",            action: () => callAction("button", "press", "button.dammsugare_snabb_kok_hall") },
+          { label: "Till\ndocka",    icon: "home",              action: () => callAction("vacuum", "return_to_base", "vacuum.chomper") },
         ].map(({ label, icon, action }) => (
           <Pressable key={label}
             onClick={async () => { vibrate(); await action(); onRefresh(); }}
-            className="flex flex-col items-center gap-1.5 py-3 rounded-xl text-center"
-            style={{ backgroundColor: "var(--color-surface-container)" }}>
-            <span className="material-symbols-outlined text-[20px]"
-              style={{ color: "var(--color-on-surface-variant)" }}>{icon}</span>
-            <span className="text-[10px] font-semibold leading-tight"
-              style={{ color: "var(--color-on-surface)" }}>{label}</span>
+            className="flex flex-col items-center justify-center gap-1 rounded-xl text-center"
+            style={{ backgroundColor: "var(--color-surface-container)", minHeight: 64, padding: "8px 2px" }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--color-on-surface-variant)" }}>{icon}</span>
+            <span className="text-[9px] font-semibold leading-tight"
+              style={{ color: "var(--color-on-surface)", whiteSpace: "pre-line" }}>{label}</span>
           </Pressable>
         ))}
       </div>
