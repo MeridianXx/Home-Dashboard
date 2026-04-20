@@ -579,14 +579,29 @@ function VacuumCard({ data, onRefresh }: { data: VacuumData; onRefresh: () => vo
           </span>
         </div>
       </div>
-      {/* Quick actions — pill buttons */}
+      {/* Controls — Starta + Docka */}
+      <div className="flex gap-2 mb-2">
+        {[
+          { label: "Starta", icon: "play_arrow",  action: () => callAction("vacuum", "start", "vacuum.chomper") },
+          { label: "Docka",  icon: "home",         action: () => callAction("vacuum", "return_to_base", "vacuum.chomper") },
+        ].map(({ label, icon, action }) => (
+          <Pressable key={label}
+            onClick={async () => { vibrate(); await action(); onRefresh(); }}
+            className="flex items-center justify-center gap-1.5 rounded-full flex-1"
+            style={{ backgroundColor: "var(--color-surface-container)", padding: "8px 12px" }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>{icon}</span>
+            <span className="text-[11px] font-semibold"
+              style={{ color: "var(--color-on-surface)" }}>{label}</span>
+          </Pressable>
+        ))}
+      </div>
+      {/* Quick programs */}
       <div className="flex flex-wrap gap-2">
         {[
-          { label: "Kök & hall",  icon: "kitchen",           action: () => callAction("button", "press", "button.dammsugare_snabb_kok_hall") },
-          { label: "Djup",       icon: "auto_awesome",      action: () => callAction("button", "press", "button.dammsugare_djup") },
-          { label: "Damm",       icon: "cleaning_services", action: () => callAction("vacuum", "start", "vacuum.chomper") },
-          { label: "Efter maten",icon: "restaurant",        action: () => callAction("button", "press", "button.chomper_after_meals") },
-          { label: "Damm + Mopp",icon: "water_drop",        action: () => callAction("button", "press", "button.chomper_vac_followed_by_mop") },
+          { label: "Kök & hall",   icon: "kitchen",           action: () => callAction("button", "press", "button.dammsugare_snabb_kok_hall") },
+          { label: "Djup",        icon: "auto_awesome",      action: () => callAction("button", "press", "button.dammsugare_djup") },
+          { label: "Efter maten", icon: "restaurant",        action: () => callAction("button", "press", "button.chomper_after_meals") },
+          { label: "Damm + Mopp", icon: "water_drop",        action: () => callAction("button", "press", "button.chomper_vac_followed_by_mop") },
         ].map(({ label, icon, action }) => (
           <Pressable key={label}
             onClick={async () => { vibrate(); await action(); onRefresh(); }}
