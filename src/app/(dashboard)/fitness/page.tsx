@@ -628,12 +628,14 @@ function staleFreshnessLabel(iso: string): string | null {
 function NextPlannedCard({ plans, error, isLoading }: {
   plans: PlannedWorkout[]; error: unknown; isLoading: boolean;
 }) {
-  const next = useMemo(() => {
+  const nextDay = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    // Endast framtida/idag, och ej redan avklarade.
-    return plans.find(
+    const upcoming = plans.filter(
       (p) => p.datum >= today && p.status !== "Gjord" && p.status !== "Slutförd",
     );
+    if (upcoming.length === 0) return [];
+    const nearestDate = upcoming[0].datum;
+    return upcoming.filter((p) => p.datum === nearestDate);
   }, [plans]);
 
   return (
@@ -647,63 +649,78 @@ function NextPlannedCard({ plans, error, isLoading }: {
           Kunde inte hämta planerade pass.
         </div>
       )}
-      {!isLoading && !error && !next && (
+      {!isLoading && !error && nextDay.length === 0 && (
         <div className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
           Inga kommande pass planerade.
         </div>
       )}
-      {next && (
+      {nextDay.length > 0 && (
         <div>
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div>
-              <div className="text-lg font-bold leading-tight" style={{ color: "var(--color-on-surface)" }}>
-                {next.passnamn || "Namnlöst pass"}
-              </div>
-              <div className="text-sm mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>
-                {formatShortDate(next.datum)}
-                {(() => {
-                  const d = daysUntil(next.datum);
-                  if (d === null) return "";
-                  if (d === 0) return " · idag";
-                  if (d === 1) return " · imorgon";
-                  if (d > 0) return ` · om ${d} dagar`;
-                  return ` · ${Math.abs(d)} dagar sen`;
-                })()}
-              </div>
-            </div>
-            {next.typ && (
-              <span
-                className="text-xs font-semibold rounded-full shrink-0"
-                style={{
-                  backgroundColor: "var(--color-primary-container)",
-                  color: "var(--color-on-primary-container)",
-                  padding: "4px 12px",
-                  lineHeight: 1.2,
-                }}
-              >
-                {next.typ}
-              </span>
-            )}
+          {/* Date shown once for all workouts on the same day */}
+          <div className="text-sm mb-3" style={{ color: "var(--color-on-surface-variant)" }}>
+            {formatShortDate(nextDay[0].datum)}
+            {(() => {
+              const d = daysUntil(nextDay[0].datum);
+              if (d === null) return "";
+              if (d === 0) return " · idag";
+              if (d === 1) return " · imorgon";
+              if (d > 0) return ` · om ${d} dagar`;
+              return ` · ${Math.abs(d)} dagar sen`;
+            })()}
           </div>
 
-          {next.syfte && (
-            <div className="text-sm mb-2" style={{ color: "var(--color-on-surface)" }}>
-              {next.syfte}
-            </div>
-          )}
+          {nextDay.map((pw, i) => (
+            <div key={pw.passnamn + pw.datum + i}>
+              {i > 0 && (
+                <div
+                  style={{
+                    height: 1,
+                    backgroundColor: "var(--color-outline-variant)",
+                    margin: "12px 0",
+                    opacity: 0.5,
+                  }}
+                />
+              )}
 
-          <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-            {next.tid && <KV label="Tid" value={next.tid} />}
-            {next.tempo && <KV label="Tempo" value={next.tempo} />}
-            {next.pulsintervall && <KV label="Puls" value={next.pulsintervall} />}
-            {next.underlag && <KV label="Underlag" value={next.underlag} />}
-          </div>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="text-lg font-bold leading-tight" style={{ color: "var(--color-on-surface)" }}>
+                  {pw.passnamn || "Namnlöst pass"}
+                </div>
+                {pw.typ && (
+                  <span
+                    className="text-xs font-semibold rounded-full shrink-0"
+                    style={{
+                      backgroundColor: "var(--color-primary-container)",
+                      color: "var(--color-on-primary-container)",
+                      padding: "4px 12px",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {pw.typ}
+                  </span>
+                )}
+              </div>
 
-          {next.passdetaljer && (
-            <div className="mt-3 text-sm whitespace-pre-wrap" style={{ color: "var(--color-on-surface-variant)" }}>
-              {next.passdetaljer}
+              {pw.syfte && (
+                <div className="text-sm mb-2" style={{ color: "var(--color-on-surface)" }}>
+                  {pw.syfte}
+                </div>
+              )}
+
+              <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                {pw.tid && <KV label="Tid" value={pw.tid} />}
+                {pw.tempo && <KV label="Tempo" value={pw.tempo} />}
+                {pw.pulsintervall && <KV label="Puls" value={pw.pulsintervall} />}
+                {pw.underlag && <KV label="Underlag" value={pw.underlag} />}
+              </div>
+
+              {pw.passdetaljer && (
+                <div className="mt-3 text-sm whitespace-pre-wrap" style={{ color: "var(--color-on-surface-variant)" }}>
+                  {pw.passdetaljer}
+                </div>
+              )}
             </div>
-          )}
+          ))}
         </div>
       )}
 

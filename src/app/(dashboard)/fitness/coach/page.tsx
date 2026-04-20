@@ -695,12 +695,12 @@ function PlanModal({ draft, onClose, onSave, onDelete }: {
           </div>
 
           <Field label="Syfte">
-            <input
-              type="text"
+            <textarea
               value={form.syfte ?? ""}
               onChange={(e) => upd({ syfte: e.target.value })}
+              rows={2}
               placeholder="Kort om passets mål"
-              style={inputStyle()}
+              style={{ ...inputStyle(), resize: "vertical", fontFamily: "inherit" }}
             />
           </Field>
 
@@ -836,16 +836,32 @@ function SelectBox({ value, options, onChange, placeholder }: {
   placeholder?: string;
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={{ ...inputStyle(), appearance: "none", paddingRight: 28 }}
-    >
-      {placeholder && <option value="">{placeholder}</option>}
-      {options.map((o) => (
-        <option key={o} value={o}>{o}</option>
-      ))}
-    </select>
+    <div style={{ position: "relative" }}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ ...inputStyle(), appearance: "none", paddingRight: 32 }}
+      >
+        {placeholder && <option value="">{placeholder}</option>}
+        {options.map((o) => (
+          <option key={o} value={o}>{o}</option>
+        ))}
+      </select>
+      <span
+        className="material-symbols-outlined"
+        style={{
+          position: "absolute",
+          right: 8,
+          top: "50%",
+          transform: "translateY(-50%)",
+          fontSize: 18,
+          color: "var(--color-on-surface-variant)",
+          pointerEvents: "none",
+        }}
+      >
+        expand_more
+      </span>
+    </div>
   );
 }
 

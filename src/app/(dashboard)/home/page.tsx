@@ -344,14 +344,14 @@ function CarsCard({ data }: { data: CarsData }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {data.cars.map(car => {
           const green = "#22c55e";
-          const barColor = car.plugged_in ? green : car.soc < 20 ? "var(--color-error)" : "var(--color-outline)";
+          const barColor = car.charging ? green : car.soc < 20 ? "var(--color-error)" : "var(--color-outline)";
           return (
             <div key={car.id} className="p-4 rounded-xl"
               style={{ backgroundColor: "var(--color-surface-container)" }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-[20px]"
-                    style={{ color: car.plugged_in ? green : "var(--color-on-surface-variant)" }}>electric_car</span>
+                    style={{ color: car.charging ? green : "var(--color-on-surface-variant)" }}>electric_car</span>
                   <span className="text-sm font-bold" style={{ color: "var(--color-on-surface)" }}>{car.name}</span>
                 </div>
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full"
