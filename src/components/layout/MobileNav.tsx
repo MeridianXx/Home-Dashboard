@@ -14,7 +14,7 @@ export default function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="md:hidden fixed z-50" style={{ bottom: "20px", left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+    <nav className="md:hidden fixed z-50" style={{ bottom: "20px", left: 0, right: 0, display: "flex", justifyContent: "center", WebkitTransform: "translateZ(0)", willChange: "transform" }}>
       <div
         className="flex items-center gap-1 px-2 py-2 rounded-full"
         style={{

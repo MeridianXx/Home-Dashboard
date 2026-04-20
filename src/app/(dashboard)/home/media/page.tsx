@@ -347,6 +347,11 @@ export default function MediaPage() {
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       {error && <ErrorBanner onRetry={() => mutate()} />}
 
+      <a href="/home" className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: "var(--color-primary)", textDecoration: "none" }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>
+        Tillbaka
+      </a>
+
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold" style={{ color: "var(--color-on-surface)" }}>Media</h1>
         {players.length > 0 && (

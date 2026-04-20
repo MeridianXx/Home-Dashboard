@@ -773,7 +773,11 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics, anal
 
   return (
     <Card>
-      <SectionTitle icon="history">Senaste pass</SectionTitle>
+      <Link href="/fitness/history" className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "var(--color-on-surface-variant)", textDecoration: "none" }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>history</span>
+        Senaste pass
+        <span className="material-symbols-outlined" style={{ fontSize: 14, opacity: 0.4 }}>chevron_right</span>
+      </Link>
       {error ? (
         <ErrorBanner onRetry={onRetry} />
       ) : isLoading ? (
@@ -861,17 +865,6 @@ function WorkoutHistoryCard({ workouts, error, isLoading, onRetry, metrics, anal
               </Link>
             );
           })}
-          {/* Se all historik → /fitness/history (paginerad, filtrerbar).
-              Dashboarden håller sig till 10 pass för snabbt svar. AI-coachen
-              läser hela historiken via server-side context-modulen. */}
-          <Link
-            href="/fitness/history"
-            className="flex items-center justify-center gap-1 text-xs font-semibold pt-2"
-            style={{ color: "var(--color-primary)", textDecoration: "none" }}
-          >
-            Se all historik
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
-          </Link>
         </div>
       )}
     </Card>

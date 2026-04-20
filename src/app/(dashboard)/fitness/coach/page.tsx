@@ -804,7 +804,7 @@ function PlanModal({ draft, onClose, onSave, onDelete }: {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
+    <label className="block" style={{ minWidth: 0 }}>
       <div
         className="text-[10px] font-semibold uppercase tracking-wider mb-1"
         style={{ color: "var(--color-on-surface-variant)" }}
@@ -819,6 +819,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function inputStyle(): React.CSSProperties {
   return {
     width: "100%",
+    boxSizing: "border-box",
     backgroundColor: "var(--color-surface-container)",
     color: "var(--color-on-surface)",
     border: "1px solid var(--color-outline-variant)",
