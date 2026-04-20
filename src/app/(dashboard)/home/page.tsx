@@ -558,8 +558,8 @@ function VacuumCard({ data, onRefresh }: { data: VacuumData; onRefresh: () => vo
           backgroundColor: data.cleaning ? "var(--color-secondary-container)" : "var(--color-surface-container)",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 22, color: "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1" }}>
-            {data.cleaning ? "motion_sensors_active" : "radio_button_checked"}
+          <span className="material-symbols-outlined" style={{ fontSize: 22, color: data.cleaning ? "var(--color-secondary)" : "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1" }}>
+            radio_button_checked
           </span>
         </div>
         <div className="flex-1 min-w-0">
