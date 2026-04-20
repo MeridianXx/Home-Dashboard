@@ -43,6 +43,14 @@ type HvacData     = {
   };
 };
 type VacuumData   = { state: string; battery_pct: number | null; status: string | null; current_room: string | null; cleaned_area: number | null; charging: boolean; cleaning: boolean; do_not_disturb: boolean };
+type SolkylaData = {
+  solar_gain_score: number | null;
+  master_enabled: boolean;
+  ac: { state: string; hvac_mode: string; current_temp: number | null; target_temp: number | null; fan_mode: string | null };
+  room_temp: number | null;
+  context: { bedroom_temp: number | null; cloud_coverage: number | null; nibe_indoor_temp: number | null; outdoor_temp: number | null; sun_elevation: number | null; uv_index: number | null };
+  automations: Array<{ name: string; entity_id: string; enabled: boolean; last_triggered: string | null }>;
+};
 type WeatherPeriod = { period: string; label: string; date: string; temperature: number; condition: string; precipitation: number };
 type WeatherData  = {
   current: { state: string; temperature: number; humidity: number; wind_speed: number; wind_bearing: number };
@@ -628,7 +636,7 @@ const HVAC_MODE_ICONS: Record<string, string> = {
   cool: "ac_unit", heat_cool: "thermostat_auto", fan_only: "mode_fan", dry: "water_drop",
 };
 
-const HERO_MODES = ["off", "heat", "cool", "heat_cool"];
+const HERO_MODES = ["off", "heat", "cool", "heat_cool", "dry", "fan_only"];
 function TempSlider({ value, min, max, step = 0.5, icon = "thermostat", onSet }: {
   value: number; min: number; max: number; step?: number; icon?: string;
   onSet: (t: number) => void;
@@ -724,19 +732,20 @@ function HvacCard({ data, onRefresh, loadingKey, runAction }: { data: HvacData; 
           </div>
 
           {/* Mode buttons */}
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
             {modes.map(mode => {
               const active = hp.state === mode;
               const isLoading = loadingKey === `hero-${mode}`;
               const mColor = mode === "off" ? "var(--color-outline)"
-                : mode === "cool" ? "var(--color-primary)"
+                : mode === "cool" || mode === "dry" ? "var(--color-primary)"
+                : mode === "fan_only" ? "var(--color-on-surface-variant)"
                 : "var(--color-tertiary)";
               return (
                 <Pressable key={mode} onClick={() => runAction(`hero-${mode}`, async () => { await handleHeatPumpMode(mode); await onRefresh(); })}
                   loading={isLoading}
                   className="flex flex-col items-center gap-1.5 py-2.5 rounded-xl"
                   style={{
-                    backgroundColor: active ? (mode === "off" ? "rgba(129,129,122,0.15)" : mode === "cool" ? "rgba(71,91,194,0.15)" : "rgba(136,92,0,0.15)") : "var(--color-surface-container-high)",
+                    backgroundColor: active ? (mode === "off" ? "rgba(129,129,122,0.15)" : (mode === "cool" || mode === "dry") ? "rgba(71,91,194,0.15)" : mode === "fan_only" ? "rgba(129,129,122,0.12)" : "rgba(136,92,0,0.15)") : "var(--color-surface-container-high)",
                     color: active && !isLoading ? mColor : "var(--color-on-surface-variant)",
                     transition: "background-color 0.2s, color 0.2s, box-shadow 0.2s, border-color 0.2s",
                     boxShadow: active && !isLoading ? `inset 0 0 0 99px ${mColor}08` : "none",
@@ -981,6 +990,159 @@ function MiniTile({ label, icon, color, active, loading, onClick }: {
   );
 }
 
+// ─── Solkyla ─────────────────────────────────────────────────────────────────
+
+const SOLKYLA_AC_LABELS: Record<string, string> = {
+  off: "Av", cool: "Kyla", dry: "Torr", fan_only: "Fläkt", heat: "Värme", heat_cool: "Auto",
+};
+
+function SolarCoolingCard({ data, onRefresh, loadingKey, runAction }: {
+  data: SolkylaData; onRefresh: () => void;
+  loadingKey: string | null; runAction: (key: string, fn: () => Promise<void>) => Promise<void>;
+}) {
+  const score = data.solar_gain_score;
+  const active = score != null && score > 0;
+  const scoreColor = active ? "#f59e0b" : "var(--color-outline)";
+  const acMode = SOLKYLA_AC_LABELS[data.ac.hvac_mode] ?? data.ac.hvac_mode;
+  const acOn = data.ac.state !== "off";
+
+  async function handleMasterToggle() {
+    vibrate();
+    await callAction("input_boolean", data.master_enabled ? "turn_off" : "turn_on", "input_boolean.solkyla_automation");
+    onRefresh();
+  }
+
+  async function handleAutomationToggle(entityId: string, enabled: boolean) {
+    vibrate();
+    await callAction("automation", enabled ? "turn_off" : "turn_on", entityId);
+    onRefresh();
+  }
+
+  function formatTriggered(iso: string | null) {
+    if (!iso) return "Aldrig";
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    if (diffMs < 60_000) return "Just nu";
+    if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)} min sedan`;
+    if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)} h sedan`;
+    return d.toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
+  }
+
+  // Context chips — only show meaningful values
+  const ctx = data.context;
+  const chips: { icon: string; label: string; value: string }[] = [];
+  if (ctx.outdoor_temp != null) chips.push({ icon: "device_thermostat", label: "Ute", value: `${Math.round(ctx.outdoor_temp)}°` });
+  if (ctx.sun_elevation != null && ctx.sun_elevation > 0) chips.push({ icon: "light_mode", label: "Sol", value: `${ctx.sun_elevation.toFixed(0)}°` });
+  if (ctx.cloud_coverage != null) chips.push({ icon: "cloud", label: "Moln", value: `${Math.round(ctx.cloud_coverage)}%` });
+  if (ctx.uv_index != null && ctx.uv_index > 0) chips.push({ icon: "wb_sunny", label: "UV", value: `${ctx.uv_index}` });
+
+  return (
+    <Card>
+      {/* Header — label + master toggle */}
+      <div className="flex items-center justify-between mb-3">
+        <SectionLabel>Solkyla</SectionLabel>
+        <div className="flex items-center gap-2" style={{ marginTop: -4 }}>
+          <span className="text-[10px] font-semibold" style={{ color: data.master_enabled ? "#f59e0b" : "var(--color-outline)" }}>
+            {data.master_enabled ? "På" : "Av"}
+          </span>
+          <LightToggle on={data.master_enabled} onChange={() => runAction("solkyla-master", async () => { await handleMasterToggle(); })} />
+        </div>
+      </div>
+
+      {/* Score + AC status */}
+      <div className="flex items-center gap-4 mb-4">
+        {/* Solar gain score */}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div style={{
+            width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
+            backgroundColor: active ? "rgba(245,158,11,0.15)" : "var(--color-surface-container)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <span className="material-symbols-outlined"
+              style={{ fontSize: 24, color: scoreColor, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>
+              solar_power
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-2xl font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>
+              {score != null ? `${score}%` : "–"}
+            </p>
+            <p className="text-[11px] font-medium" style={{ color: active ? "#f59e0b" : "var(--color-outline)" }}>
+              {active ? "Solvärmelast" : "Inaktiv"}
+            </p>
+          </div>
+        </div>
+
+        {/* AC status pill + room temp */}
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
+            style={{
+              backgroundColor: acOn ? "rgba(71,91,194,0.15)" : "var(--color-surface-container)",
+              color: acOn ? "#475bc2" : "var(--color-outline)",
+            }}>
+            {acMode}{acOn && data.ac.target_temp != null ? ` ${data.ac.target_temp}°` : ""}
+          </span>
+          {data.room_temp != null && (
+            <span className="text-xs font-semibold" style={{ color: "var(--color-on-surface-variant)" }}>
+              {data.room_temp.toFixed(1)}° rum
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Context chips */}
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {chips.map(chip => (
+            <span key={chip.label} className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full"
+              style={{ backgroundColor: "var(--color-surface-container)", color: "var(--color-on-surface-variant)" }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 13 }}>{chip.icon}</span>
+              {chip.value}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Automations */}
+      <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${data.automations.length}, minmax(0, 1fr))` }}>
+        {data.automations.map(auto => {
+          const key = `solkyla-auto-${auto.entity_id}`;
+          const isLoading = loadingKey === key;
+          const dotColor = auto.enabled ? "#22c55e" : "var(--color-outline)";
+          return (
+            <Pressable key={auto.entity_id}
+              onClick={() => runAction(key, async () => { await handleAutomationToggle(auto.entity_id, auto.enabled); })}
+              loading={isLoading}
+              className="flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-xl text-center"
+              style={{ backgroundColor: "var(--color-surface-container)" }}>
+              {isLoading ? (
+                <svg className="spin-anim" viewBox="0 0 24 24" fill="none"
+                  style={{ width: 14, height: 14, flexShrink: 0, color: dotColor }}>
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25"/>
+                  <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+              ) : (
+                <span style={{
+                  width: 8, height: 8, borderRadius: "50%", backgroundColor: dotColor,
+                  display: "block", flexShrink: 0,
+                }} />
+              )}
+              <span className="text-[10px] font-bold leading-tight w-full truncate"
+                style={{ color: auto.enabled ? "var(--color-on-surface)" : "var(--color-outline)" }}>
+                {auto.name}
+              </span>
+              <span className="text-[9px] leading-tight" style={{ color: "var(--color-outline)" }}>
+                {formatTriggered(auto.last_triggered)}
+              </span>
+            </Pressable>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 // ─── Väder-ikon mappning (HA condition → Material Symbol) ─────────────────────
 const WEATHER_ICON: Record<string, string> = {
   "clear-night": "dark_mode", sunny: "light_mode", partlycloudy: "partly_cloudy_day",
@@ -1118,12 +1280,14 @@ export default function HomePage() {
   const { data: vacuum,  mutate: mVacuum  }    = useSWR<VacuumData>  ("/api/homeassistant/vacuum",  fetcher, { refreshInterval: 10_000 });
   const { data: weather }                      = useSWR<WeatherData> ("/api/homeassistant/weather", fetcher, { refreshInterval: 300_000 });
   const { data: mediaData }                    = useSWR<{ players: MediaPlayer[] }>("/api/homeassistant/media", fetcher, { refreshInterval: 5_000 });
+  const { data: solkyla,  mutate: mSolkyla }   = useSWR<SolkylaData>("/api/homeassistant/solkyla", fetcher, { refreshInterval: 15_000 });
 
   // Awaitable refresh — waits for HA to process the command before revalidating
   const delay = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
   const refreshLights  = useCallback(async () => { await delay(600);  await mLights();  }, [mLights]);
   const refreshHvac    = useCallback(async () => { await delay(1000); await mHvac();   }, [mHvac]);
   const refreshVacuum  = useCallback(async () => { await delay(800);  await mVacuum(); }, [mVacuum]);
+  const refreshSolkyla = useCallback(async () => { await delay(600);  await mSolkyla(); }, [mSolkyla]);
 
   // Expanded chip state (inline expand-from-chip)
   const [expandedChip, setExpandedChip] = useState<"indoor" | "outdoor" | null>(null);
@@ -1504,6 +1668,11 @@ export default function HomePage() {
           <HvacCard data={hvac} onRefresh={refreshHvac} loadingKey={loadingKey} runAction={runAction} />
         ) : (
           <Card className="md:col-span-2"><SectionLabel>Värmepumpar</SectionLabel><Skeleton className="h-36" /></Card>
+        )}
+
+        {/* Solkyla */}
+        {solkyla && "master_enabled" in solkyla && (
+          <SolarCoolingCard data={solkyla} onRefresh={refreshSolkyla} loadingKey={loadingKey} runAction={runAction} />
         )}
 
         {/* Energi — under elbilar */}
