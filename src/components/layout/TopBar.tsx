@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
@@ -113,7 +114,7 @@ export default function TopBar() {
                 const href = `${contextKey}${suffix}`;
                 const active = pathname === href;
                 return (
-                  <a
+                  <Link
                     key={href}
                     href={href}
                     className="rounded-full px-3 py-1.5 transition-all whitespace-nowrap flex flex-col items-center gap-0.5"
@@ -128,7 +129,7 @@ export default function TopBar() {
                       {icon}
                     </span>
                     <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{label}</span>
-                  </a>
+                  </Link>
                 );
               })}
             </nav>
