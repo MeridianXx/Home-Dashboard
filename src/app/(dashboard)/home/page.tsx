@@ -543,7 +543,7 @@ function VacuumCard({ data, onRefresh }: { data: VacuumData; onRefresh: () => vo
     ? "#22c55e"
     : "var(--color-on-surface-variant)";
 
-  // Battery icon — stepped + green
+  // Battery icon — stepped, green
   const battPct = data.battery_pct ?? 0;
   const battIcon = battPct >= 95 ? "battery_full" : battPct >= 75 ? "battery_5_bar" : battPct >= 50 ? "battery_4_bar" : battPct >= 25 ? "battery_2_bar" : "battery_1_bar";
   const battColor = battPct >= 25 ? "#22c55e" : "var(--color-error)";
@@ -558,8 +558,8 @@ function VacuumCard({ data, onRefresh }: { data: VacuumData; onRefresh: () => vo
           backgroundColor: data.cleaning ? "var(--color-secondary-container)" : "var(--color-surface-container)",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 22, color: statusColor, fontVariationSettings: "'FILL' 1" }}>
-            smart_toy
+          <span className="material-symbols-outlined" style={{ fontSize: 22, color: "var(--color-on-surface-variant)", fontVariationSettings: "'FILL' 1" }}>
+            {data.cleaning ? "motion_sensors_active" : "radio_button_checked"}
           </span>
         </div>
         <div className="flex-1 min-w-0">
@@ -582,11 +582,11 @@ function VacuumCard({ data, onRefresh }: { data: VacuumData; onRefresh: () => vo
       {/* Quick actions — 5 buttons */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 6 }}>
         {[
-          { label: "Damm\n+ Mopp",   icon: "cleaning_services", action: () => callAction("button", "press", "button.chomper_vac_followed_by_mop") },
-          { label: "Djup",           icon: "speed",             action: () => callAction("button", "press", "button.dammsugare_djup") },
-          { label: "Efter\nmaten",   icon: "restaurant",        action: () => callAction("button", "press", "button.chomper_after_meals") },
-          { label: "Kök\n& hall",    icon: "sprint",            action: () => callAction("button", "press", "button.dammsugare_snabb_kok_hall") },
-          { label: "Till\ndocka",    icon: "home",              action: () => callAction("vacuum", "return_to_base", "vacuum.chomper") },
+          { label: "Kök\n& hall",    icon: "kitchen",             action: () => callAction("button", "press", "button.dammsugare_snabb_kok_hall") },
+          { label: "Djup",           icon: "auto_awesome",        action: () => callAction("button", "press", "button.dammsugare_djup") },
+          { label: "Damm",           icon: "cleaning_services",   action: () => callAction("vacuum", "start", "vacuum.chomper") },
+          { label: "Efter\nmaten",   icon: "restaurant",          action: () => callAction("button", "press", "button.chomper_after_meals") },
+          { label: "Damm\n+ Mopp",   icon: "water_drop",          action: () => callAction("button", "press", "button.chomper_vac_followed_by_mop") },
         ].map(({ label, icon, action }) => (
           <Pressable key={label}
             onClick={async () => { vibrate(); await action(); onRefresh(); }}
