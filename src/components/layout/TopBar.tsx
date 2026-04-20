@@ -17,7 +17,7 @@ const CONTEXT_META: Record<
       { label: "Översikt",    suffix: "",            icon: "dashboard"     },
       { label: "Belysning",   suffix: "/lighting",   icon: "light_mode"    },
       { label: "Media",       suffix: "/media",      icon: "speaker"       },
-      { label: "Automationer",suffix: "/automations",icon: "auto_mode"     },
+      { label: "Auto",        suffix: "/automations",icon: "auto_mode"     },
     ],
   },
   "/homelab": {
@@ -100,7 +100,7 @@ export default function TopBar() {
       </span>
 
       {/* Context label + sub-tabs */}
-      <div className="flex items-center flex-1 min-w-0 px-2 overflow-hidden">
+      <div className="flex items-center flex-1 min-w-0 px-2 overflow-visible">
         <span
           className="hidden md:block text-sm font-bold shrink-0 mr-4"
           style={{ color: "var(--color-on-surface-variant)" }}

@@ -186,7 +186,10 @@ function LightingCard({ data, onRefresh, loadingKey, runAction }: { data: Lights
   return (
     <Card className="md:col-span-2 xl:col-span-3">
       <div className="flex items-center justify-between mb-3">
-        <SectionLabel>Belysning</SectionLabel>
+        <a href="/home/lighting" className="flex items-center gap-1" style={{ textDecoration: "none" }}>
+          <SectionLabel>Belysning</SectionLabel>
+          <span className="material-symbols-outlined -mt-3" style={{ fontSize: 14, color: "var(--color-on-surface-variant)", opacity: 0.5 }}>chevron_right</span>
+        </a>
         <div className="flex items-center gap-2 -mt-3">
           <span className="text-xs font-bold" style={{ color: totalOn > 0 ? "var(--color-on-surface-variant)" : "var(--color-outline)" }}>
             {totalOn}/{totalAll} på
