@@ -1060,14 +1060,16 @@ function SolarCoolingCard({ data, onRefresh, loadingKey, runAction }: {
         </div>
       </div>
 
-      {/* Context — one clean line */}
+      {/* Context */}
       <div className="text-[11px]" style={{ color: "var(--color-outline)" }}>
         {data.room_temp != null && <span>{data.room_temp.toFixed(1)}° inne</span>}
         {data.context.outdoor_temp != null && <span> · {Math.round(data.context.outdoor_temp)}° ute</span>}
         {cloudLabel && <span> · {cloudLabel}</span>}
         {data.context.sun_elevation != null && data.context.sun_elevation > 0 && <span> · elev {data.context.sun_elevation.toFixed(1)}°</span>}
-        {triggeredLabel && <span> · senast {triggeredLabel}</span>}
       </div>
+      {triggeredLabel && (
+        <p className="text-[10px] mt-1" style={{ color: "var(--color-outline)" }}>Senast triggad {triggeredLabel}</p>
+      )}
     </Card>
   );
 }
