@@ -281,6 +281,11 @@ const USER_PROFILES = {
 - Vid hydration-mismatchar: radera `.next/`-mappen helt, starta sedan om servern
 - Enbart serveromstart räcker inte — Turbopack cachar SSR-HTML
 
+### Screenshot / bilddimensioner
+- **Regel:** håll längsta sidan **under 1800 px** för alla screenshots och genererade bilder. Gäller `preview_screenshot`, `mcp__computer-use__screenshot`, Chrome MCP-screenshots och bild-generering för analys
+- Om viewporten är större: `preview_resize` ner innan du tar screenshot, eller skala ner bilden innan du läser tillbaka den
+- **Varför:** Anthropic-API:t avvisar bilder över dimension-limit med ett `InputValidationError`. Det kraschar hela verktyget och blockerar verifiering tills bilden skalas ner — har kostat en hel fix-session tidigare
+
 ### Kända mönster
 - **Bottom padding på main:** `style={{ paddingBottom: "140px" }}` (inline, inte Tailwind)
 - **Range inputs:** stylas via `globals.css` med `appearance: none` + CSS-variabel `--fill` för amber-fyllning; uppdateras live via `onInput` → `t.style.setProperty("--fill", \`${t.value}%\`)`
