@@ -48,7 +48,7 @@ type SolkylaData = {
   master_enabled: boolean;
   ac: { state: string; hvac_mode: string; current_temp: number | null; target_temp: number | null; fan_mode: string | null };
   room_temp: number | null;
-  context: { bedroom_temp: number | null; cloud_coverage: number | null; nibe_indoor_temp: number | null; outdoor_temp: number | null; sun_elevation: number | null; uv_index: number | null };
+  context: { bedroom_temp: number | null; clouds_met: number | null; clouds_smhi: number | null; clouds_used: number | null; nibe_indoor_temp: number | null; outdoor_temp: number | null; sun_elevation: number | null };
   automations: Array<{ name: string; entity_id: string; enabled: boolean; last_triggered: string | null }>;
 };
 type WeatherPeriod = { period: string; label: string; date: string; temperature: number; condition: string; precipitation: number };
@@ -1079,9 +1079,18 @@ function SolarCoolingCard({ data, onRefresh, loadingKey, runAction }: {
 
       {/* Footer — context + automations summary */}
       <div className="text-[11px]" style={{ color: "var(--color-outline)" }}>
-        <span>{data.context.outdoor_temp != null ? `${Math.round(data.context.outdoor_temp)}° ute` : ""}</span>
-        {data.context.cloud_coverage != null && <span> · {Math.round(data.context.cloud_coverage)}% moln</span>}
-        {data.context.uv_index != null && data.context.uv_index > 0 && <span> · UV {data.context.uv_index}</span>}
+        {data.context.outdoor_temp != null && <span>{Math.round(data.context.outdoor_temp)}° ute</span>}
+        {(() => {
+          const { clouds_met, clouds_smhi } = data.context;
+          if (clouds_met != null && clouds_smhi != null) {
+            const diff = Math.abs(clouds_met - clouds_smhi);
+            if (diff > 20) return <span> · moln: {Math.round(clouds_met)}% Met / {Math.round(clouds_smhi)}% SMHI</span>;
+            return <span> · {Math.round((clouds_met + clouds_smhi) / 2)}% moln</span>;
+          }
+          if (data.context.clouds_used != null) return <span> · {Math.round(data.context.clouds_used)}% moln</span>;
+          return null;
+        })()}
+        {data.context.sun_elevation != null && data.context.sun_elevation > 0 && <span> · elev {data.context.sun_elevation.toFixed(1)}°</span>}
         <span> · {enabledCount}/{data.automations.length} regler aktiva</span>
         {triggeredLabel && <span> · senast {triggeredLabel}</span>}
       </div>

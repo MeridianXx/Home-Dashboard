@@ -50,9 +50,10 @@ export async function GET() {
         bedroom_temp: safe(bedroomTemp.state),
         outdoor_temp: safe(nibeOutdoor.state),
         nibe_indoor_temp: safe(nibeIndoor.state),
-        sun_elevation: (sun.attributes.elevation as number) ?? null,
-        cloud_coverage: (weather.attributes.cloud_coverage as number) ?? null,
-        uv_index: (weather.attributes.uv_index as number) ?? null,
+        sun_elevation: (solarScore.attributes.sun_elevation as number) ?? (sun.attributes.elevation as number) ?? null,
+        clouds_met: (solarScore.attributes.clouds_met as number) ?? null,
+        clouds_smhi: (solarScore.attributes.clouds_smhi as number) ?? null,
+        clouds_used: (solarScore.attributes.clouds_used as number) ?? null,
       },
       automations: [
         {
