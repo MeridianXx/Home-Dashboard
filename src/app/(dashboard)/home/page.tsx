@@ -1028,74 +1028,44 @@ function SolarCoolingCard({ data, onRefresh, loadingKey, runAction }: {
       })()
     : null;
 
+  // Cloud label
+  const { clouds_met, clouds_smhi } = data.context;
+  let cloudLabel = "";
+  if (clouds_met != null && clouds_smhi != null) {
+    const diff = Math.abs(clouds_met - clouds_smhi);
+    cloudLabel = diff > 20
+      ? `${Math.round(clouds_met)}/${Math.round(clouds_smhi)}% moln`
+      : `${Math.round((clouds_met + clouds_smhi) / 2)}% moln`;
+  } else if (data.context.clouds_used != null) {
+    cloudLabel = `${Math.round(data.context.clouds_used)}% moln`;
+  }
+
   return (
     <Card>
-      {/* Header — label + master toggle */}
-      <div className="flex items-center justify-between mb-3">
-        <SectionLabel>Solkyla</SectionLabel>
-        <div className="flex items-center gap-2" style={{ marginTop: -4 }}>
-          <span className="text-[10px] font-semibold" style={{ color: data.master_enabled ? "#f59e0b" : "var(--color-outline)" }}>
-            {data.master_enabled ? "På" : "Av"}
+      {/* Header — label + toggle + score */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <SectionLabel>Solkyla</SectionLabel>
+          <span className="text-lg font-black" style={{ color: "var(--color-on-surface)", marginTop: -10 }}>
+            {score != null ? `${score}%` : "–"}
           </span>
+          {acOn && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: "rgba(71,91,194,0.15)", color: "#475bc2", marginTop: -10 }}>
+              {acMode} {data.ac.target_temp != null ? `${data.ac.target_temp}°` : ""}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2" style={{ marginTop: -10 }}>
           <LightToggle on={data.master_enabled} onChange={() => runAction("solkyla-master", async () => { await handleMasterToggle(); })} />
         </div>
       </div>
 
-      {/* Score + AC status */}
-      <div className="flex items-center gap-3 mb-3">
-        <div style={{
-          width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
-          backgroundColor: active ? "rgba(245,158,11,0.15)" : "var(--color-surface-container)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <span className="material-symbols-outlined"
-            style={{ fontSize: 20, color: scoreColor, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>
-            solar_power
-          </span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-lg font-black leading-tight" style={{ color: "var(--color-on-surface)" }}>
-            {score != null ? `${score}%` : "–"}
-            <span className="text-xs font-medium ml-1.5" style={{ color: active ? "#f59e0b" : "var(--color-outline)" }}>
-              {active ? "solvärme" : "inaktiv"}
-            </span>
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-0.5 shrink-0">
-          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-            style={{
-              backgroundColor: acOn ? "rgba(71,91,194,0.15)" : "var(--color-surface-container)",
-              color: acOn ? "#475bc2" : "var(--color-outline)",
-            }}>
-            {acMode}{acOn && data.ac.target_temp != null ? ` ${data.ac.target_temp}°` : ""}
-          </span>
-          {data.room_temp != null && (
-            <span className="text-[11px] font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
-              {data.room_temp.toFixed(1)}° inne
-            </span>
-          )}
-          {data.context.outdoor_temp != null && (
-            <span className="text-[11px] font-medium" style={{ color: "var(--color-outline)" }}>
-              {Math.round(data.context.outdoor_temp)}° ute
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Footer — context + automations summary */}
+      {/* Context — one clean line */}
       <div className="text-[11px]" style={{ color: "var(--color-outline)" }}>
-        {(() => {
-          const { clouds_met, clouds_smhi } = data.context;
-          if (clouds_met != null && clouds_smhi != null) {
-            const diff = Math.abs(clouds_met - clouds_smhi);
-            if (diff > 20) return <span> · moln: {Math.round(clouds_met)}% Met / {Math.round(clouds_smhi)}% SMHI</span>;
-            return <span> · {Math.round((clouds_met + clouds_smhi) / 2)}% moln</span>;
-          }
-          if (data.context.clouds_used != null) return <span> · {Math.round(data.context.clouds_used)}% moln</span>;
-          return null;
-        })()}
+        {data.room_temp != null && <span>{data.room_temp.toFixed(1)}° inne</span>}
+        {data.context.outdoor_temp != null && <span> · {Math.round(data.context.outdoor_temp)}° ute</span>}
+        {cloudLabel && <span> · {cloudLabel}</span>}
         {data.context.sun_elevation != null && data.context.sun_elevation > 0 && <span> · elev {data.context.sun_elevation.toFixed(1)}°</span>}
-        <span> · {enabledCount}/{data.automations.length} regler aktiva</span>
         {triggeredLabel && <span> · senast {triggeredLabel}</span>}
       </div>
     </Card>
