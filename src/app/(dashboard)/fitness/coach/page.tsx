@@ -12,6 +12,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { workoutSlug } from "@/lib/fitness/slug";
 import { paceString, durationString } from "@/lib/fitness/parser";
+import { matchWorkoutsToPlans, workoutKey } from "@/lib/fitness/match";
 import ErrorBanner from "@/components/ErrorBanner";
 import type { PlannedWorkout, PlansResponse, Workout, WorkoutsResponse } from "@/lib/fitness/types";
 
@@ -246,31 +247,47 @@ function DonePill({ workout }: { workout: Workout }) {
 
 // ─── Pass-ikon (badge) ───────────────────────────────────────────────────────
 
-function PassPill({ plan, compact, onClick }: {
+function PassPill({ plan, compact, onClick, linkedWorkout }: {
   plan: PlannedWorkout;
   compact?: boolean;
   onClick: () => void;
+  /** Om det planerade passet matchats mot ett genomfört pass: rendera som klar + länka till detaljsidan. */
+  linkedWorkout?: Workout | null;
 }) {
   const color = typeColor(plan.typ);
-  const done = plan.status === "Genomfört";
+  const isLinked = Boolean(linkedWorkout);
+  const isDone = isLinked || plan.status === "Genomfört";
   const cancelled = plan.status === "Inställt";
-  return (
-    <button
-      onClick={onClick}
-      className="rounded-lg text-left w-full"
-      style={{
-        backgroundColor: "var(--color-surface-container)",
-        border: "1px solid var(--color-outline-variant)",
-        borderLeft: `3px solid ${color}`,
-        padding: compact ? "4px 6px" : "8px 10px",
-        cursor: "pointer",
-        width: "100%",
-        opacity: cancelled ? 0.55 : 1,
-        textDecoration: done ? "line-through" : "none",
-        display: "block",
-      }}
-    >
+  const movedToOtherDay = linkedWorkout && linkedWorkout.date !== plan.datum;
+  const movedLabel = movedToOtherDay
+    ? new Date(linkedWorkout!.date).toLocaleDateString("sv-SE", { weekday: "short", day: "numeric" }).replace(".", "")
+    : null;
+
+  const commonStyle: React.CSSProperties = {
+    backgroundColor: "var(--color-surface-container)",
+    border: "1px solid var(--color-outline-variant)",
+    borderLeft: `3px solid ${color}`,
+    padding: compact ? "4px 6px" : "8px 10px",
+    cursor: "pointer",
+    width: "100%",
+    opacity: cancelled ? 0.55 : 1,
+    display: "block",
+    textDecoration: "none",
+    color: "inherit",
+  };
+
+  const body = (
+    <>
       <div className="flex items-center gap-1.5 min-w-0">
+        {isLinked && (
+          <span
+            className="material-symbols-outlined shrink-0"
+            style={{ fontSize: compact ? 13 : 14, color: "#7fb8a3", fontVariationSettings: "'FILL' 1" }}
+            aria-hidden="true"
+          >
+            check_circle
+          </span>
+        )}
         <span
           className="material-symbols-outlined shrink-0"
           style={{ fontSize: compact ? 13 : 15, color }}
@@ -284,6 +301,20 @@ function PassPill({ plan, compact, onClick }: {
         >
           {plan.passnamn || plan.typ || "Pass"}
         </span>
+        {movedLabel && (
+          <span
+            className="font-medium shrink-0 tabular-nums"
+            style={{
+              color: "var(--color-on-surface-variant)",
+              marginLeft: 4,
+              fontSize: 9,
+              lineHeight: 1.15,
+              letterSpacing: 0.1,
+            }}
+          >
+            → {movedLabel}
+          </span>
+        )}
       </div>
       {!compact && (plan.tid || plan.tempo) && (
         <div
@@ -293,16 +324,42 @@ function PassPill({ plan, compact, onClick }: {
           {[plan.tid, plan.tempo].filter(Boolean).join(" · ")}
         </div>
       )}
+    </>
+  );
+
+  if (linkedWorkout) {
+    return (
+      <Link
+        href={`/fitness/pass/${workoutSlug(linkedWorkout)}`}
+        className="rounded-lg text-left w-full"
+        style={commonStyle}
+      >
+        {body}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      className="rounded-lg text-left w-full"
+      style={commonStyle}
+    >
+      {body}
     </button>
   );
 }
 
 // ─── Vecko-vy ────────────────────────────────────────────────────────────────
 
-function WeekView({ monday, plansByDate, workoutsByDate, onOpen }: {
+function WeekView({ monday, plansByDate, workoutsByDate, planToWorkout, consumedWorkouts, onOpen }: {
   monday: Date;
   plansByDate: Map<string, PlannedWorkout[]>;
   workoutsByDate: Map<string, Workout[]>;
+  /** planId → matchat genomfört pass */
+  planToWorkout: Map<string, Workout>;
+  /** workoutKey för pass som redan är kopplade till en plan (ska inte dupliceras) */
+  consumedWorkouts: Set<string>;
   onOpen: (plan: PlannedWorkout | { datum: string }) => void;
 }) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
@@ -314,7 +371,10 @@ function WeekView({ monday, plansByDate, workoutsByDate, onOpen }: {
       {days.map((d, i) => {
         const iso = isoDate(d);
         const items = plansByDate.get(iso) ?? [];
-        const done = workoutsByDate.get(iso) ?? [];
+        const rawDone = workoutsByDate.get(iso) ?? [];
+        // Dölj genomförda pass som redan är kopplade till en PassPill (på denna
+        // eller annan dag) — deras länk når man via pillen istället.
+        const done = rawDone.filter((w) => !consumedWorkouts.has(workoutKey(w)));
         const isToday = iso === today;
         const isPast = iso < today;
         const empty = items.length === 0 && done.length === 0;
@@ -379,7 +439,12 @@ function WeekView({ monday, plansByDate, workoutsByDate, onOpen }: {
             ) : (
               <div className="space-y-1.5">
                 {items.map((p) => (
-                  <PassPill key={p.id} plan={p} onClick={() => onOpen(p)} />
+                  <PassPill
+                    key={p.id}
+                    plan={p}
+                    linkedWorkout={planToWorkout.get(p.id) ?? null}
+                    onClick={() => onOpen(p)}
+                  />
                 ))}
                 {done.map((w, idx) => (
                   <DonePill key={`${w.date}-${w.time}-${idx}`} workout={w} />
@@ -395,10 +460,12 @@ function WeekView({ monday, plansByDate, workoutsByDate, onOpen }: {
 
 // ─── Månads-vy ───────────────────────────────────────────────────────────────
 
-function MonthView({ anchor, plansByDate, workoutsByDate, onOpen }: {
+function MonthView({ anchor, plansByDate, workoutsByDate, planToWorkout, consumedWorkouts, onOpen }: {
   anchor: Date;
   plansByDate: Map<string, PlannedWorkout[]>;
   workoutsByDate: Map<string, Workout[]>;
+  planToWorkout: Map<string, Workout>;
+  consumedWorkouts: Set<string>;
   onOpen: (plan: PlannedWorkout | { datum: string }) => void;
 }) {
   // Första dag i månaden + antal dagar
@@ -440,9 +507,16 @@ function MonthView({ anchor, plansByDate, workoutsByDate, onOpen }: {
         {cells.map((d, i) => {
           const iso = isoDate(d);
           const items = plansByDate.get(iso) ?? [];
-          const done = workoutsByDate.get(iso) ?? [];
+          const rawDone = workoutsByDate.get(iso) ?? [];
+          // Matchade workouts visas via planens prick — dubbla inte.
+          const done = rawDone.filter((w) => !consumedWorkouts.has(workoutKey(w)));
           const allDots = [
-            ...items.map((p) => ({ color: typeColor(p.typ), dim: p.status === "Inställt", done: false })),
+            ...items.map((p) => ({
+              color: typeColor(p.typ),
+              dim: p.status === "Inställt",
+              // Plan som matchats → rendera som "done" (ring) istället för fylld prick.
+              done: planToWorkout.has(p.id) || p.status === "Genomfört",
+            })),
             ...done.map((w) => ({ color: typeColor(w.type), dim: false, done: true })),
           ];
           const inMonth = d.getMonth() === currentMonth;
@@ -796,6 +870,303 @@ function PlanModal({ draft, onClose, onSave, onDelete }: {
             {isEdit ? "Spara" : "Skapa"}
           </button>
         </div>
+      </motion.div>
+    </motion.div>,
+    document.body,
+  );
+}
+
+// ─── Enskilt AI-pass-modal ───────────────────────────────────────────────────
+
+function SingleAIModal({ initial, onClose, onSaved }: {
+  initial: { date: string; hint: string };
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [date, setDate] = useState(initial.date);
+  const [hint, setHint] = useState(initial.hint);
+  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState<Partial<PlannedWorkout> & { datum: string } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted) return null;
+
+  const generate = async () => {
+    if (generating || !date) return;
+    setGenerating(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/fitness/coach", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ single: { date, hint: hint.trim() || undefined } }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      if (!body.item) throw new Error("Claude returnerade inget pass-objekt.");
+      setDraft(body.item);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const save = async () => {
+    if (!draft || saving) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/fitness/coach", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ items: [draft] }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      await onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return createPortal(
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0,0,0,0.45)",
+        backdropFilter: "blur(4px)",
+        zIndex: 1000,
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        padding: "0 8px 8px 8px",
+      }}
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
+        transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        className="rounded-2xl w-full"
+        style={{
+          backgroundColor: "var(--color-surface-container-lowest)",
+          border: "1px solid var(--color-card-border)",
+          maxWidth: 520,
+          maxHeight: "90vh",
+          overflowY: "auto",
+          padding: 20,
+          marginBottom: "max(16px, env(safe-area-inset-bottom))",
+        }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3
+            className="text-lg font-bold flex items-center gap-2"
+            style={{ color: "var(--color-on-surface)" }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 20, color: "var(--color-primary)" }}
+            >
+              auto_awesome
+            </span>
+            AI-pass för en dag
+          </h3>
+          <button
+            onClick={onClose}
+            aria-label="Stäng"
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--color-on-surface-variant)",
+              padding: 4,
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>close</span>
+          </button>
+        </div>
+
+        {!draft ? (
+          <div className="space-y-3">
+            <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
+              Coachen väljer pass utifrån ditt aktuella formläge (TSB/CTL/ATL) och planerad backlog runt datumet.
+            </p>
+            <Field label="Datum">
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                style={inputStyle()}
+              />
+            </Field>
+            <Field label="Riktning (valfri)">
+              <input
+                type="text"
+                value={hint}
+                onChange={(e) => setHint(e.target.value)}
+                placeholder="t.ex. 'har 45 min' eller 'lätt återhämtning'"
+                style={inputStyle()}
+              />
+            </Field>
+            {err && (
+              <div className="text-xs flex items-start gap-1.5" style={{ color: "var(--color-error, #b3261e)" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>error</span>
+                <span>{err}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={onClose}
+                className="text-xs font-semibold rounded-full"
+                style={{
+                  backgroundColor: "transparent",
+                  color: "var(--color-on-surface-variant)",
+                  border: "1px solid var(--color-outline-variant)",
+                  padding: "8px 16px",
+                  cursor: "pointer",
+                }}
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={generate}
+                disabled={generating}
+                className="flex items-center gap-1.5 text-xs font-semibold rounded-full"
+                style={{
+                  backgroundColor: "var(--color-primary-container)",
+                  color: "var(--color-on-primary-container)",
+                  border: "1px solid var(--color-outline-variant)",
+                  padding: "8px 16px",
+                  cursor: generating ? "wait" : "pointer",
+                  opacity: generating ? 0.7 : 1,
+                }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: 14,
+                    animation: generating ? "spin-anim 0.8s linear infinite" : undefined,
+                  }}
+                >
+                  {generating ? "progress_activity" : "auto_awesome"}
+                </span>
+                {generating ? "Planerar…" : "Generera"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div
+              className="rounded-xl p-4"
+              style={{ backgroundColor: "var(--color-surface-container)" }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 18, color: "var(--color-primary)" }}
+                >
+                  {typeIcon(draft.typ ?? "")}
+                </span>
+                <div className="font-bold text-base" style={{ color: "var(--color-on-surface)" }}>
+                  {draft.passnamn ?? draft.typ ?? "Pass"}
+                </div>
+              </div>
+              <div className="text-xs tabular-nums mb-3" style={{ color: "var(--color-on-surface-variant)" }}>
+                {draft.datum} · {draft.typ ?? "Annat"}{draft.tid ? ` · ${draft.tid}` : ""}
+              </div>
+              {draft.syfte && (
+                <p
+                  className="text-sm mb-2"
+                  style={{ color: "var(--color-on-surface)", lineHeight: 1.5 }}
+                >
+                  {draft.syfte}
+                </p>
+              )}
+              {draft.passdetaljer && (
+                <p
+                  className="text-xs mt-2"
+                  style={{
+                    color: "var(--color-on-surface-variant)",
+                    whiteSpace: "pre-wrap",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {draft.passdetaljer}
+                </p>
+              )}
+              {(draft.pulsintervall || draft.tempo || draft.underlag) && (
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-[11px]" style={{ color: "var(--color-on-surface-variant)" }}>
+                  {draft.pulsintervall && <span>Puls: <span style={{ color: "var(--color-on-surface)" }}>{draft.pulsintervall}</span></span>}
+                  {draft.tempo && <span>Tempo: <span style={{ color: "var(--color-on-surface)" }}>{draft.tempo}</span></span>}
+                  {draft.underlag && <span>Underlag: <span style={{ color: "var(--color-on-surface)" }}>{draft.underlag}</span></span>}
+                </div>
+              )}
+            </div>
+            {err && (
+              <div className="text-xs flex items-start gap-1.5" style={{ color: "var(--color-error, #b3261e)" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>error</span>
+                <span>{err}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                onClick={() => setDraft(null)}
+                disabled={saving}
+                className="flex items-center gap-1.5 text-xs font-semibold rounded-full"
+                style={{
+                  backgroundColor: "transparent",
+                  color: "var(--color-on-surface-variant)",
+                  border: "1px solid var(--color-outline-variant)",
+                  padding: "8px 16px",
+                  cursor: saving ? "wait" : "pointer",
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>refresh</span>
+                Ny variant
+              </button>
+              <button
+                onClick={save}
+                disabled={saving}
+                className="flex items-center gap-1.5 text-xs font-semibold rounded-full"
+                style={{
+                  backgroundColor: "var(--color-primary)",
+                  color: "var(--color-on-primary)",
+                  border: "none",
+                  padding: "8px 16px",
+                  cursor: saving ? "wait" : "pointer",
+                  opacity: saving ? 0.7 : 1,
+                }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: 14,
+                    animation: saving ? "spin-anim 0.8s linear infinite" : undefined,
+                  }}
+                >
+                  {saving ? "progress_activity" : "check"}
+                </span>
+                {saving ? "Sparar…" : "Spara"}
+              </button>
+            </div>
+          </div>
+        )}
       </motion.div>
     </motion.div>,
     document.body,
@@ -1409,6 +1780,7 @@ export default function FitnessCoachPage() {
   // Anchor = en valfri dag inne i perioden vi visar (måndagen för veckovy).
   const [anchor, setAnchor] = useState<Date>(() => mondayOf(new Date()));
   const [editing, setEditing] = useState<Draft | null>(null);
+  const [singleAI, setSingleAI] = useState<{ date: string; hint: string } | null>(null);
 
   const { data, error, isLoading, mutate } = useSWR<PlansResponse>(
     "/api/fitness/plans",
@@ -1445,6 +1817,18 @@ export default function FitnessCoachPage() {
     }
     return m;
   }, [workoutsData]);
+
+  // Koppla ihop genomförda pass med planerade (samma typ + inom ±2 dagar).
+  // `planToWorkout` används för att rendera PassPill som klar + länkad; `consumedWorkouts`
+  // filtrerar bort fristående DonePill/prickar som redan är representerade via planen.
+  const { planToWorkout, consumedWorkouts } = useMemo(() => {
+    const workouts = workoutsData?.workouts ?? [];
+    const plans = data?.plans ?? [];
+    const result = matchWorkoutsToPlans(workouts, plans, { maxDateDiffDays: 2 });
+    const consumed = new Set<string>();
+    for (const w of result.planToWorkout.values()) consumed.add(workoutKey(w));
+    return { planToWorkout: result.planToWorkout, consumedWorkouts: consumed };
+  }, [workoutsData, data]);
 
   const shiftPeriod = (delta: number) => {
     if (view === "week") {
@@ -1568,8 +1952,8 @@ export default function FitnessCoachPage() {
         </div>
       </div>
 
-      {/* Rad 2: Nytt pass */}
-      <div className="flex items-center">
+      {/* Rad 2: Nytt pass + AI-pass */}
+      <div className="flex items-center gap-2">
         <button
           onClick={() => openNew(isoDate(new Date()))}
           className="flex items-center justify-center gap-1 text-xs font-semibold rounded-full"
@@ -1579,11 +1963,26 @@ export default function FitnessCoachPage() {
             border: "none",
             padding: "8px 18px",
             cursor: "pointer",
-            width: "100%",
+            flex: 1,
           }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
           Nytt pass
+        </button>
+        <button
+          onClick={() => setSingleAI({ date: isoDate(new Date()), hint: "" })}
+          className="flex items-center justify-center gap-1 text-xs font-semibold rounded-full"
+          style={{
+            backgroundColor: "var(--color-primary-container)",
+            color: "var(--color-on-primary-container)",
+            border: "1px solid var(--color-outline-variant)",
+            padding: "8px 18px",
+            cursor: "pointer",
+            flex: 1,
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>auto_awesome</span>
+          AI-pass
         </button>
       </div>
 
@@ -1598,6 +1997,8 @@ export default function FitnessCoachPage() {
             monday={anchor}
             plansByDate={plansByDate}
             workoutsByDate={workoutsByDate}
+            planToWorkout={planToWorkout}
+            consumedWorkouts={consumedWorkouts}
             onOpen={(x) => {
               if ("id" in x) openEdit(x as PlannedWorkout);
               else openNew(x.datum);
@@ -1608,6 +2009,8 @@ export default function FitnessCoachPage() {
             anchor={anchor}
             plansByDate={plansByDate}
             workoutsByDate={workoutsByDate}
+            planToWorkout={planToWorkout}
+            consumedWorkouts={consumedWorkouts}
             onOpen={(x) => {
               if ("id" in x) openEdit(x as PlannedWorkout);
               else openNew(x.datum);
@@ -1626,6 +2029,16 @@ export default function FitnessCoachPage() {
             onClose={() => setEditing(null)}
             onSave={handleSave}
             onDelete={editing.id ? handleDelete : undefined}
+          />
+        )}
+        {singleAI && (
+          <SingleAIModal
+            initial={singleAI}
+            onClose={() => setSingleAI(null)}
+            onSaved={async () => {
+              setSingleAI(null);
+              await mutate();
+            }}
           />
         )}
       </AnimatePresence>

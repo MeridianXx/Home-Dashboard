@@ -5,12 +5,15 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { workoutSlug } from "@/lib/fitness/slug";
+import { matchWorkoutsToPlans } from "@/lib/fitness/match";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useFitnessProfile, hrZone } from "@/lib/fitness/profile";
 import { useHydrateProfile } from "@/lib/fitness/useHydrateProfile";
 import { paceString, durationString } from "@/lib/fitness/parser";
 import type { WorkoutsResponse, PlansResponse, Workout, PlannedWorkout, FitnessProfile } from "@/lib/fitness/types";
 import type { MetricsResponse } from "@/app/api/fitness/metrics/route";
+import { ReadinessCard } from "@/components/fitness/ReadinessCard";
+import { GoalProgressCard } from "@/components/fitness/GoalProgressCard";
 
 // ─── Hjälpare ────────────────────────────────────────────────────────────────
 
@@ -522,26 +525,6 @@ function ProfileCard({ metrics }: { metrics: MetricsResponse | undefined }) {
             </div>
           )}
 
-          {profile.goals.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-on-surface-variant)" }}>Mål</div>
-              <div className="space-y-1.5">
-                {profile.goals.map((g, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm" style={{ color: "var(--color-on-surface)" }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>
-                      flag
-                    </span>
-                    <span>{g.label}</span>
-                    {g.deadline && (
-                      <span className="ml-auto text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                        {formatShortDate(g.deadline)}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </>
       )}
     </Card>
@@ -623,20 +606,128 @@ function staleFreshnessLabel(iso: string): string | null {
   return d.toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
 }
 
+// ─── Klarat idag ─────────────────────────────────────────────────────────────
+
+function DoneTodayCard({ plans, workouts }: { plans: PlannedWorkout[]; workouts: Workout[] }) {
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const { doneToday, planToWorkout } = useMemo(() => {
+    const r = matchWorkoutsToPlans(workouts, plans, { maxDateDiffDays: 2 });
+    const doneStatus = new Set(["Genomfört", "Gjord", "Slutförd"]);
+    const isDone = (p: PlannedWorkout) => r.planToWorkout.has(p.id) || doneStatus.has(p.status);
+    const matched = plans.filter((p) => {
+      if (!isDone(p)) return false;
+      if (p.datum === today) return true;
+      const w = r.planToWorkout.get(p.id);
+      return w?.date === today;
+    });
+    return { doneToday: matched, planToWorkout: r.planToWorkout };
+  }, [plans, workouts, today]);
+
+  if (doneToday.length === 0) return null;
+
+  return (
+    <Card>
+      <SectionTitle icon="check_circle">Klarat idag</SectionTitle>
+      <div className="space-y-2">
+        {doneToday.map((p) => {
+          const w = planToWorkout.get(p.id);
+          const label = p.passnamn || p.typ || "Pass";
+          const row = (
+            <div
+              className="flex items-center gap-3 rounded-xl"
+              style={{ padding: "10px 12px", backgroundColor: "var(--color-surface-container)" }}
+            >
+              <span
+                className="material-symbols-outlined shrink-0"
+                style={{
+                  fontSize: 18,
+                  color: "#7fb8a3",
+                  fontVariationSettings: "'FILL' 1",
+                }}
+                aria-hidden="true"
+              >
+                check_circle
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold truncate" style={{ color: "var(--color-on-surface)" }}>
+                  {label}
+                </div>
+                {p.typ && (
+                  <div className="text-[11px]" style={{ color: "var(--color-on-surface-variant)" }}>
+                    {p.typ}
+                    {p.datum !== today && (
+                      <span style={{ marginLeft: 8, opacity: 0.7 }}>
+                        (plan {formatShortDate(p.datum)})
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              {w && (
+                <span
+                  className="material-symbols-outlined shrink-0"
+                  style={{ fontSize: 18, color: "var(--color-on-surface-variant)" }}
+                  aria-hidden="true"
+                >
+                  chevron_right
+                </span>
+              )}
+            </div>
+          );
+          return w ? (
+            <Link
+              key={p.id}
+              href={`/fitness/pass/${workoutSlug(w)}`}
+              style={{ textDecoration: "none", display: "block" }}
+            >
+              {row}
+            </Link>
+          ) : (
+            <div key={p.id}>{row}</div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 // ─── Nästa planerade pass ────────────────────────────────────────────────────
 
-function NextPlannedCard({ plans, error, isLoading }: {
-  plans: PlannedWorkout[]; error: unknown; isLoading: boolean;
+function NextPlannedCard({ plans, workouts, error, isLoading }: {
+  plans: PlannedWorkout[]; workouts: Workout[]; error: unknown; isLoading: boolean;
 }) {
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  // Matcha planer mot genomförda pass (samma matcher som på coach/pass-detalj).
+  // En plan som fått en match räknas som klar även om Notions status-fält inte uppdaterats.
+  const { consumedPlans, planToWorkout } = useMemo(() => {
+    const r = matchWorkoutsToPlans(workouts, plans, { maxDateDiffDays: 2 });
+    return { consumedPlans: r.planToWorkout, planToWorkout: r.planToWorkout };
+  }, [workouts, plans]);
+
+  const isDone = (p: PlannedWorkout) =>
+    consumedPlans.has(p.id) || p.status === "Genomfört" || p.status === "Gjord" || p.status === "Slutförd";
+
+  // Visa planer som är klarade idag — även om planen låg på annan dag. En plan
+  // från t.ex. igår räknas som "klarat idag" om det matchade passet gjordes idag.
+  const doneToday = useMemo(
+    () => plans.filter((p) => {
+      if (!isDone(p)) return false;
+      if (p.datum === today) return true;
+      const w = planToWorkout.get(p.id);
+      return w?.date === today;
+    }),
+    [plans, today, consumedPlans, planToWorkout],
+  );
+
+  // Nästa dag som fortfarande har okonsumerade planer.
   const nextDay = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const upcoming = plans.filter(
-      (p) => p.datum >= today && p.status !== "Gjord" && p.status !== "Slutförd",
-    );
+    const upcoming = plans.filter((p) => p.datum >= today && !isDone(p));
     if (upcoming.length === 0) return [];
     const nearestDate = upcoming[0].datum;
     return upcoming.filter((p) => p.datum === nearestDate);
-  }, [plans]);
+  }, [plans, today, consumedPlans]);
 
   return (
     <Card>
@@ -649,6 +740,7 @@ function NextPlannedCard({ plans, error, isLoading }: {
           Kunde inte hämta planerade pass.
         </div>
       )}
+
       {!isLoading && !error && nextDay.length === 0 && (
         <div className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
           Inga kommande pass planerade.
@@ -932,8 +1024,11 @@ export default function FitnessPage() {
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(1, minmax(0, 1fr))" }}>
+        <ReadinessCard />
+        <DoneTodayCard plans={plansData?.plans ?? []} workouts={workoutsData?.workouts ?? []} />
         <NextPlannedCard
           plans={plansData?.plans ?? []}
+          workouts={workoutsData?.workouts ?? []}
           error={plansError}
           isLoading={plansLoading}
         />
@@ -945,6 +1040,7 @@ export default function FitnessPage() {
           metrics={metricsData}
           analysedKeys={analysedKeys}
         />
+        <GoalProgressCard />
         <ProfileCard metrics={metricsData} />
       </div>
 

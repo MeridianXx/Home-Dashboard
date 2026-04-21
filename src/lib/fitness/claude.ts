@@ -120,7 +120,10 @@ export interface AnalyseResult {
  * Analysera ett genomfört pass. Bygger prompt med profil + historik + PMC
  * och returnerar fri-text på svenska (3–6 meningar).
  */
-export async function analyseWorkout(workout: Workout): Promise<AnalyseResult> {
+export async function analyseWorkout(
+  workout: Workout,
+  userContext?: string,
+): Promise<AnalyseResult> {
   const excludeKey = `${workout.date}|${(workout.time ?? "").replace(":", "")}|${workout.type}`;
   // Viktigt: anchora kontexten på passets datum — inte idag. När vi analyserar
   // ett äldre pass ska pass som är NYARE än det exkluderas ur "senaste pass"-
@@ -134,6 +137,10 @@ export async function analyseWorkout(workout: Workout): Promise<AnalyseResult> {
   const hasMetrics = workout.distanceM > 0 || (workout.avgHR ?? 0) > 0 || workout.totalTimeSec > 0;
 
   const summary = workoutSummary(workout);
+  const trimmedContext = userContext?.trim() ?? "";
+  const contextBlock = trimmedContext
+    ? `\nADEPTENS EGEN KOMMENTAR (upplevt, förutsättningar, känsla före/under/efter passet):\n"${trimmedContext}"\n\nVäg in kommentaren i analysen — siffrorna säger inte allt.\n`
+    : "";
 
   const systemParts: string[] = [];
   if (persona) systemParts.push(persona);
@@ -154,7 +161,7 @@ ${bundle.text}
 
 GENOMFÖRT PASS (det du analyserar):
 - ${summary}
-
+${contextBlock}
 FORMAT: Dela upp i 2–3 korta stycken separerade med en tom rad. Första stycket: hur passet gick. Andra stycket: hur det passar träningsbilden. Tredje stycket (valfritt): konkret att tänka på framåt.`
     : `Passet nedan är genomfört men saknar mätdata (troligen styrke-/core-pass). Kommentera kort hur passet passar in i träningsbilden runt passets datum. Kommentera inte avsaknaden av data.
 
@@ -162,7 +169,7 @@ ${bundle.text}
 
 GENOMFÖRT PASS (det du analyserar):
 - ${summary}
-
+${contextBlock}
 FORMAT: 2–3 meningar i ett stycke.`;
 
   const n = getClient();
@@ -574,6 +581,98 @@ FORMAT — svara med exakt ett JSON-objekt (inga kodstaket, ingen extra text) me
   }
   // Tvinga samma datum som originalet för att inte krocka mot resten av planen
   const item: GeneratedPlanItem = { ...parsed, datum: target.datum };
+
+  return {
+    item,
+    model: response.model,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+  };
+}
+
+// ─── Generera ett enskilt planerat pass ──────────────────────────────────────
+
+export interface SingleWorkoutResult {
+  item: GeneratedPlanItem;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * Generera ETT planerat pass för ett specifikt datum. Viktas mot aktuell form
+ * (PMC/TSB) + planerad backlog runt datumet så coachen inte krockar med andra
+ * pass samma vecka. `hint` är valfri riktning ("lätt återhämtning", "har 45 min").
+ */
+export async function generateSingleWorkout(args: {
+  date: string;
+  hint?: string;
+}): Promise<SingleWorkoutResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) {
+    throw new Error(`Ogiltigt datum: ${args.date}`);
+  }
+  const [bundle, persona] = await Promise.all([
+    buildContext({ recentCount: 12, weeklyWeeks: 8, anchorDate: args.date }),
+    getCoachPersona().catch(() => null),
+  ]);
+
+  const today = new Date();
+  const calendar = calendarOverview(today, 3);
+
+  const systemParts: string[] = [];
+  if (persona) systemParts.push(persona);
+  systemParts.push(
+    [
+      "Du är en erfaren löpcoach som planerar ETT pass åt din adept.",
+      "Passet ska passa aktuell form (TSB/CTL/ATL) och fylla en meningsfull lucka i veckan.",
+      "Svara med ETT JSON-objekt — inget annat. Inga kodstaket, inga rubriker.",
+      "Om TSB är lågt eller adepten är trött — föreslå ett lättare pass eller återhämtning.",
+      "Använd veckodagen exakt som den står bredvid ISO-datumet. Räkna aldrig själv.",
+    ].join(" "),
+  );
+  const system = systemParts.join("\n\n---\n\n");
+
+  const prompt = `Skapa ett planerat pass för ${isoWithDow(args.date)}.
+${args.hint ? `ADEPTENS ÖNSKAN: "${args.hint.trim()}"` : "Ingen specifik önskan — välj en typ som passar träningsbilden."}
+
+${calendar}
+
+${bundle.text}
+
+FORMAT — svara med exakt ett JSON-objekt (inga kodstaket, ingen extra text):
+{
+  "datum": "${args.date}",
+  "passnamn": "...",
+  "typ": "Löpning | Cykling | Styrka | Annat",
+  "syfte": "1 kort mening om passets träningssyfte",
+  "passdetaljer": "Fritext — upplägg/struktur",
+  "pulsintervall": "t.ex. 'Z2, 130–145 bpm'",
+  "tempo": "t.ex. '5:30/km' eller tom",
+  "tid": "t.ex. '45 min' eller '8 km'",
+  "underlag": "Asfalt | Grus | Terräng | Inomhus | Löpband"
+}`;
+
+  const n = getClient();
+  const response = await n.messages.create({
+    model: MODEL,
+    max_tokens: 800,
+    system,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const rawText = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
+
+  const rawObj = extractJsonObject(rawText);
+  const parsed = rawObj ? sanitizePlanItem(rawObj) : null;
+  if (!parsed) {
+    throw new Error("Claude returnerade inget giltigt pass-objekt");
+  }
+  // Tvinga rätt datum
+  const item: GeneratedPlanItem = { ...parsed, datum: args.date };
 
   return {
     item,

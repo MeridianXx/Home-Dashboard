@@ -9,18 +9,16 @@ import { getProfile as getNotionProfile, getPlannedWorkouts } from "./notion";
 import { DEFAULT_PROFILE } from "./profile-defaults";
 import type { FitnessProfile, Workout, PlannedWorkout } from "./types";
 
-// PMC-konstanter — samma som /api/fitness/load
+// PMC-konstanter — samma som /api/fitness/load (HealthFit-kompatibla)
 const ALPHA_ATL = 2 / (7 + 1);
 const ALPHA_CTL = 2 / (42 + 1);
-const WARMUP_DAYS = 90;
+const WARMUP_DAYS = 180;
 
 export interface LoadSnapshot {
   ctl: number;
   atl: number;
   tsb: number;
   tlr: number;
-  /** Andel av senaste 42d:s TRIMP per intensitetsfokus */
-  focus: { anaerobic: number; highAerobic: number; lowAerobic: number };
 }
 
 function isoDate(d: Date): string {
@@ -54,33 +52,24 @@ function sumTrimpByDay(workouts: Workout[]): Map<string, number> {
 function computeLoad(workouts: Workout[], today: Date): LoadSnapshot {
   const byDay = sumTrimpByDay(workouts);
   let ctl = 0, atl = 0;
+  let ctlPrev = 0, atlPrev = 0;
   const end = new Date(today);
   end.setHours(0, 0, 0, 0);
   const start = new Date(end);
   start.setDate(start.getDate() - WARMUP_DAYS);
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const trimp = byDay.get(isoDate(d)) ?? 0;
+    ctlPrev = ctl;
+    atlPrev = atl;
     ctl = ctl + ALPHA_CTL * (trimp - ctl);
     atl = atl + ALPHA_ATL * (trimp - atl);
   }
-  const cutoff = new Date(end);
-  cutoff.setDate(cutoff.getDate() - 42);
-  let an = 0, hi = 0, lo = 0;
-  for (const w of workouts) {
-    if (new Date(w.date) < cutoff || typeof w.trimp !== "number") continue;
-    an += w.trimp * (w.hrz5 ?? 0);
-    hi += w.trimp * ((w.hrz3 ?? 0) + (w.hrz4 ?? 0));
-    lo += w.trimp * ((w.hrz1 ?? 0) + (w.hrz2 ?? 0));
-  }
-  const total = an + hi + lo;
   return {
     ctl: Math.round(ctl),
     atl: Math.round(atl),
-    tsb: Math.round(ctl - atl),
+    // TSB = gårdagens CTL − ATL ("form inför dagens pass"), HealthFit-konvention.
+    tsb: Math.round(ctlPrev - atlPrev),
     tlr: ctl > 0 ? Math.round((atl / ctl) * 100) / 100 : 0,
-    focus: total > 0
-      ? { anaerobic: an / total, highAerobic: hi / total, lowAerobic: lo / total }
-      : { anaerobic: 0, highAerobic: 0, lowAerobic: 0 },
   };
 }
 
@@ -313,13 +302,6 @@ export async function buildContext(opts: BuildContextOptions = {}): Promise<Fitn
     `, TSB ${load.tsb} (form = CTL − ATL)` +
     `, TLR ${load.tlr.toFixed(2)} (ATL/CTL — ${load.tlr < 0.8 ? "detränar" : load.tlr <= 1.3 ? "bra balans" : load.tlr <= 1.5 ? "tung period" : "skaderisk"}).`,
   );
-  if (load.focus.anaerobic + load.focus.highAerobic + load.focus.lowAerobic > 0) {
-    lines.push(
-      `- Fokus (senaste 42 dagar): ${Math.round(load.focus.lowAerobic * 100)}% lågintensivt, ` +
-      `${Math.round(load.focus.highAerobic * 100)}% tröskel/VO₂, ` +
-      `${Math.round(load.focus.anaerobic * 100)}% anaerobt.`,
-    );
-  }
   lines.push("");
 
   if (health) {

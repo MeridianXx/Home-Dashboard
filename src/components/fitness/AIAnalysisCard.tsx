@@ -54,6 +54,8 @@ export function AIAnalysisCard({
   const [generating, setGenerating] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [justGenerated, setJustGenerated] = useState<AnalysePostResponse | null>(null);
+  const [comment, setComment] = useState("");
+  const [showCommentForRegen, setShowCommentForRegen] = useState(false);
 
   const analysis = justGenerated?.analysis ?? data?.analysis ?? null;
   const updatedAt = justGenerated?.updatedAt ?? data?.updatedAt ?? null;
@@ -63,10 +65,17 @@ export function AIAnalysisCard({
     setGenerating(true);
     setLocalError(null);
     try {
-      const res = await fetch(key, { method: "POST", cache: "no-store" });
+      const res = await fetch(key, {
+        method: "POST",
+        cache: "no-store",
+        headers: comment.trim() ? { "Content-Type": "application/json" } : undefined,
+        body: comment.trim() ? JSON.stringify({ context: comment.trim() }) : undefined,
+      });
       const body: AnalysePostResponse & { error?: string } = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
       setJustGenerated(body);
+      setComment("");
+      setShowCommentForRegen(false);
       await mutate(
         { analysis: body.analysis, updatedAt: body.updatedAt, logDbReady: true },
         { revalidate: false },
@@ -77,6 +86,27 @@ export function AIAnalysisCard({
       setGenerating(false);
     }
   };
+
+  const commentField = (
+    <textarea
+      value={comment}
+      onChange={(e) => setComment(e.target.value)}
+      disabled={generating}
+      placeholder="Kommentar (valfritt): upplevt, förutsättningar, känsla inför/under passet. Hjälper coachen tolka siffrorna."
+      rows={3}
+      className="w-full text-sm rounded-xl resize-none"
+      style={{
+        backgroundColor: "var(--color-surface-container)",
+        color: "var(--color-on-surface)",
+        border: "1px solid var(--color-outline-variant)",
+        padding: "10px 12px",
+        lineHeight: 1.45,
+        outline: "none",
+        fontFamily: "inherit",
+        width: "100%",
+      }}
+    />
+  );
 
   return (
     <div
@@ -96,31 +126,51 @@ export function AIAnalysisCard({
           AI-analys
         </h2>
         {analysis && (
-          <button
-            onClick={generate}
-            disabled={generating}
-            className="flex items-center gap-1 text-xs font-semibold rounded-full"
-            style={{
-              backgroundColor: "transparent",
-              color: "var(--color-on-surface-variant)",
-              border: "1px solid var(--color-outline-variant)",
-              padding: "4px 10px",
-              cursor: generating ? "wait" : "pointer",
-              lineHeight: 1.2,
-              opacity: generating ? 0.7 : 1,
-            }}
-          >
-            <span
-              className="material-symbols-outlined"
+          <div className="flex items-center gap-2">
+            {!generating && (
+              <button
+                onClick={() => setShowCommentForRegen((s) => !s)}
+                className="flex items-center gap-1 text-xs font-semibold rounded-full"
+                style={{
+                  backgroundColor: showCommentForRegen ? "var(--color-surface-container)" : "transparent",
+                  color: "var(--color-on-surface-variant)",
+                  border: "1px solid var(--color-outline-variant)",
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                  lineHeight: 1.2,
+                }}
+                aria-label="Lägg till kommentar inför regenerering"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>comment</span>
+                {showCommentForRegen ? "Dölj" : "Kommentar"}
+              </button>
+            )}
+            <button
+              onClick={generate}
+              disabled={generating}
+              className="flex items-center gap-1 text-xs font-semibold rounded-full"
               style={{
-                fontSize: 12,
-                animation: generating ? "spin-anim 0.8s linear infinite" : undefined,
+                backgroundColor: "transparent",
+                color: "var(--color-on-surface-variant)",
+                border: "1px solid var(--color-outline-variant)",
+                padding: "4px 10px",
+                cursor: generating ? "wait" : "pointer",
+                lineHeight: 1.2,
+                opacity: generating ? 0.7 : 1,
               }}
             >
-              {generating ? "progress_activity" : "refresh"}
-            </span>
-            {generating ? "Analyserar…" : "Regenerera"}
-          </button>
+              <span
+                className="material-symbols-outlined"
+                style={{
+                  fontSize: 12,
+                  animation: generating ? "spin-anim 0.8s linear infinite" : undefined,
+                }}
+              >
+                {generating ? "progress_activity" : "refresh"}
+              </span>
+              {generating ? "Analyserar…" : "Regenerera"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -144,6 +194,9 @@ export function AIAnalysisCard({
           >
             {analysis}
           </p>
+          {showCommentForRegen && !generating && (
+            <div className="mt-3">{commentField}</div>
+          )}
           {updatedAt && (
             <div
               className="text-[11px] mt-3 flex items-center gap-1.5"
@@ -160,6 +213,7 @@ export function AIAnalysisCard({
           <p className="text-sm mb-3" style={{ color: "var(--color-on-surface-variant)" }}>
             Kör Claude över passet plus din träningsbild (profil, PMC, senaste 20 pass). Analysen sparas i Notion.
           </p>
+          <div className="mb-3">{commentField}</div>
           <button
             onClick={generate}
             disabled={generating}

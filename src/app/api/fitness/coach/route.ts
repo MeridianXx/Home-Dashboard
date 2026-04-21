@@ -12,11 +12,16 @@ import {
   generateTrainingPlan,
   reviseTrainingPlan,
   regeneratePlanItem,
+  generateSingleWorkout,
   isClaudeReady,
   PlanParseError,
   type GeneratedPlanItem,
 } from "@/lib/fitness/claude";
-import { createPlannedWorkouts, type PlannedWorkoutInput } from "@/lib/fitness/notion";
+import {
+  createPlannedWorkout,
+  createPlannedWorkouts,
+  type PlannedWorkoutInput,
+} from "@/lib/fitness/notion";
 
 export const dynamic = "force-dynamic";
 // Plan-generering tar 20–30 s, save-only är snabbt.
@@ -27,6 +32,7 @@ interface CoachBody {
   items?: PlannedWorkoutInput[];
   revise?: { prompt: string; plan: GeneratedPlanItem[]; feedback: string };
   regenerate?: { prompt: string; plan: GeneratedPlanItem[]; index: number; hint?: string };
+  single?: { date: string; hint?: string; save?: boolean };
 }
 
 function claudeGuard(): NextResponse | null {
@@ -50,6 +56,32 @@ export async function POST(req: Request) {
       }
       const { created, errors } = await createPlannedWorkouts(body.items);
       return NextResponse.json({ created, errors });
+    }
+
+    // ─── Generera ett enskilt pass för ett specifikt datum ───────────────
+    if (body.single) {
+      const guard = claudeGuard();
+      if (guard) return guard;
+      const { date, hint, save } = body.single;
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return NextResponse.json(
+          { error: "single kräver { date: 'YYYY-MM-DD' }" },
+          { status: 400 },
+        );
+      }
+      const result = await generateSingleWorkout({ date, hint });
+      // Valfritt: spara direkt till Notion så klienten inte behöver ett andra anrop
+      if (save) {
+        try {
+          const created = await createPlannedWorkout(result.item);
+          return NextResponse.json({ ...result, saved: true, createdId: created.id });
+        } catch (e) {
+          return NextResponse.json(
+            { ...result, saved: false, saveError: e instanceof Error ? e.message : String(e) },
+          );
+        }
+      }
+      return NextResponse.json(result);
     }
 
     // ─── Regenerera ett enskilt pass ──────────────────────────────────────

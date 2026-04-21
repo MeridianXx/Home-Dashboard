@@ -75,7 +75,19 @@ export async function POST(req: Request) {
     const workout = await findWorkout(q);
     if (!workout) return NextResponse.json({ error: "Passet hittades inte i Workouts-filen" }, { status: 404 });
 
-    const result = await analyseWorkout(workout);
+    // Läs valfri body med { context?: string } — adeptens kommentar.
+    // Spara aldrig kommentaren i Notion; den används bara till denna körning.
+    let userContext: string | undefined;
+    try {
+      const body = (await req.json()) as { context?: unknown } | null;
+      if (body && typeof body.context === "string") {
+        userContext = body.context.trim().slice(0, 2000) || undefined;
+      }
+    } catch {
+      // Body saknas eller är inte JSON — helt OK, kör utan kommentar.
+    }
+
+    const result = await analyseWorkout(workout, userContext);
 
     // Spara analysen i Notion-loggen (om DB är konfigurerad).
     let savedPageId: string | null = null;

@@ -14,6 +14,7 @@ import { ElevationChart, HeartRateCard, LapsList } from "@/components/fitness/Pa
 import { PassSummary } from "@/components/fitness/PassSummary";
 import { AIAnalysisCard } from "@/components/fitness/AIAnalysisCard";
 import { parseSlug } from "@/lib/fitness/slug";
+import { findBestPlanMatch } from "@/lib/fitness/match";
 
 // Leaflet måste laddas client-side — SSR:ar inte
 const TrackMap = dynamic(() => import("@/components/fitness/TrackMap"), {
@@ -125,11 +126,11 @@ export default function PassDetailPage({ params }: { params: Promise<{ slug: str
     return match ?? null;
   }, [parsed, workoutsData]);
 
-  // Matcha mot planerat pass (samma datum)
+  // Matcha mot planerat pass via gemensam matcher (typ + ±2 dagar).
   const plannedMatch = useMemo<PlannedWorkout | null>(() => {
-    if (!parsed || !plansData?.plans) return null;
-    return plansData.plans.find((p) => p.datum === parsed.date) ?? null;
-  }, [parsed, plansData]);
+    if (!workout || !plansData?.plans) return null;
+    return findBestPlanMatch(workout, plansData.plans, { maxDateDiffDays: 2 });
+  }, [workout, plansData]);
 
   const fitUrl = parsed
     ? `/api/fitness/fit?date=${parsed.date}&time=${encodeURIComponent(parsed.time)}&type=${encodeURIComponent(parsed.type)}`
@@ -208,6 +209,11 @@ export default function PassDetailPage({ params }: { params: Promise<{ slug: str
           <div className="text-base font-semibold" style={{ color: "var(--color-on-surface)" }}>
             {plannedMatch.passnamn}
           </div>
+          {plannedMatch.datum && parsed && plannedMatch.datum !== parsed.date && (
+            <div className="text-xs font-semibold mt-1" style={{ color: "var(--color-primary)" }}>
+              Planerat till {new Date(plannedMatch.datum).toLocaleDateString("sv-SE", { weekday: "short", day: "numeric", month: "short" })}
+            </div>
+          )}
           {plannedMatch.syfte && (
             <div className="text-sm mt-1" style={{ color: "var(--color-on-surface-variant)" }}>
               {plannedMatch.syfte}

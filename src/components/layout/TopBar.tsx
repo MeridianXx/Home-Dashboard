@@ -32,9 +32,9 @@ const CONTEXT_META: Record<
   "/fitness": {
     label: "Fitness",
     tabs: [
-      { label: "Översikt",  suffix: "",         icon: "dashboard"      },
-      { label: "Coach",     suffix: "/coach",   icon: "person"         },
-      { label: "Historik",  suffix: "/history", icon: "history"        },
+      { label: "Översikt",  suffix: "",           icon: "dashboard"      },
+      { label: "Coach",     suffix: "/coach",     icon: "person"         },
+      { label: "Historik",  suffix: "/history",   icon: "history"        },
     ],
   },
   "/garden": {

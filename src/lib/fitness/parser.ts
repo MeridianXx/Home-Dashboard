@@ -350,6 +350,115 @@ export function observedMaxHR(workouts: Workout[], days = 180): number | null {
   return max > 0 ? Math.round(max) : null;
 }
 
+// ─── Health Metrics — tidsserier för trend-grafer ───────────────────────────
+
+export interface HealthSeriesPoint {
+  date: string;   // ISO YYYY-MM-DD
+  value: number;
+}
+
+export interface SleepSeriesPoint {
+  date: string;
+  /** Sömn i timmar */
+  asleepH: number | null;
+  /** Genomsnittlig HRV för natten (ms) */
+  hrvMs: number | null;
+}
+
+export interface HealthSeries {
+  restingHR: HealthSeriesPoint[];    // Daily Metrics · Resting HR
+  vo2Max: HealthSeriesPoint[];       // Daily Metrics · VO₂ max
+  hrv: HealthSeriesPoint[];          // Sleep · Avg. HRV
+  sleep: SleepSeriesPoint[];         // Sleep · Asleep + Avg. HRV
+}
+
+/**
+ * Parsea tidsserier ur Health_Metrics för Resting HR, VO₂ max, HRV + sömn.
+ * Datumsorterat kronologiskt (äldst först) — bra för linjediagram.
+ */
+export function parseHealthSeries(buffer: Buffer, days = 120): HealthSeries {
+  const wb = XLSX.read(buffer, { type: "buffer", cellDates: false });
+  const cutoffMs = Date.now() - days * 86400 * 1000;
+
+  const rowsOf = (name: string): unknown[][] => {
+    const s = wb.Sheets[name];
+    if (!s) return [];
+    return XLSX.utils.sheet_to_json(s, { header: 1, defval: null, blankrows: false });
+  };
+
+  const restingHR: HealthSeriesPoint[] = [];
+  const vo2Max: HealthSeriesPoint[] = [];
+  const hrv: HealthSeriesPoint[] = [];
+  const sleep: SleepSeriesPoint[] = [];
+
+  // ── Daily Metrics: Resting HR + VO₂ max ──
+  const daily = rowsOf("Daily Metrics");
+  if (daily.length > 1) {
+    const headers = daily[0].map((h) => String(h ?? "").trim().toLowerCase());
+    const dateIdx = 0;
+    const rhrIdx = headers.findIndex((h) => h === "resting" || h === "resting hr");
+    const vo2Idx = headers.findIndex((h) => h.includes("vo") && h.includes("max"));
+    for (let i = 1; i < daily.length; i++) {
+      const r = daily[i];
+      const d = typeof r[dateIdx] === "number" ? r[dateIdx] : NaN;
+      if (!Number.isFinite(d)) continue;
+      const iso = excelSerialToDate(d);
+      if (new Date(iso).getTime() < cutoffMs) continue;
+      if (rhrIdx !== -1) {
+        const v = typeof r[rhrIdx] === "number" ? r[rhrIdx] : NaN;
+        if (Number.isFinite(v) && v > 0) restingHR.push({ date: iso, value: v });
+      }
+      if (vo2Idx !== -1) {
+        const v = typeof r[vo2Idx] === "number" ? r[vo2Idx] : NaN;
+        if (Number.isFinite(v) && v > 0) vo2Max.push({ date: iso, value: Math.round(v * 10) / 10 });
+      }
+    }
+  }
+
+  // ── Sleep: HRV + Asleep-tid ──
+  const sleepRows = rowsOf("Sleep");
+  if (sleepRows.length > 1) {
+    const headers = sleepRows[0].map((h) => String(h ?? "").trim().toLowerCase());
+    const dateIdx = headers.findIndex((h) => h === "date");
+    const avgHrvIdx = headers.findIndex((h) => h === "avg. hrv" || h === "avg hrv");
+    const asleepIdx = headers.findIndex((h) => h === "asleep" || h === "asleep time");
+    if (dateIdx !== -1) {
+      for (let i = 1; i < sleepRows.length; i++) {
+        const r = sleepRows[i];
+        const d = typeof r[dateIdx] === "number" ? r[dateIdx] : NaN;
+        if (!Number.isFinite(d)) continue;
+        const iso = excelSerialToDate(d);
+        if (new Date(iso).getTime() < cutoffMs) continue;
+
+        let hrvVal: number | null = null;
+        if (avgHrvIdx !== -1) {
+          const v = typeof r[avgHrvIdx] === "number" ? r[avgHrvIdx] : NaN;
+          if (Number.isFinite(v) && v > 0) {
+            hrvVal = Math.round(v);
+            hrv.push({ date: iso, value: hrvVal });
+          }
+        }
+        // Asleep lagras som Excel-dygnsfraktion → × 24 för timmar
+        let asleepH: number | null = null;
+        if (asleepIdx !== -1) {
+          const v = typeof r[asleepIdx] === "number" ? r[asleepIdx] : NaN;
+          if (Number.isFinite(v) && v > 0) asleepH = v * 24;
+        }
+        sleep.push({ date: iso, asleepH, hrvMs: hrvVal });
+      }
+    }
+  }
+
+  // Kronologisk ordning (äldst först)
+  const byDate = (a: { date: string }, b: { date: string }) => a.date.localeCompare(b.date);
+  restingHR.sort(byDate);
+  vo2Max.sort(byDate);
+  hrv.sort(byDate);
+  sleep.sort(byDate);
+
+  return { restingHR, vo2Max, hrv, sleep };
+}
+
 /** Sekunder → HH:MM:SS eller MM:SS för korta pass. */
 export function durationString(sec: number): string {
   if (!Number.isFinite(sec) || sec <= 0) return "–";
