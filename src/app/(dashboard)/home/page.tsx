@@ -1071,7 +1071,12 @@ function SolarCoolingCard({ data, onRefresh, loadingKey, runAction }: {
           </span>
           {data.room_temp != null && (
             <span className="text-[11px] font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
-              {data.room_temp.toFixed(1)}° rum
+              {data.room_temp.toFixed(1)}° inne
+            </span>
+          )}
+          {data.context.outdoor_temp != null && (
+            <span className="text-[11px] font-medium" style={{ color: "var(--color-outline)" }}>
+              {Math.round(data.context.outdoor_temp)}° ute
             </span>
           )}
         </div>
@@ -1079,7 +1084,6 @@ function SolarCoolingCard({ data, onRefresh, loadingKey, runAction }: {
 
       {/* Footer — context + automations summary */}
       <div className="text-[11px]" style={{ color: "var(--color-outline)" }}>
-        {data.context.outdoor_temp != null && <span>{Math.round(data.context.outdoor_temp)}° ute</span>}
         {(() => {
           const { clouds_met, clouds_smhi } = data.context;
           if (clouds_met != null && clouds_smhi != null) {
@@ -1116,7 +1120,11 @@ function WeatherStrip({ data }: { data: WeatherData }) {
   const periods = data.periods ?? [];
   const forecast = data.forecast ?? [];
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between rounded-2xl px-4 py-3" style={{
+      backgroundColor: "var(--color-surface-container)",
+      boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
+      border: "1px solid var(--color-card-border)",
+    }}>
       {/* Vänster — perioder: aktuell + 3 kommande */}
       <div className="flex items-center">
         {periods.map((p, i) => (
@@ -1296,12 +1304,10 @@ export default function HomePage() {
           style={{ color: "var(--color-on-surface-variant)" }}>
           Villa Björkdalen · {formatDate()}
         </p>
-        {weather && "current" in weather && (
-          <div className="mt-2">
-            <WeatherStrip data={weather} />
-          </div>
-        )}
       </div>
+
+      {/* Väderprognos */}
+      {weather && "current" in weather && <WeatherStrip data={weather} />}
 
       {/* Status strip — split into temp row (expandable) + energy row */}
       {(() => {
