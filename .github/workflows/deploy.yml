@@ -73,6 +73,9 @@ jobs:
             -e NOTION_FITNESS_LOG_DB="${{ secrets.NOTION_FITNESS_LOG_DB }}" \
             -e NOTION_FITNESS_PROFILE_DB="${{ secrets.NOTION_FITNESS_PROFILE_DB }}" \
             -e NOTION_FITNESS_COACH_PAGE="${{ secrets.NOTION_FITNESS_COACH_PAGE }}" \
+            -e NOTION_GARDEN_PLANTS_DB="${{ secrets.NOTION_GARDEN_PLANTS_DB }}" \
+            -e NOTION_GARDEN_SEASON_DB="${{ secrets.NOTION_GARDEN_SEASON_DB }}" \
+            -e NOTION_GARDEN_PROJECTS_DB="${{ secrets.NOTION_GARDEN_PROJECTS_DB }}" \
             -e ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
             -e FITNESS_WEEKLY_SECRET="${{ secrets.FITNESS_WEEKLY_SECRET }}" \
             -l "com.centurylinklabs.watchtower.enable=false" \

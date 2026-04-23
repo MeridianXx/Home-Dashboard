@@ -278,3 +278,13 @@ input[type="range"]::-moz-range-thumb {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* SubNav — etikett bara på desktop (tw.css respekterar inte `md:` som @media) */
+.subnav-label {
+  display: none;
+}
+@media (min-width: 768px) {
+  .subnav-label {
+    display: inline;
+  }
+}

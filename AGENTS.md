@@ -202,7 +202,7 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 
 **Aktiv branch:** `v2` (origin/v2 — detta är den enda aktiva branchen, main är övergiven)  
 **Preview-server:** konfigurerad i `.claude/launch.json`, starta med `preview_start("home-dashboard")`  
-**Färdiga sektioner:** Hem/Översikt (med grafer), Hem/Belysning (med våningsplan + scener), Hem/Media (Sonos + Apple TV), Homelab (Servrar/Containers/Media/Nätverk), **Fitness/Dashboard (Session A+B+C+E — Dagsform-kort (HRV/sömn/TSB × 1/3 var) + målkort med tidsprogress, nästa pass, passhistorik med Apple Fitness-stil detaljvy inkl. färgkodad GPS-karta per HR-zon, spetsig elevationsprofil, HR-tidsserie med zon-band, tempo-baserad intervalluppdelning, zondistribution, RPE-baserad färgskala för ansträngning), Notion-synkad profil (inkl. heightCm) + Träningslogg (idempotent, med AI-analys-kolumn), PMC-metriker (CTL/ATL/TSB/TLR HealthFit-kompatibla med pandas-EMA och yesterday-TSB), AI-analys av pass via Claude Sonnet 4.6 med Notion-sida som system-prompt/coach-persona + valfritt kommentarsfält (ephemeral) som viktas in i prompten, paginerad `/fitness/history` med typ-filter (7 kategorier som wrappar) + månadsgruppering, AI-analys-stjärna på pass-ikoner som analyserats**, **Fitness/Coach (Session D+E — vecko-/månadskalender med både planerade pass från Notion och genomförda pass från HealthFit parallellt, CRUD mot Planerade pass-DB via portal-renderad modal, AI-planering via Claude med iterativa verktyg: regen per enskilt pass + feedback-textruta som reviderar hela planen ("fortsätt chatten") + enskilt AI-pass för ett specifikt datum, "spara = visa" så inget regenereras mellan granskning och save)**, Trädgård (stub)
+**Färdiga sektioner:** Hem/Översikt (med grafer), Hem/Belysning (med våningsplan + scener), Hem/Media (Sonos + Apple TV), Homelab (Servrar/Containers/Media/Nätverk), **Fitness/Dashboard (Session A+B+C+E — Dagsform-kort (HRV/sömn/TSB × 1/3 var) + målkort med tidsprogress, nästa pass, passhistorik med Apple Fitness-stil detaljvy inkl. färgkodad GPS-karta per HR-zon, spetsig elevationsprofil, HR-tidsserie med zon-band, tempo-baserad intervalluppdelning, zondistribution, RPE-baserad färgskala för ansträngning), Notion-synkad profil (inkl. heightCm) + Träningslogg (idempotent, med AI-analys-kolumn), PMC-metriker (CTL/ATL/TSB/TLR HealthFit-kompatibla med pandas-EMA och yesterday-TSB), AI-analys av pass via Claude Sonnet 4.6 med Notion-sida som system-prompt/coach-persona + valfritt kommentarsfält (ephemeral) som viktas in i prompten, paginerad `/fitness/history` med typ-filter (7 kategorier som wrappar) + månadsgruppering, AI-analys-stjärna på pass-ikoner som analyserats**, **Fitness/Coach (Session D+E — vecko-/månadskalender med både planerade pass från Notion och genomförda pass från HealthFit parallellt, CRUD mot Planerade pass-DB via portal-renderad modal, AI-planering via Claude med iterativa verktyg: regen per enskilt pass + feedback-textruta som reviderar hela planen ("fortsätt chatten") + enskilt AI-pass för ett specifikt datum, "spara = visa" så inget regenereras mellan granskning och save)**, **Trädgård (Session 1 — översikt med aggregerade räknare, växtregister-grid med typ/plats-filter och detaljsida med kopplade säsongsåtgärder. CRUD-API mot tre Notion-DBs: Växtregister, Säsongsplan, Utomhusprojekt. Stubbar för säsongsplan/projekt/AI-rådgivare.)**
 
 ---
 
@@ -228,6 +228,9 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 | `NOTION_FITNESS_COACH_PAGE` | Sid-id (UUID) för Notion-sidan som används som coach-persona system-prompt. Saknas → coach kör utan persona (fortfarande med profile + PMC). |
 | `ANTHROPIC_API_KEY` | **Full 108-teckens `sk-ant-api03-…`-nyckel** (inte den truncerade "sk-ant-api03-…xxx"-förhandsvisningen i Anthropic-konsolen — det ger ByteString-fel vid fetch). Kopiera hela nyckeln från API-sidan direkt när den skapas. |
 | `FITNESS_WEEKLY_SECRET` | Slumpmässig sträng (t.ex. `openssl rand -hex 32`) som delas mellan GitHub Actions-cron och `/api/fitness/weekly-summary`. Skickas som header `x-weekly-secret`. Utan den svarar endpointen 401. |
+| `NOTION_GARDEN_PLANTS_DB` | DB-id för 🌿 Växtregister. Saknas → `/api/garden/*` svarar 501, UI visar instruktionskort. |
+| `NOTION_GARDEN_SEASON_DB` | DB-id för 📆 Säsongsplan. Samma 501-gate. |
+| `NOTION_GARDEN_PROJECTS_DB` | DB-id för 🧑🏻‍🌾 Utomhusprojekt. Samma 501-gate. Alla tre måste vara satta för att `isGardenReady()` ska returnera true. |
 
 **Snabb-sanity efter deploy:**
 ```bash
@@ -299,6 +302,9 @@ const USER_PROFILES = {
 - **Page transitions:** Framer Motion `motion.div` med `key={pathname}` i dashboard layout — ren opacity-crossfade (200ms `[0.4, 0, 0.2, 1]` cubic-bezier), konstant `FADE_EASE`. Horisontell slide ersattes eftersom den kändes "tung". Riktning beräknas **under render** (inte useEffect!) via `prevPathnameRef`/`directionRef` — useEffect körs efter render och missar första mount. `onAnimationComplete` nollställer direction. Undvik `AnimatePresence mode="wait"` (dubbel-laddning), spring (studsar), och Card-level entrance-animationer.
 - **iOS app-switch:** `onTouchCancel` + `visibilitychange`-lyssnare krävs för att nollställa inline swipe-transform. Utan det fastnar `translateX` när iOS avbryter touch (app-switch, samtal, notis).
 - **Expand/collapse:** `AnimatePresence initial={false}` + `motion.div` med `height: 0/auto` + `opacity: 0/1`, duration 0.2s ease-out, `overflow: hidden`. Används på belysningsrum, temperaturpaneler, HVAC-selects.
+- **Delad navigations-config i `src/lib/nav.ts`:** `CONTEXT_META` (sektion → label + sub-tabs) + `getContextKey(pathname)` + `getSuffixes(pathname)` är single source of truth. Importeras av `TopBar` (renderar sub-tabs), `MobileNav`/`Sidebar` (bara top-level) och dashboard-layouten (swipe-navigation + page-transition-riktning). Tidigare duplicerades både `CONTEXT_TABS` i layouten och `CONTEXT_META` i TopBar — gick ur synk när Trädgård fick fler tabs.
+- **Sub-tabs på mobil = ikon-only.** Max 5 tabs (Trädgård) scrollar ur 375 px om både ikon + text-label renderas. Lösning: `subnav-label`-klass i `globals.css` som är `display: none` default och får `display: inline` i `@media (min-width: 768px)`-wrapper. tw.css-genererade `md:inline`/`hidden md:inline` funkar inte på mobil (AGENTS.md-note om `md:` utan @media), så riktig CSS med @media krävs för att gömma text selektivt. `aria-label` på varje `<Link>` så screen readers fortfarande får etiketten. Tabs stackade flex-col, ikon 18px.
+- **TopBar: mobil = bara tabs + theme-toggle.** Tidigare hade mobilen även huslogon längst till vänster. Den togs bort eftersom (1) MobileNav botten-pill visar redan aktiv sektion, (2) page-header har sektionens titel som h1, (3) tabs behövde horisontellt utrymme. Desktop har Sidebar med logon kvar oförändrat. Avdelare (`borderRight: 1px solid rgba(187,185,178,0.2)`) sitter till höger om tab-gruppen så den separeras från theme-toggle (32×32, 18px ikon för att inte dominera).
 - **Pull-to-refresh:** Custom touch-gest i layout.tsx. Kräver `scrollY === 0`, 80px threshold, undviker horisontell swipe-konflikt. Bekräftelse: bock + "Uppdaterat" i 800ms. **Viktigt:** använd `"0px"` (sträng) istället för `0` (number) i inline styles för height — annars hydration-mismatch.
 - **Loading-state på toggle-knappar:** Använd `runAction(key, fn)` + `loadingKey` för att spåra in-flight state. Visa `spin-anim` SVG-spinner under laddning, dölj border/active-state. Skicka `loadingKey`/`runAction` som props till subkomponenter som behöver det.
 - **Recharts grafer:** Använd `useChartSize()` (ResizeObserver) istället för `ResponsiveContainer` — den ger -1 width/height inuti AnimatePresence. Sätt explicit `width={width} height={height}` på chart-komponenten. `useDeferredMount()` fördröjer mount 2 rAF-frames. Kurvtyp: `type="basis"` (B-spline, mjukast). Tooltip: `cursor={{ stroke: "var(--color-outline)", strokeWidth: 1 }}` för vertikal linje + touch-stöd.
@@ -597,3 +603,60 @@ Försök #1: `/fitness/statistik`-sida med TLR/TLF + HRV/vilopuls/VO₂ max-tren
 - **GitHub Actions `vars.DASHBOARD_URL`:** Optional variable (ej secret) för att peka workflow:en på en annan miljö (staging, self-hosted). Default är `https://dash.inicio.cloud`. Sätts under Settings → Secrets and variables → Variables.
 - **Max 100 children per `pages.create`:** Notion API:t tar max 100 block i `children`-arrayen. En 5-sektions sammanfattning (5 rubriker + 5 paragrafer) landar på 10 block med stor marginal. Om framtida format sprängs — batcha via `blocks.children.append` efter skapandet.
 - **Matchning planerat→genomfört** återanvänder `matchWorkoutsToPlans()` från `match.ts` istället för naivt `plans.filter(p => p.datum === w.date)`, så kärn-matchlogiken finns på ETT ställe. Räknas per vecka: hur många av veckans planerade pass fick ett genomfört pass inom matchfönstret.
+
+### Trädgård — Sessionsplan
+
+> Vision: Personlig trädgårdsassistent som håller koll på växter, säsongsuppgifter och utomhusprojekt — med Notion som master. Dashboarden är läs- och redigeringsgränssnittet, Notion är datakällan.
+
+#### Datakällor i Notion
+
+Tre databaser under sidan *Villa Björkdalen → Trädgård*:
+
+**🌿 Växtregister** (`NOTION_GARDEN_PLANTS_DB`)
+- `Växt` (title), `Typ` (select: Häck/Buske/Prydnadsgräs/Prydnadsträd/Perenn/Gräs/Fruktträd/Marktäckare/Grönsak/Blomma)
+- `Plats` (multi_select: Inomhus/Växthus/Altan/Baksida/Framsida)
+- `Beskärning` (multi_select: Höst/Efter blomning/Ingen/JAS/Vår/Vårvinter/Löpande)
+- `Gödsling` (multi_select: Ingen/Höst/Sommar/Försommar/Vår)
+- `Skötselråd` (**email-typ** i Notion — läses via `.email`, skrivs via `{ email: string | null }`)
+- `Åtgärder` (relation → Säsongsplan)
+
+**📆 Säsongsplan** (`NOTION_GARDEN_SEASON_DB`)
+- `Uppgift` (title), `Datum` (date), `Status` (status: Planerad/Pågår/Klar)
+- `Typ` (select: Gräsmatta/Rabatter/Träd & buskar/Grönsaker)
+- `Åtgärd` (multi_select: Underhåll/Delning/Beskärning/Gödsling/Inspektion/Plantering)
+- `Kommentar` (rich_text)
+- `🌿 Växt` (relation → Växtregister) — property-nyckeln börjar med emoji
+
+**🧑🏻‍🌾 Utomhusprojekt** (`NOTION_GARDEN_PROJECTS_DB`)
+- `Namn` (title), `Status` (select: Ny/Utreds/Planerad/Pågående/Väntar/Klart/Skrotad)
+- `Prioritet` (select: Hög/Normal/Låg), `Område` (select: Uppfart/Finplanering/Grovplanering/Trädgård/Bygg/Altan)
+- `Tidsram` (select: Oklart/2026/2027), `Budget` (number), `Faktisk kostnad` (number), `Kommentar` (rich_text)
+
+#### Session 1 — Typer, API + översikt/växtregister ✅ Klar
+- [x] `src/lib/garden/types.ts` — `Plant`, `SeasonTask`, `OutdoorProject` + input/response-typer + union-literals för select-värden (dokumentations-hint, runtime är bred `string` precis som `PlannedWorkout.typ`).
+- [x] `src/lib/garden/notion.ts` — lazy singleton-klient, `resolveDataSourceId()`-cache, separat `mapXxx`/`xxxProps` per DB, partial-PATCH via "bara definierade fält". CRUD för alla tre DBs + `isGardenReady()`.
+- [x] `src/app/api/garden/plants/route.ts` + `[id]/route.ts` — GET/POST + GET/PATCH/DELETE. Samma mönster för `tasks` och `projects`.
+- [x] `src/app/api/garden/overview/route.ts` — aggregerar: antal växter per typ, antal uppgifter (+30 d) per status, aktiva projekt (status ∈ Planerad/Pågående/Utreds/Väntar) med budget- och utfallssumma.
+- [x] Alla routes: `export const dynamic = "force-dynamic"`, try/catch, `isGardenReady()` → 501 + instruktiv text om env-variabler saknas.
+- [x] `src/components/layout/TopBar.tsx` — utökad sub-nav för `/garden`: Översikt/Växter/Säsongsplan/Projekt/AI. MobileNav/Sidebar pekar fortfarande på `/garden` som top-route (enhetligt med befintlig nav, även om subroutes är svenska per spec).
+- [x] `src/app/(dashboard)/garden/page.tsx` — översikt med tre kort (Växter/Säsongsplan/Projekt), `BreakdownList`-staplar per kategori, klickbara SectionTitles som länkar till subsidor.
+- [x] `src/app/(dashboard)/garden/vaxter/page.tsx` — grid (2-col mobil) med typ/plats-filter-chips, `PlantCard` länkar till detaljsida.
+- [x] `src/app/(dashboard)/garden/vaxter/[id]/page.tsx` — full Notion-fältvy (`FieldRow`-komponent), chips för multi-select, "Öppna i Notion"-länk via `https://www.notion.so/<id-utan-bindestreck>`, lista av kopplade säsongsåtgärder (client-side filter på `plantIds.includes(id)`).
+- [x] Stubbar för `/garden/sasongsplan`, `/garden/projekt`, `/garden/ai` — "Kommer i sprint 2".
+- [x] `.github/workflows/deploy.yml` — Garden-env-var **ska** läggas till innan prod-deploy (se secrets-tabellen ovan). Utan dem returnerar endpointen 501 och UI visar not-configured-kort.
+
+**Observera:**
+- **`Skötselråd` är `email`-typ i Notion av misstag** — fungerar i praktiken som textfält, men Notion API kräver `{ email: "..." }` vid skrivning och returnerar värdet under `.email`, inte `.rich_text`. Hanteras av `readEmail()`/`emailProp()` i `notion.ts`. Töm fältet via `{ email: null }`, inte tom sträng.
+- **Property-nycklar med emoji funkar**, men kopiera dem exakt — `"🌿 Växt"` (en space efter emoji) är nyckeln i Säsongsplan, inte `"Växt"`. Notion-API:t matchar strikt på exakt sträng inkl. emoji + whitespace.
+- **Route-prefix = `/garden`**, subroutes = svenska (`/garden/vaxter`, `/garden/sasongsplan`, `/garden/projekt`, `/garden/ai`). Mixen beror på att MobileNav/Sidebar/TopBar redan pekade på `/garden` innan session 1 — att byta till `/tradgard` hade krävt att hela nav-infrastrukturen flyttades samtidigt. Subroutes valdes svenska efter spec:en.
+- **501-fallback i UI:** `fetcher` kastar Error vid icke-ok HTTP → `error.message` innehåller statuskoden (`"...: 501"`). Pages för `/garden` och `/garden/vaxter` checkar substring `": 501"` och visar ett instruktivt not-configured-kort med env-variabelnamn istället för ErrorBanner. Generellt mönster: när en hel feature är gate:ad på env-variabler, degradera till instruktionstext hellre än att visa fel.
+- **`Åtgärder`-relationen på växt lagras som `atgardIds: string[]`** men UI:t listar kopplade åtgärder via en parallell `/api/garden/tasks`-fetch filtrerad på `plantIds.includes(id)` — inte genom att följa relationen från växten. Det undviker att behöva hämta varje relaterad task-page separat, och Notion har ingen efficient "get relations expanded"-API.
+- **Ingen lokal cache** i `notion.ts` (till skillnad från `drive.ts` i fitness). Anledning: Notion är snabbt, låg cardinality (10-tals växter, 100-tals uppgifter), och feature:n lär inte pollas aggressivt. Om det blir ett problem: lägg till 60 s in-memory cache i `getPlants`/`getTasks`/`getProjects` med samma `skipCache`-flagga-mönster som fitness använder.
+- **Pagineringshelper (`queryAll`)** används internt i alla tre get-funktioner men exponeras inte — data mängder är små nog att alltid hämta alla. Filtrering sker server-side via Notion-filter när möjligt (`typ`, `status`, `omrade`) och resten på klient.
+
+#### Session 2 — Pending
+- [ ] Säsongsplan-kalender (månadsvy) med CRUD-modal (portal-renderad, samma mönster som fitness/coach).
+- [ ] Projektsida med lista + status-filter + inline-edit av budget/utfall.
+- [ ] AI-rådgivare (Claude Sonnet 4.6) som läser växtregister + säsongsplan + aktuell månad och ger förslag. Persona som Notion-sida (speglar `NOTION_FITNESS_COACH_PAGE`).
+- [ ] Bilduppladdning per växt (Drive eller Notion files-property).
+- [ ] `scripts/create-garden-notion-dbs.mjs` — idempotent init-script om man vill kunna skapa DB:erna från scratch.

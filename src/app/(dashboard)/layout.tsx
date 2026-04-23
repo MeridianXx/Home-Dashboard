@@ -8,23 +8,11 @@ import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import MobileNav from "@/components/layout/MobileNav";
 import { useDashboardStore } from "@/lib/store";
+import { CONTEXT_META, getContextKey } from "@/lib/nav";
 
-const CONTEXT_TABS: Record<string, string[]> = {
-  "/home":     ["", "/lighting", "/media", "/automations"],
-  "/homelab":  ["", "/servers", "/network"],
-  "/fitness":  ["", "/coach", "/history"],
-  "/garden":   ["", "/planner"],
-};
-
-function getContextKey(pathname: string) {
-  return Object.keys(CONTEXT_TABS).find(k => pathname === k || pathname.startsWith(k + "/")) ?? "/home";
-}
-
-function getTabIndex(pathname: string) {
-  const contextKey = getContextKey(pathname);
-  const suffixes = CONTEXT_TABS[contextKey] ?? [];
-  const current = pathname.slice(contextKey.length);
-  return suffixes.indexOf(current);
+/** Suffixen för en viss context-key — används av swipe-nav + transition-riktning. */
+function suffixesFor(ctx: string): string[] {
+  return CONTEXT_META[ctx]?.tabs.map((t) => t.suffix) ?? [];
 }
 
 // Smooth slide — longer duration + gentle cubic-bezier for fluid feel
@@ -53,13 +41,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       // Same section (e.g. /home → /home/lighting) — compare tab index
       const prevSuffix = prevPathnameRef.current.slice(prevCtx.length);
       const newSuffix = pathname.slice(newCtx.length);
-      const suffixes = CONTEXT_TABS[prevCtx] ?? [];
+      const suffixes = suffixesFor(prevCtx);
       const prevIdx = suffixes.indexOf(prevSuffix);
       const newIdx = suffixes.indexOf(newSuffix);
       directionRef.current = newIdx > prevIdx ? 1 : -1;
     } else {
       // Different section (e.g. /home → /homelab) — compare section order
-      const contexts = Object.keys(CONTEXT_TABS);
+      const contexts = Object.keys(CONTEXT_META);
       directionRef.current = contexts.indexOf(newCtx) > contexts.indexOf(prevCtx) ? 1 : -1;
     }
     prevPathnameRef.current = pathname;
@@ -118,7 +106,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
 
     const contextKey = getContextKey(pathname);
-    const suffixes   = CONTEXT_TABS[contextKey] ?? [];
+    const suffixes   = suffixesFor(contextKey);
     const current    = pathname.slice(contextKey.length);
     const idx        = suffixes.indexOf(current);
     if (idx === -1) return;

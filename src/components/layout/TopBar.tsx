@@ -4,47 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
-import Logo from "@/components/Logo";
+import { CONTEXT_META, getContextKey } from "@/lib/nav";
 
 const THEME_ICONS: Record<string, string> = { auto: "brightness_auto", light: "light_mode", dark: "dark_mode" };
-
-const CONTEXT_META: Record<
-  string,
-  { label: string; tabs?: { label: string; suffix: string; icon: string }[] }
-> = {
-  "/home": {
-    label: "Hem",
-    tabs: [
-      { label: "Översikt",    suffix: "",            icon: "dashboard"     },
-      { label: "Belysning",   suffix: "/lighting",   icon: "light_mode"    },
-      { label: "Media",       suffix: "/media",      icon: "speaker"       },
-      { label: "Auto",        suffix: "/automations",icon: "auto_mode"     },
-    ],
-  },
-  "/homelab": {
-    label: "Homelab",
-    tabs: [
-      { label: "Översikt",   suffix: "",          icon: "dashboard"   },
-      { label: "Infra",      suffix: "/servers",  icon: "dns"         },
-      { label: "Nätverk",    suffix: "/network",  icon: "router"      },
-    ],
-  },
-  "/fitness": {
-    label: "Fitness",
-    tabs: [
-      { label: "Översikt",  suffix: "",           icon: "dashboard"      },
-      { label: "Coach",     suffix: "/coach",     icon: "person"         },
-      { label: "Historik",  suffix: "/history",   icon: "history"        },
-    ],
-  },
-  "/garden": {
-    label: "Trädgård",
-    tabs: [
-      { label: "Översikt",  suffix: "",          icon: "dashboard"     },
-      { label: "Planering", suffix: "/planner",  icon: "calendar_today"},
-    ],
-  },
-};
 
 // Mock 4-day forecast — replaced with SMHI / HA weather entity in Fas 2.
 const FORECAST = [
@@ -53,13 +15,6 @@ const FORECAST = [
   { day: "Ons", icon: "rainy", temp: "3°", color: "var(--color-primary)" },
   { day: "Tor", icon: "wb_sunny", temp: "6°", color: "var(--color-tertiary)" },
 ];
-
-function getContextKey(pathname: string): string {
-  const key = Object.keys(CONTEXT_META).find(
-    (k) => pathname === k || pathname.startsWith(k + "/")
-  );
-  return key ?? "/home";
-}
 
 export default function TopBar() {
   const pathname = usePathname();
@@ -90,25 +45,27 @@ export default function TopBar() {
         </span>
       </button>
 
-      {/* Logo — mobile only */}
-      <span
-        className="md:hidden flex items-center px-5"
-        style={{ color: "var(--color-on-surface)" }}
-      >
-        <Logo size={26} />
-      </span>
-
-      {/* Context label + sub-tabs */}
-      <div className="flex items-center flex-1 min-w-0 px-2 overflow-visible">
+      {/* Context label + sub-tabs.
+          Mobil: ikon-only (text har `subnav-label`-klass med @media-gate i globals.css
+          eftersom tw.css inte hanterar `md:`-prefix via @media).
+          Desktop: ikon + text stackade som tidigare. */}
+      <div className="flex items-center flex-1 min-w-0 pl-0 pr-2 overflow-visible">
         <span
           className="hidden md:block text-sm font-bold shrink-0 mr-4"
           style={{ color: "var(--color-on-surface-variant)" }}
         >
-          {meta.label}
+          {meta?.label}
         </span>
 
-        {meta.tabs && meta.tabs.length > 1 && (
-          <div className="overflow-x-auto no-scrollbar flex-1">
+        {meta?.tabs && meta.tabs.length > 1 && (
+          <div
+            className="overflow-x-auto no-scrollbar flex-1"
+            style={{
+              borderRight: "1px solid rgba(187,185,178,0.2)",
+              paddingLeft: 8,
+              paddingRight: 8,
+            }}
+          >
             <nav className="flex gap-1 w-max">
               {meta.tabs.map(({ label, suffix, icon }) => {
                 const href = `${contextKey}${suffix}`;
@@ -117,6 +74,7 @@ export default function TopBar() {
                   <Link
                     key={href}
                     href={href}
+                    aria-label={label}
                     className="rounded-full px-3 py-1.5 transition-all whitespace-nowrap flex flex-col items-center gap-0.5"
                     style={
                       active
@@ -125,10 +83,10 @@ export default function TopBar() {
                     }
                   >
                     <span className="material-symbols-outlined"
-                      style={{ fontSize: 16, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>
+                      style={{ fontSize: 18, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>
                       {icon}
                     </span>
-                    <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{label}</span>
+                    <span className="subnav-label" style={{ fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{label}</span>
                   </Link>
                 );
               })}
@@ -189,11 +147,16 @@ export default function TopBar() {
       {/* Theme toggle — mobile only */}
       <button
         onClick={cycleTheme}
-        className="md:hidden flex items-center justify-center w-10 h-10 mr-2 rounded-full opacity-70"
-        style={{ color: "var(--color-on-surface-variant)" }}
+        className="md:hidden flex items-center justify-center rounded-full opacity-70"
+        style={{
+          color: "var(--color-on-surface-variant)",
+          width: 32,
+          height: 32,
+          marginRight: 10,
+        }}
         aria-label="Växla tema"
       >
-        <span className="material-symbols-outlined text-[22px]">{THEME_ICONS[theme]}</span>
+        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{THEME_ICONS[theme]}</span>
       </button>
     </header>
   );
