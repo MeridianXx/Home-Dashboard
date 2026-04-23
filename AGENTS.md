@@ -227,6 +227,7 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 | `NOTION_FITNESS_PROFILE_DB` | **Kan vara tom sträng**. Utan denna: profil-GET returnerar `DEFAULT_PROFILE`, PATCH svarar 501, sync-badge visas inte. |
 | `NOTION_FITNESS_COACH_PAGE` | Sid-id (UUID) för Notion-sidan som används som coach-persona system-prompt. Saknas → coach kör utan persona (fortfarande med profile + PMC). |
 | `ANTHROPIC_API_KEY` | **Full 108-teckens `sk-ant-api03-…`-nyckel** (inte den truncerade "sk-ant-api03-…xxx"-förhandsvisningen i Anthropic-konsolen — det ger ByteString-fel vid fetch). Kopiera hela nyckeln från API-sidan direkt när den skapas. |
+| `FITNESS_WEEKLY_SECRET` | Slumpmässig sträng (t.ex. `openssl rand -hex 32`) som delas mellan GitHub Actions-cron och `/api/fitness/weekly-summary`. Skickas som header `x-weekly-secret`. Utan den svarar endpointen 401. |
 
 **Snabb-sanity efter deploy:**
 ```bash
@@ -582,8 +583,17 @@ Försök #1: `/fitness/statistik`-sida med TLR/TLF + HRV/vilopuls/VO₂ max-tren
 - **"Dagsform" > "Beredskap":** Svensk idiomatisk term som atleter och coacher använder. "Beredskap" översätts tekniskt men associeras mer med brandkår/räddningstjänst. Användarfeedback landar alltid på "hitta ett bättre ord" när terminologin skaver — byt utan dröjsmål, lojalitet till first draft är fel optimering.
 - **Städning när feature rippas:** När en sida tas bort, följ denna ordning så ingenting lämnas hängande: (1) radera `app/(dashboard)/<route>/`, (2) radera `app/api/<route>/`, (3) radera delade komponenter i `components/`, (4) ta bort link/tab i `TopBar.tsx`, (5) ta bort referenser i prompts/AI-kontext (`context.ts`-prompten fortfarande nämner "Fokus (senaste 28d)" → ta bort), (6) rensa oanvända interfaces/konstanter från kvarvarande filer (`FOCUS_DAYS`, `focus`-fält i `LoadSnapshot`). Utan steg 5–6 står AI-prompten kvar och refererar data som inte längre beräknas.
 
-#### Session F — Polish & notiser
-- Veckosammanfattning auto-genereras i Notion (måndag)
-- Badge/påminnelse för nästa planerade pass
-- Responsiv mobilanpassning genomgång
-- HRV-/vilopuls-/VO₂ max-trend som separat vy eller inbäddad på dashboard (statistik-sidan togs bort i Session E — om återintroducerad: bygg inte om TLF).
+#### Session F — Polish & veckosammanfattning ✅ Klar
+- [x] `src/lib/fitness/weekly-summary.ts` — orkestrerar: föregående ISO-vecka, aggregat (TRIMP, distans, tid, zoner, typer, längsta löppass, tuffaste pass, jämförelse mot veckan innan), PMC vid veckans slut, hälsovärden (HRV/vilopuls/sömn-snitt + senaste VO₂ max), matchning planerat vs genomfört via `match.ts`. Claude får 5-sektioners markdown-struktur (Sammanfattning/Belastning/Återhämtning/Mönster/Framåt), svaret parsas till Notion-block (`## ` → heading_2, paragraf, bullet) och skrivs som undersida till `NOTION_FITNESS_COACH_PAGE`. Idempotent: befintlig sida med samma titel (`Veckosammanfattning · v{N} {year}`) arkiveras innan ny skapas.
+- [x] `src/app/api/fitness/weekly-summary/route.ts` — GET (dry-run: returnerar texten utan att skriva Notion) + POST (skriver Notion). Auth via `x-weekly-secret`-header mot `FITNESS_WEEKLY_SECRET`. Valfri `?week=YYYY-Www` för backfill.
+- [x] `.github/workflows/weekly-summary.yml` — cron `0 6 * * 1` (måndag 06:00 UTC ≈ 07–08 CET/CEST) + `workflow_dispatch` med `week`-input för manuell backfill. Curl:ar endpointen med secreten.
+- [x] `.github/workflows/deploy.yml` — `FITNESS_WEEKLY_SECRET` injiceras som `-e` i `docker run`.
+- [x] Mobilanpassning — passlistan på `/fitness` och `/fitness/history` hade distansvärden (`6.82 km`) som wrappade till två rader på mobil (värdet shrinkades i `flex items-baseline`). Fixat med `whitespace-nowrap` + `shrink-0` på värde-diven och `truncate` på duration-diven. Övriga fitness-sidor (`/fitness/coach`, `/fitness/pass/[slug]`) auditerades utan nya fynd.
+
+**Observera:**
+- **Dry-run via GET är avsiktligt:** samma endpoint, samma auth, men skriver inte till Notion. Det gör det enkelt att smoke-testa från Actions "Run workflow"-knappen eller curl utan att smutsa ner Notion med testkörningar. POST är den enda vägen som faktiskt skapar en sida.
+- **ISO-vecka som stabilt ID:** sidtiteln inkluderar ISO-veckonummer + år (`Veckosammanfattning · v17 2026`), inte datumrange. Det gör idempotency trivial: sök barnsidor under coach-sidan efter exakt titel-match, arkivera befintlig innan ny skapas. Titeln är stabil över kalenderårs-gränser (vecka 1 kan börja i december).
+- **"Föregående vecka" beräknas från POST-tidpunkten,** inte från fastställt UTC-datum. Med cron måndag 06:00 UTC hamnar vi alltid på föregående måndag–söndag oavsett tidszon.
+- **GitHub Actions `vars.DASHBOARD_URL`:** Optional variable (ej secret) för att peka workflow:en på en annan miljö (staging, self-hosted). Default är `https://dash.inicio.cloud`. Sätts under Settings → Secrets and variables → Variables.
+- **Max 100 children per `pages.create`:** Notion API:t tar max 100 block i `children`-arrayen. En 5-sektions sammanfattning (5 rubriker + 5 paragrafer) landar på 10 block med stor marginal. Om framtida format sprängs — batcha via `blocks.children.append` efter skapandet.
+- **Matchning planerat→genomfört** återanvänder `matchWorkoutsToPlans()` från `match.ts` istället för naivt `plans.filter(p => p.datum === w.date)`, så kärn-matchlogiken finns på ETT ställe. Räknas per vecka: hur många av veckans planerade pass fick ett genomfört pass inom matchfönstret.

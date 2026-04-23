@@ -74,6 +74,7 @@ jobs:
             -e NOTION_FITNESS_PROFILE_DB="${{ secrets.NOTION_FITNESS_PROFILE_DB }}" \
             -e NOTION_FITNESS_COACH_PAGE="${{ secrets.NOTION_FITNESS_COACH_PAGE }}" \
             -e ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
+            -e FITNESS_WEEKLY_SECRET="${{ secrets.FITNESS_WEEKLY_SECRET }}" \
             -l "com.centurylinklabs.watchtower.enable=false" \
             ghcr.io/meridianxx/home-dashboard:latest
           docker image prune -f

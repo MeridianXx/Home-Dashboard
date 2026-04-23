@@ -1,0 +1,44 @@
+name: Veckosammanfattning
+
+on:
+  # Måndag 06:00 UTC (≈ 08:00 CET / 07:00 CEST). Sammanfattar föregående vecka.
+  schedule:
+    - cron: "0 6 * * 1"
+  # Manuell körning från Actions-fliken. Lämna `week` tom för förra veckan;
+  # sätt t.ex. `2026-W16` för att backfilla en specifik vecka.
+  workflow_dispatch:
+    inputs:
+      week:
+        description: "ISO-vecka (YYYY-Www). Tom = förra veckan."
+        required: false
+        default: ""
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Anropa /api/fitness/weekly-summary
+        run: |
+          set -euo pipefail
+          base="${DASHBOARD_URL:-https://dash.inicio.cloud}"
+          url="${base}/api/fitness/weekly-summary"
+          if [ -n "${WEEK_INPUT:-}" ]; then
+            url="${url}?week=${WEEK_INPUT}"
+          fi
+          echo "POST ${url}"
+          http_code=$(curl --silent --show-error --write-out "%{http_code}" \
+            --output /tmp/weekly-summary-response.json \
+            --request POST \
+            --header "x-weekly-secret: ${SECRET}" \
+            --max-time 90 \
+            "${url}")
+          echo "HTTP ${http_code}"
+          cat /tmp/weekly-summary-response.json
+          echo
+          if [ "${http_code}" != "200" ]; then
+            exit 1
+          fi
+        env:
+          SECRET: ${{ secrets.FITNESS_WEEKLY_SECRET }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+          WEEK_INPUT: ${{ github.event.inputs.week }}

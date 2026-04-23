@@ -273,11 +273,17 @@ export default function FitnessHistoryPage() {
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline gap-2">
-                            <div className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>
+                          <div className="flex items-baseline gap-2 min-w-0">
+                            <div
+                              className="text-sm font-semibold shrink-0"
+                              style={{ color: "var(--color-on-surface)", whiteSpace: "nowrap" }}
+                            >
                               {w.distanceM > 0 ? `${(w.distanceM / 1000).toFixed(2)} km` : typeLabel(w.type)}
                             </div>
-                            <div className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                            <div
+                              className="text-xs truncate"
+                              style={{ color: "var(--color-on-surface-variant)" }}
+                            >
                               {durationString(w.totalTimeSec)}
                               {w.distanceM > 0 ? ` · ${paceString(w.distanceM, w.totalTimeSec)} /km` : ""}
                             </div>
