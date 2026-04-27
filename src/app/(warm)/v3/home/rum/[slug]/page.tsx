@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, notFound } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -15,11 +15,12 @@ import {
   serif,
   type WarmTheme,
 } from "@/lib/warm/tokens";
-import { DetailHeader, Tile } from "@/components/warm/primitives";
-import { BulbIcon, DropletIcon, ThermoIcon } from "@/components/warm/icons/extra";
+import { ChevronLeft } from "@/components/warm/icons/extra";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
-import WarmSwitch from "@/components/warm/Switch";
+import ArcGauge from "@/components/warm/ArcGauge";
+import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
 import { slugToName } from "@/lib/warm/rooms";
+import { formatTime, kelvinLabel, sceneLabel } from "@/lib/warm/format";
 
 type LightEntry = {
   entity_id: string;
@@ -27,6 +28,7 @@ type LightEntry = {
   state: string;
   brightness_pct: number | null;
   dimmable: boolean;
+  color_temp_kelvin: number | null;
 };
 type LightArea = {
   area_id: string;
@@ -49,147 +51,406 @@ type SensorsData = {
   nibe_indoor_temp: number | null;
 };
 
-function MasterDimmer({
+// ─── Header ──────────────────────────────────────────────────────────────────
+
+function RumHeading({
+  t,
+  back,
+  title,
+  italicTail,
+  subtitle,
+}: {
+  t: WarmTheme;
+  back: () => void;
+  title: string;
+  italicTail: string | null;
+  subtitle: string;
+}) {
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => forceTick((x) => x + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  return (
+    <header
+      style={{
+        padding: "16px 22px 12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <button
+        type="button"
+        onClick={back}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          fontFamily: body,
+          fontSize: 14,
+          color: t.mute,
+          cursor: "pointer",
+          alignSelf: "flex-start",
+        }}
+      >
+        <ChevronLeft size={14} color={t.mute} />
+        Hem
+      </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <span
+          style={{
+            ...lab(t),
+            color: ACC,
+            letterSpacing: "0.18em",
+          }}
+          className="warm-tab-nums"
+        >
+          RUM · {formatTime(new Date())}
+        </span>
+        <h1
+          style={{
+            ...num(t, 30, 400),
+            lineHeight: 1.05,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          {title}
+          {italicTail ? (
+            <>
+              ,{" "}
+              <span style={{ ...ital(t, 30, t.dim) }}>{italicTail}.</span>
+            </>
+          ) : (
+            "."
+          )}
+        </h1>
+        <span style={ital(t, 14, t.mute)}>{subtitle}</span>
+      </div>
+    </header>
+  );
+}
+
+// ─── Master-tile (terracotta-tinted bg + ArcGauge + på/auto/av) ─────────────
+
+function MasterTile({
   t,
   area,
   onAllOff,
   onAllOn,
-  onSetAll,
-  loadingAll,
+  onAuto,
+  loadingKey,
 }: {
   t: WarmTheme;
   area: LightArea;
   onAllOff: () => void;
   onAllOn: () => void;
-  onSetAll: (pct: number) => void;
-  loadingAll: boolean;
+  onAuto: () => void;
+  loadingKey: "off" | "on" | "auto" | null;
 }) {
-  const dimmableLights = area.lights.filter((l) => l.dimmable);
-  const avgPct = (() => {
-    const onLights = area.lights.filter((l) => l.state === "on" && l.brightness_pct != null);
-    if (onLights.length === 0) return null;
-    return Math.round(
-      onLights.reduce((s, l) => s + (l.brightness_pct ?? 0), 0) / onLights.length
-    );
+  const onLights = area.lights.filter((l) => l.state === "on");
+  const avgPct =
+    onLights.length > 0
+      ? Math.round(
+          onLights
+            .filter((l) => l.brightness_pct != null)
+            .reduce((s, l) => s + (l.brightness_pct ?? 0), 0) /
+            Math.max(1, onLights.filter((l) => l.brightness_pct != null).length)
+        )
+      : 0;
+  const avgKelvin = (() => {
+    const k = onLights
+      .map((l) => l.color_temp_kelvin)
+      .filter((x): x is number => x != null);
+    if (k.length === 0) return null;
+    return Math.round(k.reduce((s, x) => s + x, 0) / k.length / 50) * 50;
   })();
-  const [live, setLive] = useState<number | null>(null);
-  const display = live ?? avgPct ?? (area.on_count > 0 ? 100 : 0);
   const allOn = area.on_count > 0;
 
+  type Mode = "off" | "on" | "auto";
+  const activeMode: Mode = allOn ? "on" : "off";
+
+  const PillBtn = ({
+    mode,
+    label,
+    onClick,
+  }: {
+    mode: Mode;
+    label: string;
+    onClick: () => void;
+  }) => {
+    const isActive = activeMode === mode;
+    const isLoading = loadingKey === mode;
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={isActive}
+        style={{
+          padding: "6px 16px",
+          borderRadius: 999,
+          background: isActive ? t.paperHi : "transparent",
+          border: `1px solid ${isActive ? t.paperHi : "rgba(255,251,240,0.18)"}`,
+          color: isActive ? t.ink : "#FFFBF0",
+          fontFamily: body,
+          fontSize: 13,
+          fontWeight: isActive ? 600 : 500,
+          opacity: isLoading ? 0.5 : 1,
+          cursor: "pointer",
+          transition: "background 160ms",
+        }}
+      >
+        {label}
+      </button>
+    );
+  };
+
   return (
-    <Tile t={t} style={{ border: `1px solid ${allOn ? ACC : t.line}` }}>
+    <div
+      style={{
+        background: ACC,
+        borderRadius: 18,
+        padding: 18,
+        color: "#FFFBF0",
+      }}
+    >
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
+          gap: 16,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              background: allOn ? t.tint : t.tintSky,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <BulbIcon size={22} color={allOn ? ACC : t.mute} fill={allOn ? ACC : undefined} />
-          </div>
-          <div>
-            <span style={lab(t)}>Belysning</span>
-            <p
-              className="warm-tab-nums"
-              style={{ ...num(t, 22, 400), lineHeight: 1.1 }}
-            >
-              {area.on_count}/{area.total_count} på
-              {allOn && avgPct != null ? (
-                <span
-                  style={{
-                    fontFamily: body,
-                    fontSize: 12,
-                    color: t.mute,
-                    fontWeight: 500,
-                    marginLeft: 8,
-                  }}
-                >
-                  ~{avgPct}%
-                </span>
-              ) : null}
-            </p>
-          </div>
-        </div>
-        <WarmSwitch
-          on={allOn}
-          onChange={() => (allOn ? onAllOff() : onAllOn())}
-          t={t}
-          ariaLabel="Alla lampor"
+        <ArcGauge
+          value={allOn ? avgPct || 100 : 0}
+          size={108}
+          stroke={9}
+          trackColor="rgba(255,251,240,0.18)"
+          color="#FFFBF0"
         />
-      </div>
-
-      {dimmableLights.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginTop: 12,
-            paddingTop: 10,
-            borderTop: `1px solid ${t.line}`,
-            opacity: allOn ? 1 : 0.5,
-          }}
-        >
-          <span style={{ fontFamily: serif, fontSize: 11, color: t.mute, width: 24 }}>0</span>
-          <input
-            type="range"
-            min={1}
-            max={100}
-            aria-label="Master-dimmer"
-            disabled={!allOn || loadingAll}
-            key={`master-${area.area_id}-${avgPct ?? "x"}`}
-            defaultValue={avgPct ?? 50}
-            style={
-              {
-                flex: 1,
-                "--fill": `${avgPct ?? 50}%`,
-              } as React.CSSProperties
-            }
-            onInput={(e) => {
-              const el = e.currentTarget;
-              const v = parseInt(el.value);
-              el.style.setProperty("--fill", `${v}%`);
-              setLive(v);
-            }}
-            onMouseUp={(e) =>
-              onSetAll(parseInt((e.target as HTMLInputElement).value))
-            }
-            onTouchEnd={(e) =>
-              onSetAll(parseInt((e.target as HTMLInputElement).value))
-            }
-          />
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
           <span
-            className="warm-tab-nums"
             style={{
-              fontFamily: body,
-              fontSize: 12,
-              color: t.ink,
-              minWidth: 36,
-              textAlign: "right",
+              ...lab(t, { color: "rgba(255,251,240,0.7)" }),
+              letterSpacing: "0.18em",
             }}
           >
-            {display}%
+            MASTER
+          </span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+            <span
+              className="warm-tab-nums"
+              style={{
+                fontFamily: serif,
+                fontSize: 38,
+                fontWeight: 400,
+                lineHeight: 1,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {allOn ? avgPct : 0}
+            </span>
+            <span
+              style={{
+                fontFamily: body,
+                fontSize: 13,
+                fontWeight: 500,
+                color: "rgba(255,251,240,0.78)",
+              }}
+            >
+              %
+            </span>
+          </div>
+          <span
+            style={{
+              fontFamily: serif,
+              fontStyle: "italic",
+              fontSize: 13,
+              color: "rgba(255,251,240,0.85)",
+              fontWeight: 400,
+            }}
+          >
+            {avgKelvin != null
+              ? `${avgKelvin} K, ${kelvinLabel(avgKelvin)}.`
+              : allOn
+              ? "av varierande färg."
+              : "släckt."}
           </span>
         </div>
-      )}
-    </Tile>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          marginTop: 14,
+          paddingTop: 12,
+          borderTop: "1px solid rgba(255,251,240,0.18)",
+        }}
+      >
+        <PillBtn mode="on" label="på" onClick={onAllOn} />
+        <PillBtn mode="auto" label="auto" onClick={onAuto} />
+        <PillBtn mode="off" label="av" onClick={onAllOff} />
+      </div>
+    </div>
   );
 }
 
-function ClimateStrip({
+// ─── Lamp-row — slavisk mot designen ─────────────────────────────────────────
+
+function LampRow({
+  t,
+  light,
+  liveBrightness,
+  onLiveBrightness,
+  onToggle,
+  onCommit,
+  isLast,
+}: {
+  t: WarmTheme;
+  light: LightEntry;
+  liveBrightness: number | undefined;
+  onLiveBrightness: (id: string, v: number) => void;
+  onToggle: (l: LightEntry) => void;
+  onCommit: (id: string, pct: number) => void;
+  isLast: boolean;
+}) {
+  const lon = light.state === "on";
+  const display = liveBrightness ?? light.brightness_pct ?? (lon ? 100 : 0);
+  return (
+    <div
+      style={{
+        padding: "14px 16px",
+        borderBottom: isLast ? "none" : `1px solid ${t.line}`,
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => onToggle(light)}
+          aria-label={`Slå ${lon ? "av" : "på"} ${light.name}`}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            textAlign: "left",
+            color: t.ink,
+            cursor: "pointer",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: serif,
+              fontSize: 17,
+              fontWeight: 500,
+              color: t.ink,
+              letterSpacing: "-0.01em",
+              lineHeight: 1.1,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {light.name}
+          </span>
+          <span
+            style={{
+              fontFamily: body,
+              fontSize: 12,
+              color: t.dim,
+            }}
+            className="warm-tab-nums"
+          >
+            {lon && light.color_temp_kelvin
+              ? `${light.color_temp_kelvin} K`
+              : "—"}
+          </span>
+        </button>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "baseline",
+            gap: 4,
+            fontFamily: serif,
+            fontSize: 17,
+            color: t.ink,
+            flexShrink: 0,
+          }}
+        >
+          {lon ? (
+            <>
+              <span
+                style={{
+                  ...ital(t, 13, ACC),
+                  fontWeight: 500,
+                }}
+              >
+                på
+              </span>
+              <span className="warm-tab-nums" style={{ fontFamily: serif }}>
+                {display}
+                <span
+                  style={{
+                    fontFamily: body,
+                    fontSize: 11,
+                    color: t.mute,
+                    marginLeft: 1,
+                  }}
+                >
+                  %
+                </span>
+              </span>
+            </>
+          ) : (
+            <span style={ital(t, 13, t.dim)}>av</span>
+          )}
+        </span>
+      </div>
+      {lon && light.dimmable && (
+        <input
+          type="range"
+          min={1}
+          max={100}
+          aria-label={`Ljusstyrka för ${light.name}`}
+          defaultValue={light.brightness_pct ?? 100}
+          style={
+            {
+              width: "100%",
+              "--fill": `${light.brightness_pct ?? 100}%`,
+            } as React.CSSProperties
+          }
+          onInput={(e) => {
+            const el = e.currentTarget;
+            const v = parseInt(el.value);
+            el.style.setProperty("--fill", `${v}%`);
+            onLiveBrightness(light.entity_id, v);
+          }}
+          onMouseUp={(e) =>
+            onCommit(light.entity_id, parseInt((e.target as HTMLInputElement).value))
+          }
+          onTouchEnd={(e) =>
+            onCommit(light.entity_id, parseInt((e.target as HTMLInputElement).value))
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Klimat 3-col ────────────────────────────────────────────────────────────
+
+function ClimateTriplet({
   t,
   sensor,
   outdoorTemp,
@@ -199,77 +460,118 @@ function ClimateStrip({
   outdoorTemp: number | null;
 }) {
   return (
-    <Tile t={t}>
-      <span style={lab(t)}>Klimat</span>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 12,
-          marginTop: 8,
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span
-            style={{
-              ...lab(t, { fontSize: 9 }),
-              color: t.dim,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <ThermoIcon size={12} color={t.dim} /> Inne
-          </span>
-          <span
-            className="warm-tab-nums"
-            style={{ ...num(t, 22), lineHeight: 1.1 }}
-          >
-            {sensor ? `${sensor.temperature.toFixed(1)}°` : "–"}
-          </span>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span
-            style={{
-              ...lab(t, { fontSize: 9 }),
-              color: t.dim,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <DropletIcon size={12} color={t.dim} /> Fukt
-          </span>
-          <span
-            className="warm-tab-nums"
-            style={{ ...num(t, 22), lineHeight: 1.1 }}
-          >
-            {sensor?.humidity != null ? `${Math.round(sensor.humidity)}%` : "–"}
-          </span>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span
-            style={{
-              ...lab(t, { fontSize: 9 }),
-              color: t.dim,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <ThermoIcon size={12} color={t.dim} /> Ute
-          </span>
-          <span
-            className="warm-tab-nums"
-            style={{ ...num(t, 22), lineHeight: 1.1 }}
-          >
-            {outdoorTemp != null ? `${outdoorTemp.toFixed(1)}°` : "–"}
-          </span>
-        </div>
-      </div>
-    </Tile>
+    <div
+      style={{
+        background: t.paper,
+        border: `1px solid ${t.line}`,
+        borderRadius: 14,
+        padding: 16,
+        display: "grid",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        gap: 12,
+      }}
+    >
+      <Stat
+        t={t}
+        label="TEMP"
+        value={sensor ? sensor.temperature.toFixed(1) : "—"}
+        unit="°C"
+      />
+      <Stat
+        t={t}
+        label="LUFTFUKT"
+        value={sensor?.humidity != null ? `${Math.round(sensor.humidity)}` : "—"}
+        unit="%"
+      />
+      <Stat
+        t={t}
+        label="UTE"
+        value={outdoorTemp != null ? outdoorTemp.toFixed(1) : "—"}
+        unit="°"
+      />
+    </div>
   );
 }
+
+function Stat({
+  t,
+  label,
+  value,
+  unit,
+}: {
+  t: WarmTheme;
+  label: string;
+  value: string;
+  unit: string;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ ...lab(t, { fontSize: 9 }), color: t.dim }}>{label}</span>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+        <span
+          className="warm-tab-nums"
+          style={{ ...num(t, 22, 400), lineHeight: 1.1 }}
+        >
+          {value}
+        </span>
+        <span
+          style={{
+            fontFamily: body,
+            fontSize: 11,
+            color: t.mute,
+            fontWeight: 500,
+          }}
+        >
+          {unit}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Senaste-strip (bottom-of-content) ───────────────────────────────────────
+
+function ActivityStrip({
+  t,
+  activeScene,
+  activeSince,
+}: {
+  t: WarmTheme;
+  activeScene: string | null;
+  activeSince: string | null;
+}) {
+  if (!activeScene || !activeSince) return null;
+  const time = formatTime(activeSince);
+  const sceneLab = sceneLabel(activeScene);
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        padding: "10px 16px",
+        borderTop: `1px solid ${t.line}`,
+        borderBottom: `1px solid ${t.line}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+      }}
+    >
+      <span
+        className="warm-tab-nums"
+        style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
+      >
+        {time}
+      </span>
+      <span style={ital(t, 13, t.mute)}>
+        Scen <span style={{ color: t.ink, fontWeight: 500 }}>{sceneLab}</span>{" "}
+        aktiverad
+      </span>
+      <span style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}>auto</span>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function WarmRoomDetail() {
   const router = useRouter();
@@ -289,15 +591,36 @@ export default function WarmRoomDetail() {
     fetcher,
     { refreshInterval: 30_000 }
   );
+  const { data: scenesData } = useSWR<{ scenes: ScenePayload[] }>(
+    "/api/homeassistant/scenes",
+    fetcher,
+    { refreshInterval: 60_000 }
+  );
 
   const area = lights?.areas.find((a) => a.name === roomName);
   const sensor = sensors?.areas.find((a) => a.name === roomName);
   const [liveBrightness, setLiveBrightness] = useState<Record<string, number>>({});
-  const [loadingAll, setLoadingAll] = useState(false);
+  const [masterLoading, setMasterLoading] = useState<"off" | "on" | "auto" | null>(null);
+
+  const activeScene = useMemo(() => {
+    if (!lights || !("areas" in lights) || !scenesData?.scenes) return null;
+    const snapshot = lights.areas.flatMap((a) =>
+      a.lights.map((l) => ({
+        entity_id: l.entity_id,
+        state: l.state,
+        brightness_pct: l.brightness_pct,
+      }))
+    );
+    return detectActiveScene(scenesData.scenes, snapshot);
+  }, [lights, scenesData]);
+  const activeSince =
+    activeScene && scenesData?.scenes
+      ? scenesData.scenes.find((s) => s.key === activeScene)?.last_changed ?? null
+      : null;
 
   async function handleAllOff() {
     if (!area) return;
-    setLoadingAll(true);
+    setMasterLoading("off");
     try {
       await callAction(
         "light",
@@ -306,12 +629,12 @@ export default function WarmRoomDetail() {
       );
       await mutate();
     } finally {
-      setLoadingAll(false);
+      setMasterLoading(null);
     }
   }
   async function handleAllOn() {
     if (!area) return;
-    setLoadingAll(true);
+    setMasterLoading("on");
     try {
       await callAction(
         "light",
@@ -320,20 +643,20 @@ export default function WarmRoomDetail() {
       );
       await mutate();
     } finally {
-      setLoadingAll(false);
+      setMasterLoading(null);
     }
   }
-  async function handleSetAll(pct: number) {
-    if (!area) return;
-    setLoadingAll(true);
+  async function handleAuto() {
+    // Auto = aktivera lämplig scen för rummet (i detta läge: aktivera senast
+    // detekterade scen). I praktiken är detta en stub som vi kan utöka i W6.
+    if (!activeScene) return;
+    setMasterLoading("auto");
     try {
-      const dimmable = area.lights.filter((l) => l.dimmable).map((l) => l.entity_id);
-      if (dimmable.length) {
-        await callAction("light", "turn_on", dimmable, { brightness_pct: pct });
-      }
+      await callAction("scene", "turn_on", `scene.${activeScene}`);
+      await new Promise((r) => setTimeout(r, 600));
       await mutate();
     } finally {
-      setLoadingAll(false);
+      setMasterLoading(null);
     }
   }
   async function handleToggleLight(light: LightEntry) {
@@ -349,162 +672,97 @@ export default function WarmRoomDetail() {
     mutate();
   }
 
+  const subtitle = (() => {
+    const lampor = area
+      ? area.on_count === 0
+        ? "alla släckta"
+        : area.on_count === area.total_count
+        ? `alla ${area.total_count} på`
+        : `${area.on_count} av ${area.total_count} på`
+      : null;
+    const temp = sensor ? `${sensor.temperature.toFixed(1)}°` : null;
+    const fukt = sensor?.humidity != null ? `luftfukt ${Math.round(sensor.humidity)}%` : null;
+    return [lampor, temp, fukt].filter(Boolean).join(" · ");
+  })();
+
   return (
     <>
-      <DetailHeader
+      <RumHeading
         t={t}
         back={() => router.push("/v3/home")}
-        backLabel="Hem"
-        title={roomName ?? "Rum"}
+        title={roomName}
+        italicTail={activeScene ? sceneLabel(activeScene) : null}
+        subtitle={subtitle}
       />
 
       <div
         style={{
-          padding: "8px 18px 32px",
+          padding: "0 22px 24px",
           display: "flex",
           flexDirection: "column",
-          gap: 14,
+          gap: 18,
         }}
       >
         {error && <WarmErrorBanner t={t} onRetry={() => mutate()} />}
 
         {!lights ? (
-          <Tile t={t}>
-            <span style={{ fontFamily: body, fontSize: 12, color: t.mute }}>
-              Hämtar belysning…
-            </span>
-          </Tile>
+          <span style={{ fontFamily: body, fontSize: 12, color: t.mute }}>
+            Hämtar belysning…
+          </span>
         ) : !area ? (
-          <Tile t={t}>
-            <span style={ital(t, 14, t.ink)}>
-              Inga lampor registrerade i {roomName}.
-            </span>
-          </Tile>
+          <span style={ital(t, 14, t.ink)}>
+            Inga lampor registrerade i {roomName}.
+          </span>
         ) : (
           <>
-            <MasterDimmer
+            <MasterTile
               t={t}
               area={area}
               onAllOff={handleAllOff}
               onAllOn={handleAllOn}
-              onSetAll={handleSetAll}
-              loadingAll={loadingAll}
+              onAuto={handleAuto}
+              loadingKey={masterLoading}
             />
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <span style={lab(t)}>Lampor</span>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {area.lights.map((light) => {
-                  const lon = light.state === "on";
-                  const live = liveBrightness[light.entity_id];
-                  return (
-                    <div
-                      key={light.entity_id}
-                      style={{
-                        background: t.paper,
-                        border: `1px solid ${lon ? ACC : t.line}`,
-                        borderRadius: 14,
-                        padding: "12px 14px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                        transition: "border-color 200ms",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <BulbIcon
-                          size={16}
-                          color={lon ? ACC : t.dim}
-                          fill={lon ? ACC : undefined}
-                        />
-                        <span
-                          style={{
-                            flex: 1,
-                            fontFamily: body,
-                            fontSize: 13,
-                            fontWeight: 500,
-                            color: t.ink,
-                            minWidth: 0,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {light.name}
-                        </span>
-                        <WarmSwitch
-                          on={lon}
-                          onChange={() => handleToggleLight(light)}
-                          t={t}
-                          ariaLabel={`Slå ${lon ? "av" : "på"} ${light.name}`}
-                        />
-                      </div>
-                      {light.dimmable && lon && (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            paddingLeft: 28,
-                          }}
-                        >
-                          <input
-                            type="range"
-                            min={1}
-                            max={100}
-                            aria-label={`Ljusstyrka för ${light.name}`}
-                            defaultValue={light.brightness_pct ?? 100}
-                            style={
-                              {
-                                flex: 1,
-                                "--fill": `${light.brightness_pct ?? 100}%`,
-                              } as React.CSSProperties
-                            }
-                            onInput={(e) => {
-                              const el = e.currentTarget;
-                              const v = parseInt(el.value);
-                              el.style.setProperty("--fill", `${v}%`);
-                              setLiveBrightness((p) => ({
-                                ...p,
-                                [light.entity_id]: v,
-                              }));
-                            }}
-                            onMouseUp={(e) =>
-                              handleBrightness(
-                                light.entity_id,
-                                parseInt((e.target as HTMLInputElement).value)
-                              )
-                            }
-                            onTouchEnd={(e) =>
-                              handleBrightness(
-                                light.entity_id,
-                                parseInt((e.target as HTMLInputElement).value)
-                              )
-                            }
-                          />
-                          <span
-                            className="warm-tab-nums"
-                            style={{
-                              fontFamily: body,
-                              fontSize: 11,
-                              color: t.mute,
-                              minWidth: 32,
-                              textAlign: "right",
-                            }}
-                          >
-                            {live ?? light.brightness_pct ?? 100}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+            <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <span style={lab(t)}>LAMPOR</span>
+              <div
+                style={{
+                  background: t.paper,
+                  border: `1px solid ${t.line}`,
+                  borderRadius: 14,
+                  overflow: "hidden",
+                }}
+              >
+                {area.lights.map((light, i) => (
+                  <LampRow
+                    key={light.entity_id}
+                    t={t}
+                    light={light}
+                    liveBrightness={liveBrightness[light.entity_id]}
+                    onLiveBrightness={(id, v) =>
+                      setLiveBrightness((p) => ({ ...p, [id]: v }))
+                    }
+                    onToggle={handleToggleLight}
+                    onCommit={handleBrightness}
+                    isLast={i === area.lights.length - 1}
+                  />
+                ))}
               </div>
-            </div>
+            </section>
           </>
         )}
 
-        <ClimateStrip t={t} sensor={sensor} outdoorTemp={sensors?.outdoor_temp ?? null} />
+        <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <span style={lab(t)}>KLIMAT</span>
+          <ClimateTriplet
+            t={t}
+            sensor={sensor}
+            outdoorTemp={sensors?.outdoor_temp ?? null}
+          />
+        </section>
+
+        <ActivityStrip t={t} activeScene={activeScene} activeSince={activeSince} />
       </div>
     </>
   );
