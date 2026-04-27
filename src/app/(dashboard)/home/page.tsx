@@ -32,7 +32,7 @@ type Car          = { id: string; name: string; soc: number; target_soc: number;
 type CarsData     = { cars: Car[] };
 type EnergyData   = { spot_price_ore: number | null; spot_level: string; current_power_w: number; avg_power_w: number; min_power_w: number; max_power_w: number; accumulated_kwh: number; accumulated_cost_sek: number; monthly_cost_sek: number; monthly_kwh: number };
 type HvacData     = {
-  heat_pump: { entity_id: string; state: string; current_temp: number | null; target_temp: number | null; hvac_modes: string[] | null };
+  heat_pump: { entity_id: string; state: string; current_temp: number | null; target_temp: number | null; hvac_modes: string[] | null; fan_mode: string | null; fan_modes: string[] | null };
   nibe: {
     outdoor_temp: number | null; hot_water_temp: number | null; fan_speed_pct: number | null;
     alarm: boolean; kaminlage: boolean; nattsvalka: boolean;
@@ -57,12 +57,6 @@ type WeatherData  = {
   periods: WeatherPeriod[];
   forecast: Array<{ datetime: string; condition: string; temperature: number; templow: number; precipitation: number; wind_speed: number }>;
 };
-type MediaPlayer  = {
-  entity_id: string; name: string; room: string; type: "sonos" | "appletv" | "tv";
-  state: string; media_title: string | null; media_artist: string | null;
-  media_image_url: string | null; source: string | null;
-};
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function useHydrated() {
@@ -701,6 +695,11 @@ function HvacCard({ data, onRefresh, loadingKey, runAction }: { data: HvacData; 
     await callAction("climate", "set_temperature", hp.entity_id, { temperature: temp });
     onRefresh();
   }
+  async function handleHeroFan(mode: string) {
+    vibrate();
+    await callAction("climate", "set_fan_mode", hp.entity_id, { fan_mode: mode });
+    onRefresh();
+  }
 
   const hpColor = hp.state === "off" ? "var(--color-outline)"
     : hp.state === "cool" ? "var(--color-primary)"
@@ -771,6 +770,51 @@ function HvacCard({ data, onRefresh, loadingKey, runAction }: { data: HvacData; 
           {/* Temperature slider */}
           {hp.target_temp != null && (
             <TempSlider value={hp.target_temp} min={16} max={30} onSet={handleHeroTemp} />
+          )}
+
+          {/* Fläktstyrka — auto + 1–5. Visas inte i av-läget. */}
+          {hp.state !== "off" && hp.fan_modes && hp.fan_modes.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined shrink-0"
+                style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>
+                mode_fan
+              </span>
+              <div className="flex-1 grid gap-1" style={{ gridTemplateColumns: `repeat(${hp.fan_modes.length}, minmax(0, 1fr))` }}>
+                {hp.fan_modes.map((m) => {
+                  const active = hp.fan_mode === m;
+                  const isLoading = loadingKey === `hero-fan-${m}`;
+                  const label = m === "auto" ? "Auto" : m;
+                  return (
+                    <Pressable
+                      key={m}
+                      onClick={() => runAction(`hero-fan-${m}`, async () => { await handleHeroFan(m); await onRefresh(); })}
+                      loading={isLoading}
+                      className="flex items-center justify-center rounded-lg"
+                      style={{
+                        backgroundColor: active ? "rgba(71,91,194,0.15)" : "var(--color-surface-container-high)",
+                        color: active && !isLoading ? "var(--color-primary)" : "var(--color-on-surface-variant)",
+                        border: `2px solid ${active && !isLoading ? "var(--color-primary)" : "transparent"}`,
+                        padding: "4px 0",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        minHeight: 28,
+                        transition: "background-color 0.2s, color 0.2s, border-color 0.2s",
+                      }}
+                    >
+                      {isLoading ? (
+                        <svg className="spin-anim" viewBox="0 0 24 24" fill="none"
+                          style={{ color: "var(--color-primary)", width: 12, height: 12 }}>
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25"/>
+                          <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                      ) : (
+                        label
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
 
@@ -1148,50 +1192,6 @@ function WeatherStrip({ data }: { data: WeatherData }) {
   );
 }
 
-// ─── Nu spelas (bara Apple TV, visas bara om något spelar) ──────────────────
-function NowPlayingStrip({ players }: { players: MediaPlayer[] }) {
-  const playing = players.filter(p => p.type === "appletv" && (p.state === "playing" || p.state === "paused") && p.media_title);
-  if (playing.length === 0) return null;
-  return (
-    <div className="space-y-2">
-      {playing.map(p => (
-        <a key={p.entity_id} href="/home/media" className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-          style={{ backgroundColor: "var(--color-surface-container)", textDecoration: "none" }}>
-          {/* Album art */}
-          {p.media_image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.media_image_url} alt=""
-              style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
-          ) : (
-            <div style={{
-              width: 44, height: 44, borderRadius: 8, flexShrink: 0,
-              backgroundColor: "var(--color-surface-container-high)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <span className="material-symbols-outlined text-[20px]"
-                style={{ color: "var(--color-on-surface-variant)" }}>music_note</span>
-            </div>
-          )}
-          {/* Title + artist */}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold truncate" style={{ color: "var(--color-on-surface)" }}>
-              {p.media_title ?? "Spelar"}
-            </p>
-            <p className="text-xs truncate" style={{ color: "var(--color-on-surface-variant)" }}>
-              {[p.media_artist, p.room].filter(Boolean).join(" · ")}
-            </p>
-          </div>
-          {/* Equalizer animation icon */}
-          <span className="material-symbols-outlined text-[20px] shrink-0"
-            style={{ color: "var(--color-primary)", fontVariationSettings: "'FILL' 1" }}>
-            graphic_eq
-          </span>
-        </a>
-      ))}
-    </div>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -1214,7 +1214,6 @@ export default function HomePage() {
   const { data: hvac,    mutate: mHvac    }    = useSWR<HvacData>    ("/api/homeassistant/hvac",    fetcher, { refreshInterval: 15_000 });
   const { data: vacuum,  mutate: mVacuum  }    = useSWR<VacuumData>  ("/api/homeassistant/vacuum",  fetcher, { refreshInterval: 10_000 });
   const { data: weather }                      = useSWR<WeatherData> ("/api/homeassistant/weather", fetcher, { refreshInterval: 300_000 });
-  const { data: mediaData }                    = useSWR<{ players: MediaPlayer[] }>("/api/homeassistant/media", fetcher, { refreshInterval: 5_000 });
   const { data: solkyla,  mutate: mSolkyla }   = useSWR<SolkylaData>("/api/homeassistant/solkyla", fetcher, { refreshInterval: 15_000 });
 
   // Awaitable refresh — waits for HA to process the command before revalidating
@@ -1482,9 +1481,6 @@ export default function HomePage() {
           </div>
         );
       })()}
-
-      {/* Nu spelas — visas bara om minst en mediaspelare spelar */}
-      {mediaData?.players && <NowPlayingStrip players={mediaData.players} />}
 
       {/* Favoriter */}
       <Card>

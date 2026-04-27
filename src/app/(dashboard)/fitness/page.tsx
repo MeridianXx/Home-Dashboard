@@ -12,7 +12,6 @@ import { useHydrateProfile } from "@/lib/fitness/useHydrateProfile";
 import { paceString, durationString } from "@/lib/fitness/parser";
 import type { WorkoutsResponse, PlansResponse, Workout, PlannedWorkout, FitnessProfile } from "@/lib/fitness/types";
 import type { MetricsResponse } from "@/app/api/fitness/metrics/route";
-import { ReadinessCard } from "@/components/fitness/ReadinessCard";
 import { GoalProgressCard } from "@/components/fitness/GoalProgressCard";
 
 // ─── Hjälpare ────────────────────────────────────────────────────────────────
@@ -701,27 +700,16 @@ function NextPlannedCard({ plans, workouts, error, isLoading }: {
 
   // Matcha planer mot genomförda pass (samma matcher som på coach/pass-detalj).
   // En plan som fått en match räknas som klar även om Notions status-fält inte uppdaterats.
-  const { consumedPlans, planToWorkout } = useMemo(() => {
-    const r = matchWorkoutsToPlans(workouts, plans, { maxDateDiffDays: 2 });
-    return { consumedPlans: r.planToWorkout, planToWorkout: r.planToWorkout };
-  }, [workouts, plans]);
+  const consumedPlans = useMemo(
+    () => matchWorkoutsToPlans(workouts, plans, { maxDateDiffDays: 2 }).planToWorkout,
+    [workouts, plans],
+  );
 
   const isDone = (p: PlannedWorkout) =>
     consumedPlans.has(p.id) || p.status === "Genomfört" || p.status === "Gjord" || p.status === "Slutförd";
 
-  // Visa planer som är klarade idag — även om planen låg på annan dag. En plan
-  // från t.ex. igår räknas som "klarat idag" om det matchade passet gjordes idag.
-  const doneToday = useMemo(
-    () => plans.filter((p) => {
-      if (!isDone(p)) return false;
-      if (p.datum === today) return true;
-      const w = planToWorkout.get(p.id);
-      return w?.date === today;
-    }),
-    [plans, today, consumedPlans, planToWorkout],
-  );
-
-  // Nästa dag som fortfarande har okonsumerade planer.
+  // Nästa dag som fortfarande har okonsumerade planer (DoneTodayCard ovanför
+  // hanterar visualiseringen av redan-klara pass).
   const nextDay = useMemo(() => {
     const upcoming = plans.filter((p) => p.datum >= today && !isDone(p));
     if (upcoming.length === 0) return [];
@@ -1030,7 +1018,6 @@ export default function FitnessPage() {
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(1, minmax(0, 1fr))" }}>
-        <ReadinessCard />
         <DoneTodayCard plans={plansData?.plans ?? []} workouts={workoutsData?.workouts ?? []} />
         <NextPlannedCard
           plans={plansData?.plans ?? []}

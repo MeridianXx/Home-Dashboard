@@ -33,6 +33,8 @@ export async function GET() {
         current_temp: hero.attributes.current_temperature as number | null,
         target_temp:  hero.attributes.temperature         as number | null,
         hvac_modes:   hero.attributes.hvac_modes          as string[] | null,
+        fan_mode:     (hero.attributes.fan_mode as string | null) ?? null,
+        fan_modes:    (hero.attributes.fan_modes as string[] | null) ?? null,
       },
       nibe: {
         outdoor_temp:            safe(nibeOutdoor.state),
