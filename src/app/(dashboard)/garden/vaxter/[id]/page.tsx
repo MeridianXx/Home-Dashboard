@@ -136,22 +136,48 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
               )}
             </FieldRow>
 
-            <a
-              href={plant.notionUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 mt-4 text-xs font-semibold rounded-full"
-              style={{
-                backgroundColor: "var(--color-surface-container)",
-                color: "var(--color-on-surface)",
-                border: "1px solid var(--color-outline-variant)",
-                padding: "6px 14px",
-                textDecoration: "none",
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
-              Öppna i Notion
-            </a>
+            <div className="flex flex-wrap gap-2" style={{ marginTop: 16 }}>
+              <Link
+                href={`/garden/ai?prompt=${encodeURIComponent(`Berätta om ${plant.vaxt}: skötsel, beskärning och vanliga problem. Vad bör jag tänka på just nu?`)}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  backgroundColor: "var(--color-primary)",
+                  color: "var(--color-on-primary)",
+                  border: "none",
+                  padding: "6px 14px",
+                  textDecoration: "none",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>auto_awesome</span>
+                Fråga AI om {plant.vaxt}
+              </Link>
+              <a
+                href={plant.notionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  backgroundColor: "var(--color-surface-container)",
+                  color: "var(--color-on-surface)",
+                  border: "1px solid var(--color-outline-variant)",
+                  padding: "6px 14px",
+                  textDecoration: "none",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
+                Öppna i Notion
+              </a>
+            </div>
           </Card>
 
           <Card>

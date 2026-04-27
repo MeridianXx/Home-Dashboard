@@ -1,10 +1,167 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import ErrorBanner from "@/components/ErrorBanner";
 import type { GardenOverviewResponse } from "@/lib/garden/types";
+
+interface BriefingResponse {
+  briefing: string;
+  generatedAt: string;
+  cached: boolean;
+  error?: string;
+}
+
+function formatRelative(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const diffMs = Date.now() - d.getTime();
+    const mins = Math.round(diffMs / 60000);
+    if (mins < 1) return "just nu";
+    if (mins < 60) return `${mins} min sedan`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `${hours} h sedan`;
+    return d.toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
+  } catch {
+    return "";
+  }
+}
+
+function BriefingHero() {
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { data, error, mutate, isLoading } = useSWR<BriefingResponse>(
+    `/api/garden/briefing${refreshKey ? `?refresh=1&t=${refreshKey}` : ""}`,
+    fetcher,
+    { revalidateOnFocus: false, refreshInterval: 0 },
+  );
+
+  const errMsg = error instanceof Error ? error.message : "";
+  const notReady = errMsg.includes(": 501");
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    setRefreshKey(Date.now());
+    await mutate();
+    setRefreshing(false);
+  };
+
+  return (
+    <div
+      className="rounded-2xl"
+      style={{
+        backgroundColor: "var(--color-surface-container-lowest)",
+        border: "1px solid var(--color-card-border)",
+        boxShadow: "0px 8px 24px rgba(56,56,51,0.06)",
+        padding: 18,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <span
+          className="material-symbols-outlined"
+          style={{ fontSize: 16, color: "var(--color-primary)" }}
+        >
+          auto_awesome
+        </span>
+        <span
+          className="text-xs font-bold uppercase tracking-wider"
+          style={{ color: "var(--color-on-surface-variant)" }}
+        >
+          Daglig briefing
+        </span>
+        <div className="flex-1" />
+        {data?.generatedAt && !error && (
+          <span className="text-[10px]" style={{ color: "var(--color-outline)" }}>
+            {formatRelative(data.generatedAt)}
+          </span>
+        )}
+      </div>
+
+      {notReady ? (
+        <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
+          AI-briefing kräver att <code>ANTHROPIC_API_KEY</code> är satt i miljön.
+        </p>
+      ) : error ? (
+        <p className="text-sm" style={{ color: "var(--color-error, #b3261e)" }}>
+          Kunde inte hämta briefing. {errMsg}
+        </p>
+      ) : isLoading || !data ? (
+        <div className="space-y-2">
+          <div style={skeletonStyle()} />
+          <div style={{ ...skeletonStyle(), width: "85%" }} />
+          <div style={{ ...skeletonStyle(), width: "70%" }} />
+        </div>
+      ) : (
+        <p
+          className="text-sm"
+          style={{ color: "var(--color-on-surface)", whiteSpace: "pre-wrap", lineHeight: 1.55 }}
+        >
+          {data.briefing}
+        </p>
+      )}
+
+      <div className="flex items-center gap-2" style={{ marginTop: 14 }}>
+        <button
+          onClick={onRefresh}
+          disabled={refreshing || isLoading || notReady}
+          className="text-xs font-semibold rounded-full"
+          style={{
+            backgroundColor: "var(--color-surface-container)",
+            color: "var(--color-on-surface)",
+            border: "1px solid var(--color-outline-variant)",
+            padding: "6px 12px",
+            cursor: refreshing ? "wait" : "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            opacity: notReady ? 0.5 : 1,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: 14,
+              animation: refreshing ? "spin-anim 0.8s linear infinite" : undefined,
+            }}
+          >
+            refresh
+          </span>
+          Generera ny
+        </button>
+        <Link
+          href="/garden/ai"
+          className="text-xs font-semibold rounded-full"
+          style={{
+            backgroundColor: "var(--color-primary)",
+            color: "var(--color-on-primary)",
+            border: "none",
+            padding: "6px 12px",
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>chat</span>
+          Öppna chat
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function skeletonStyle(): React.CSSProperties {
+  return {
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: "var(--color-surface-container)",
+    width: "100%",
+  };
+}
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -150,6 +307,8 @@ export default function GardenOverviewPage() {
         <ErrorBanner onRetry={() => mutate()} />
       ) : (
         <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(1, minmax(0, 1fr))" }}>
+          {/* AI-briefing överst — egen render-cykel via SWR, inget att vänta på */}
+          <BriefingHero />
           {/* Växter */}
           <Card>
             <SectionTitle icon="local_florist" href="/garden/vaxter">Växter</SectionTitle>
