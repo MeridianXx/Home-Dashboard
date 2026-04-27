@@ -133,8 +133,33 @@ Varje session är **en egen chatt**, en egen commit-cykel, eget acceptance-test.
 
 **Acceptance:** öppna `/v3/home` i preview, se en token-prov-sida med rätt fonter och färger i både light + dark. v2-routes (`/home`, `/garden`, etc.) ska fortfarande funka oförändrat.
 
-**Observera (skrivs efter sessionen):**
-*tomt — fylls vid avslut*
+**Status (alla bullets):**
+- [x] Branch `warm-home` skapad från `v2`, pushad till `origin/warm-home`
+- [x] `@WARM_HOME.md` lagd som första rad i `AGENTS.md` (auto-laddas på warm-home-branchen)
+- [x] Fraunces (300/400/500/600 + ital) + DM Sans (400/500/600/700) i `src/app/layout.tsx` parallellt med Syne+Inter — `--font-fraunces` + `--font-dm-sans` exponerade som CSS-variabler
+- [x] `src/app/(warm)/layout.tsx` — `warm-root`-wrapper, importerar `globals.warm.css`. Ingen ny html/body — ärver root-layouten med alla font-variabler
+- [x] `src/app/(warm)/globals.warm.css` — minimal baseline för `.warm-root`. Beslut: **inte** Tailwind `@theme`. Visuell tuning sker via inline-style från `tokens.ts` per princip 7
+- [x] `src/lib/warm/tokens.ts` — ACC/SAGE/LINGON/AMBER/SKY + lightT/darkT + serif/body + lab/num/ital text-helpers (returnerar CSSProperties) + RADII + STROKE
+- [x] `src/lib/warm/theme.ts` — `useWarmTheme()` med localStorage `warm-theme` + `prefers-color-scheme`-fallback. Renderar light på SSR, hydrerar i effect (undviker flash)
+- [x] `src/components/warm/primitives.tsx` — Tile, Pill, Stat, Bar, HubHeader, DetailHeader, TabBar, Spark (med `fluid`-prop), Ring
+- [x] `src/components/warm/icons/` — TabIcon-set (HemIcon/LabIcon/FitIcon/GardIcon) + 6 SceneGlyph (morgon/dag/kvall/natt/film/borta) + ThemeIcon. 1.6 px stroke, outline
+- [x] `src/app/(warm)/v3/home/page.tsx` — token-prov: accents-swatches, tema-spegelpanel (active + invers), typografi-prov (Display/Headline/Body/Lab/Tabular num), primitiver (Stat-grid, Bar, Pill-tonsvariationer, scen-glyfer, Ring + Spark), tab-ikon-grid + floating TabBar
+- [x] Verifierat i `preview_start("home-dashboard")` — `/v3/home` 200, inga server- eller console-fel, både light + dark renderar; v2 `/home` svarar 200 oförändrat
+
+**Observera (lessons learned):**
+- **`(warm)` route-grupp ärver root-layoutens `<html>`/`<body>`** — så next/font-variablerna räcker att deklareras i root. `(warm)/layout.tsx` får INTE returnera `<html>`/`<body>` igen; en enkel wrapper-`<div className="warm-root">` räcker. Skulle dubbel-html ha lagts till hade det blivit hydration-mismatch.
+- **`useWarmTheme()` defaultar till `light` på första render**, hydrerar `dark` i en effect. Alternativet (läsa `localStorage`/`matchMedia` synkront i state-init) ger SSR-mismatch eftersom servern inte har dem. Korta vita blink är acceptabel kostnad jämfört med hydration-fel; om det skär kan det lösas senare med `next-themes`-mönstret (`<script>` i `<head>` som sätter klass innan React mount:ar).
+- **Spark behövde `fluid`-prop** — fast `width`/`height` på SVG bryter när container är smal. `width="100%"` + `viewBox` + `preserveAspectRatio="none"` ger fluid horisontell sträckning utan att förvränga stroke-bredden nämnvärt. Mönstret återanvänds förmodligen för Bar/HR-grafer i W3.
+- **TabBar med längre svenska labels (`Trädgård`) krävde `minWidth: 70` + `padding: 10px 6px` + `gap: 4`** för att få plats inuti 375 px-viewporten. Container `borderRadius: 30` + `padding: 8` matchar Claude Design-printen. Aktiv-pill `borderRadius: 18` (rundad fyrkant, inte full pill) — viktig visuell skillnad.
+- **Fitness-ikonen är hantel, inte blixt.** Initial tolkning från `WARM_HOME.md`-prosa landade på blixt; printen från användaren visade hantel (handtag + två viktblock + små kapsylstreck). Lärdom: be om referensbilden direkt när det finns en när designen är "låst" (princip 6) — gissa inte från text.
+- **Ring + Spark passar inte i 2-kolumns-grid** på mobil — 165 px content-bredd räcker inte för 72 px ring + label + tagline (vågrätt). Lösning: full bredd, ring + label-stack horisontellt, Spark får hela kortbredden för en läsbar 12-punkts trend. Generellt: mobil-default = stack, opt-in i 2-kolumner endast när båda kort är genuint kompakta (Stat-trios fungerar; rich content gör inte det).
+- **Inline-style + token-helpers (`num(t, 28)`) är ergonomiskt** — `style={{ ...num(t, 28), lineHeight: 1 }}` läser rent. Spread:a alltid token-helpern först så man kan override:a enskilda fält efter. Tabular nums via `className="warm-tab-nums"` (definierad i `globals.warm.css`) håller siffrorna ordnade i Stat/Bar.
+
+**Öppna frågor (skickas vidare till W1+):**
+- **Theme-toggle-placering:** Vi satte den som rund knapp uppe till höger på token-prov-sidan. För Hem-hubben i W1 — flytta in i `HubHeader.right`-slotten eller hellre under en profil-meny? Förslag: behåll i hub-headern på alla fyra hubbar (konsekvent), gömd från detaljskärmar (där `DetailHeader` redan har `right`-slot för andra actions).
+- **Fraunces ital tail (`fontStyle: "italic"`)** används brett i taglines — verifiera på äkta hårdvara att kursiv-vikten 400 inte ser för tunn ut i mörkt tema. Möjligen bumpa till 500 italic för dark-mode kursiv om det skär.
+- **Ikon-fidelity:** TabIcons är freehand-tolkade från `WARM_HOME.md`-prosa + en print från användaren. Om Claude Design-prototypens HTML-fil hittas (sökt i ~/Downloads, ~/Documents, ~/Desktop — finns inte lokalt) bör SVG-paths portas verbatim i W6 polish-passen.
+- **Material Symbols stylesheet** laddas fortfarande via root-layouten (för v2). Det är OK under övergångsperioden — men i W6-cutover bör den lazy-laddas eller flyttas till `(dashboard)`-layouten så den inte påverkar `(warm)` Network Idle.
 
 ---
 
