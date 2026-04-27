@@ -8,6 +8,7 @@ export type ScenePayload = {
   key: SceneKey;
   entity_id: string;
   name: string;
+  last_changed: string | null;
   targets: Record<string, { state: string; brightness_pct: number | null }>;
 };
 
@@ -34,6 +35,7 @@ export async function GET() {
           key,
           entity_id: entityId,
           name: (state.attributes.friendly_name as string) ?? key,
+          last_changed: state.last_changed ?? null,
           targets,
         };
       } catch {

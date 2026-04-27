@@ -17,6 +17,7 @@ export async function GET() {
     const byArea: Record<string, Array<{
       entity_id: string; name: string; state: string;
       brightness_pct: number | null; dimmable: boolean;
+      color_temp_kelvin: number | null;
     }>> = {};
 
     for (const s of states) {
@@ -29,12 +30,24 @@ export async function GET() {
       const modes      = s.attributes.supported_color_modes as string[] | undefined;
       const dimmable   = modes ? modes.some(m => m !== "onoff") : false;
 
+      // Färgtemperatur: HA exponerar antingen `color_temp_kelvin` direkt eller
+      // `color_temp` (mireds). Mireds → K via 1_000_000 / mired.
+      const kelvinAttr = s.attributes.color_temp_kelvin as number | null | undefined;
+      const miredAttr = s.attributes.color_temp as number | null | undefined;
+      const color_temp_kelvin: number | null =
+        typeof kelvinAttr === "number" && kelvinAttr > 0
+          ? Math.round(kelvinAttr / 50) * 50
+          : typeof miredAttr === "number" && miredAttr > 0
+          ? Math.round(1_000_000 / miredAttr / 50) * 50
+          : null;
+
       (byArea[aid] ??= []).push({
         entity_id:      s.entity_id,
         name:           (s.attributes.friendly_name as string) ?? s.entity_id,
         state:          s.state,
         brightness_pct: brightness != null ? Math.round((brightness / 255) * 100) : null,
         dimmable,
+        color_temp_kelvin,
       });
     }
 
