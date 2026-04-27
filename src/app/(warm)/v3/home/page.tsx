@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -8,9 +8,6 @@ import { callAction } from "@/lib/actions";
 import { useWarmTheme } from "@/lib/warm/theme";
 import {
   ACC,
-  AMBER,
-  SAGE,
-  SKY,
   body,
   ital,
   lab,
@@ -18,22 +15,14 @@ import {
   serif,
   type WarmTheme,
 } from "@/lib/warm/tokens";
-import { HubHeader, Pill, Tile } from "@/components/warm/primitives";
+import { Tile } from "@/components/warm/primitives";
 import { SceneGlyph, ThemeIcon } from "@/components/warm/icons";
-import {
-  BoltIcon,
-  BulbIcon,
-  CarIcon,
-  ChevronRight,
-  PlugIcon,
-  ThermoIcon,
-} from "@/components/warm/icons/extra";
+import { ChevronRight } from "@/components/warm/icons/extra";
 import { weatherGlyph } from "@/lib/warm/weather";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
 import { HUB_FAVORITE_ROOMS, SLUG_TO_NAME } from "@/lib/warm/rooms";
-
-// ─── Types (delade med v2) ──────────────────────────────────────────────────
+import { formatTime, sceneLabel, spotLabel, svGreeting } from "@/lib/warm/format";
 
 type LightEntry = {
   entity_id: string;
@@ -41,6 +30,7 @@ type LightEntry = {
   state: string;
   brightness_pct: number | null;
   dimmable: boolean;
+  color_temp_kelvin: number | null;
 };
 type LightArea = {
   area_id: string;
@@ -77,7 +67,6 @@ type EnergyData = {
   spot_level: string;
   current_power_w: number;
   accumulated_kwh: number;
-  accumulated_cost_sek: number;
 };
 type WeatherPeriod = {
   period: string;
@@ -93,207 +82,282 @@ type WeatherData = {
   forecast: Array<{ datetime: string; condition: string; temperature: number; templow: number }>;
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 5) return "God natt";
-  if (h < 11) return "God morgon";
-  if (h < 14) return "God dag";
-  if (h < 18) return "God eftermiddag";
-  return "God kväll";
-}
-
-function formatToday() {
-  return new Date().toLocaleDateString("sv-SE", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-}
-
-const DAY_NAMES_SV = ["sön", "mån", "tis", "ons", "tor", "fre", "lör"];
-
-// ─── Scene-mapping (HA-scener → Warm scene-id för glyph) ────────────────────
-
-type SceneEntry = { key: string; label: string; glyph: "morgon" | "dag" | "kvall" | "natt" | "film" | "borta" };
-const SCENE_ENTRIES: SceneEntry[] = [
+const SCENE_ENTRIES: Array<{
+  key: string;
+  label: string;
+  glyph: "morgon" | "dag" | "kvall" | "natt";
+}> = [
   { key: "god_morgon", label: "Morgon", glyph: "morgon" },
   { key: "hemma", label: "Dag", glyph: "dag" },
   { key: "kvall", label: "Kväll", glyph: "kvall" },
   { key: "natt", label: "Natt", glyph: "natt" },
 ];
 
-// ─── Komponenter ─────────────────────────────────────────────────────────────
+// ─── Header med "HEM · HH:MM" + kursivt namn ────────────────────────────────
 
-function ThemeButton({ t, dark, onClick }: { t: WarmTheme; dark: boolean; onClick: () => void }) {
+function HubHeading({
+  t,
+  dark,
+  onToggle,
+}: {
+  t: WarmTheme;
+  dark: boolean;
+  onToggle: () => void;
+}) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((x) => x + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  void tick;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="Växla tema"
+    <header
       style={{
-        width: 38,
-        height: 38,
-        borderRadius: 999,
-        border: `1px solid ${t.line}`,
-        background: t.paperHi,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
+        padding: "20px 22px 12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
       }}
     >
-      <ThemeIcon dark={dark} color={t.ink} size={17} />
-    </button>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <span
+          style={{
+            ...lab(t),
+            color: ACC,
+            letterSpacing: "0.18em",
+          }}
+          className="warm-tab-nums"
+        >
+          HEM · {formatTime(new Date())}
+        </span>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label="Växla tema"
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 999,
+            background: t.paperHi,
+            border: `1px solid ${t.line}`,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+          }}
+        >
+          <ThemeIcon dark={dark} color={t.ink} size={15} />
+        </button>
+      </div>
+      <h1
+        style={{
+          ...num(t, 32, 400),
+          lineHeight: 1.05,
+          letterSpacing: "-0.02em",
+        }}
+      >
+        {svGreeting()},{" "}
+        <span style={{ ...ital(t, 32, t.dim), fontWeight: 400 }}>Adam.</span>
+      </h1>
+    </header>
   );
 }
 
-function WeatherCard({ t, data }: { t: WarmTheme; data: WeatherData }) {
+// ─── Väderkort (klickbart → /v3/home/klimat) ────────────────────────────────
+
+function WeatherTile({ t, data }: { t: WarmTheme; data: WeatherData | undefined }) {
+  if (!data || !("current" in data)) {
+    return (
+      <Tile t={t}>
+        <span style={{ fontFamily: body, fontSize: 12, color: t.mute }}>
+          Hämtar väder…
+        </span>
+      </Tile>
+    );
+  }
   const c = data.current;
-  const periods = data.periods ?? [];
-  const forecast = data.forecast ?? [];
-  const Now = weatherGlyph(c.state);
+  const Glyph = weatherGlyph(c.state);
+  const conditionSv = (() => {
+    const map: Record<string, string> = {
+      sunny: "klart",
+      "clear-night": "klart",
+      partlycloudy: "halvklart",
+      cloudy: "molnigt",
+      fog: "dimma",
+      rainy: "regn",
+      pouring: "ösregn",
+      snowy: "snö",
+      "snowy-rainy": "snöblandat",
+      hail: "hagel",
+      lightning: "åska",
+      "lightning-rainy": "åskregn",
+      windy: "blåsigt",
+      "windy-variant": "blåsigt",
+      exceptional: "extremt väder",
+    };
+    return map[c.state] ?? c.state;
+  })();
+  const lowestNight = (() => {
+    const upcoming = (data.forecast ?? [])
+      .map((f) => f.templow)
+      .filter((n) => typeof n === "number");
+    if (!upcoming.length) return null;
+    return Math.round(Math.min(...upcoming));
+  })();
+  const sunrise = "06:00";
+  const sunset = "20:30";
+
   return (
-    <Tile t={t}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: t.tintAmber,
-              border: `1px solid ${t.line}`,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Now size={26} color={t.ink} />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={lab(t)}>Just nu</span>
+    <Link
+      href="/v3/home/klimat"
+      style={{
+        display: "block",
+        textDecoration: "none",
+        color: t.ink,
+      }}
+    >
+      <div
+        style={{
+          background: t.paper,
+          border: `1px solid ${t.line}`,
+          borderRadius: 16,
+          padding: 16,
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span style={{ ...lab(t), letterSpacing: "0.16em" }}>
+            UTOMHUS · BORÅS
+          </span>
+          <ChevronRight size={14} color={t.dim} />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: 12,
+            marginTop: 10,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
             <span
               className="warm-tab-nums"
-              style={{ ...num(t, 30), lineHeight: 1 }}
+              style={{
+                ...num(t, 44, 400),
+                lineHeight: 1,
+              }}
             >
-              {Math.round(c.temperature)}°
+              {Math.round(c.temperature)}
             </span>
+            <span
+              style={{
+                fontFamily: body,
+                fontSize: 14,
+                color: t.mute,
+                fontWeight: 500,
+              }}
+            >
+              °C,
+            </span>
+            <span style={ital(t, 16, t.ink)}>{conditionSv}</span>
           </div>
+          <Glyph size={36} color={t.mute} />
         </div>
-        <div style={{ textAlign: "right", display: "flex", flexDirection: "column", gap: 2 }}>
-          <span style={ital(t, 13, t.ink)}>{formatToday()}</span>
-          <span style={{ fontFamily: body, fontSize: 12, color: t.mute }}>
-            {Math.round(c.humidity)} % luft · {Math.round(c.wind_speed)} m/s
-          </span>
-        </div>
-      </div>
-
-      {(periods.length > 0 || forecast.length > 0) && (
+        {lowestNight != null && (
+          <p
+            style={{
+              ...ital(t, 13, t.mute),
+              marginTop: 4,
+            }}
+          >
+            Kallnar till {lowestNight}° i natt.
+          </p>
+        )}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            gap: 4,
-            marginTop: 14,
-            paddingTop: 12,
+            marginTop: 10,
+            paddingTop: 10,
             borderTop: `1px solid ${t.line}`,
           }}
         >
-          {periods.map((p, i) => {
-            const Glyph = weatherGlyph(i === 0 ? c.state : p.condition);
-            return (
-              <div
-                key={`${p.date}-${p.period}`}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 4,
-                  flex: 1,
-                  minWidth: 0,
-                }}
-              >
-                <span style={{ ...lab(t, { fontSize: 9 }), color: t.dim }}>{p.label}</span>
-                <Glyph size={18} color={t.mute} />
-                <span
-                  className="warm-tab-nums"
-                  style={{ fontFamily: serif, fontSize: 13, color: t.ink, lineHeight: 1 }}
-                >
-                  {i === 0 ? Math.round(c.temperature) : p.temperature}°
-                </span>
-              </div>
-            );
-          })}
-          {forecast.length > 0 && (
-            <div
-              style={{
-                width: 1,
-                background: t.line,
-                opacity: 0.7,
-                margin: "0 4px",
-              }}
-            />
-          )}
-          {forecast.map((f) => {
-            const d = new Date(f.datetime);
-            const Glyph = weatherGlyph(f.condition);
-            return (
-              <div
-                key={f.datetime}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 4,
-                  flex: 1,
-                  minWidth: 0,
-                }}
-              >
-                <span style={{ ...lab(t, { fontSize: 9 }), color: t.dim }}>{DAY_NAMES_SV[d.getDay()]}</span>
-                <Glyph size={18} color={t.mute} />
-                <span
-                  className="warm-tab-nums"
-                  style={{ fontFamily: serif, fontSize: 13, color: t.ink, lineHeight: 1 }}
-                >
-                  {Math.round(f.temperature)}°
-                  <span style={{ color: t.dim, marginLeft: 2 }}>{Math.round(f.templow)}°</span>
-                </span>
-              </div>
-            );
-          })}
+          <span
+            style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
+            className="warm-tab-nums"
+          >
+            SOLUPPG. {sunrise}
+          </span>
+          <span
+            style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
+            className="warm-tab-nums"
+          >
+            NEDG. {sunset}
+          </span>
         </div>
-      )}
-    </Tile>
+      </div>
+    </Link>
   );
 }
 
-function SceneRow({
+// ─── Scen-rad: 4 pills + "kvällsläge sedan HH:MM" till höger ────────────────
+
+function ScenesSection({
   t,
   active,
-  loadingKey,
+  loading,
+  activeSince,
   onActivate,
 }: {
   t: WarmTheme;
   active: string | null;
-  loadingKey: string | null;
+  loading: string | null;
+  activeSince: string | null;
   onActivate: (key: string) => void;
 }) {
+  const sinceLabel =
+    active && activeSince
+      ? `${sceneLabel(active)} sedan ${formatTime(activeSince)}`
+      : null;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <span style={lab(t)}>Scener</span>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+        }}
+      >
+        <span style={lab(t)}>SCENER</span>
+        {sinceLabel && (
+          <span style={ital(t, 12, t.dim)}>
+            {sinceLabel}
+          </span>
+        )}
+      </div>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: `repeat(${SCENE_ENTRIES.length}, minmax(0, 1fr))`,
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
           gap: 8,
         }}
       >
         {SCENE_ENTRIES.map((s) => {
           const isActive = active === s.key;
-          const isLoading = loadingKey === s.key;
+          const isLoading = loading === s.key;
           return (
             <button
               key={s.key}
@@ -302,29 +366,28 @@ function SceneRow({
               aria-pressed={isActive}
               style={{
                 display: "inline-flex",
-                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 6,
-                padding: "12px 4px",
-                borderRadius: 14,
+                padding: "10px 8px",
+                borderRadius: 999,
                 background: isActive ? ACC : t.paper,
                 border: `1px solid ${isActive ? ACC : t.line}`,
                 color: isActive ? "#FFFBF0" : t.ink,
                 cursor: "pointer",
-                transition: "background 160ms ease, color 160ms ease, border-color 160ms ease",
                 opacity: isLoading ? 0.6 : 1,
+                transition: "background 160ms, border-color 160ms",
               }}
             >
               <SceneGlyph
                 scene={s.glyph}
-                size={18}
+                size={14}
                 color={isActive ? "#FFFBF0" : t.mute}
               />
               <span
                 style={{
                   fontFamily: body,
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: isActive ? 600 : 500,
                   letterSpacing: "0.01em",
                 }}
@@ -339,199 +402,131 @@ function SceneRow({
   );
 }
 
-function CompactStat({
-  t,
-  label,
-  value,
-  unit,
-  icon,
-  tone,
-}: {
-  t: WarmTheme;
-  label: string;
-  value: string;
-  unit?: string;
-  icon: ReactNode;
-  tone: string;
-}) {
+// ─── Tibber + Bilar — två chevron-tiles bredvid varandra ────────────────────
+
+function TibberTile({ t, energy }: { t: WarmTheme; energy: EnergyData | undefined }) {
+  const krPerKwh =
+    energy?.spot_price_ore != null ? energy.spot_price_ore / 100 : null;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <Tile
+      t={t}
+      style={{ padding: 14, display: "flex", flexDirection: "column", gap: 6 }}
+    >
       <div
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          background: tone,
-          display: "inline-flex",
+          display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
+          justifyContent: "space-between",
         }}
       >
-        {icon}
+        <span style={{ ...lab(t), letterSpacing: "0.16em" }}>TIBBER · NU</span>
+        <ChevronRight size={12} color={t.dim} />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <span style={lab(t)}>{label}</span>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
         <span
           className="warm-tab-nums"
-          style={{ ...num(t, 18), lineHeight: 1.1 }}
+          style={{ ...num(t, 22, 400), lineHeight: 1.1 }}
         >
-          {value}
-          {unit ? (
-            <span
-              style={{
-                fontFamily: body,
-                fontSize: 11,
-                color: t.mute,
-                fontWeight: 500,
-                marginLeft: 4,
-              }}
-            >
-              {unit}
-            </span>
-          ) : null}
+          {krPerKwh != null ? krPerKwh.toFixed(2).replace(".", ",") : "–"}
+        </span>
+        <span
+          style={{
+            fontFamily: body,
+            fontSize: 11,
+            color: t.mute,
+            fontWeight: 500,
+          }}
+        >
+          kr/kWh
         </span>
       </div>
-    </div>
+      <span style={ital(t, 12, t.dim)}>{spotLabel(energy?.spot_level)}</span>
+    </Tile>
   );
 }
 
-function EnergyCarsCard({
-  t,
-  energy,
-  cars,
-}: {
-  t: WarmTheme;
-  energy: EnergyData | undefined;
-  cars: CarsData | undefined;
-}) {
-  const carList = cars && "cars" in cars ? cars.cars : [];
+function CarsTile({ t, cars }: { t: WarmTheme; cars: CarsData | undefined }) {
+  const list = cars && "cars" in cars ? cars.cars : [];
+  const charging = list.find((c) => c.charging);
   return (
-    <Tile t={t}>
+    <Tile
+      t={t}
+      style={{ padding: 14, display: "flex", flexDirection: "column", gap: 6 }}
+    >
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap: 14,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
-        <CompactStat
-          t={t}
-          label="Spotpris"
-          value={energy?.spot_price_ore != null ? energy.spot_price_ore.toFixed(1) : "–"}
-          unit="öre"
-          icon={<BoltIcon size={18} color={t.ink} />}
-          tone={t.tintSky}
-        />
-        <CompactStat
-          t={t}
-          label="Effekt"
-          value={energy && "current_power_w" in energy ? `${energy.current_power_w}` : "–"}
-          unit="W"
-          icon={<PlugIcon size={16} color={t.ink} />}
-          tone={t.tintAmber}
-        />
+        <span style={{ ...lab(t), letterSpacing: "0.16em" }}>BILAR</span>
+        <ChevronRight size={12} color={t.dim} />
       </div>
-
-      {carList.length > 0 && (
-        <div
-          style={{
-            marginTop: 14,
-            paddingTop: 12,
-            borderTop: `1px solid ${t.line}`,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
-        >
-          {carList.map((car) => {
-            const barColor = car.charging
-              ? SAGE
-              : car.soc < 20
-              ? "#B0452E"
-              : t.mute;
-            return (
-              <div key={car.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 8,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <CarIcon size={16} color={car.charging ? SAGE : t.mute} />
-                    <span
-                      style={{
-                        fontFamily: body,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: t.ink,
-                      }}
-                    >
-                      {car.name}
-                    </span>
-                    {car.plugged_in && (
-                      <span
-                        style={{
-                          fontFamily: body,
-                          fontSize: 10,
-                          fontWeight: 600,
-                          color: car.charging ? SAGE : t.mute,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                        }}
-                      >
-                        {car.charging ? "Laddar" : "Inkopplad"}
-                      </span>
-                    )}
-                  </div>
-                  <span
-                    className="warm-tab-nums"
-                    style={{ fontFamily: serif, fontSize: 16, color: t.ink }}
-                  >
-                    {car.soc}%
-                    <span
-                      style={{
-                        fontFamily: body,
-                        fontSize: 11,
-                        color: t.mute,
-                        marginLeft: 6,
-                      }}
-                    >
-                      · {car.range_km} km
-                    </span>
-                  </span>
-                </div>
-                <div
-                  style={{
-                    height: 4,
-                    background: t.line,
-                    borderRadius: 999,
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${car.soc}%`,
-                      height: "100%",
-                      background: barColor,
-                      borderRadius: 999,
-                      transition: "width 0.3s",
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {list.length === 0 && (
+          <span
+            style={{
+              fontFamily: body,
+              fontSize: 12,
+              color: t.mute,
+            }}
+          >
+            —
+          </span>
+        )}
+        {list.map((car) => (
+          <div
+            key={car.id}
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+            }}
+          >
+            <span
+              style={{
+                fontFamily: serif,
+                fontSize: 15,
+                fontWeight: 500,
+                color: t.ink,
+              }}
+            >
+              {car.name}
+            </span>
+            <span
+              className="warm-tab-nums"
+              style={{ fontFamily: serif, fontSize: 16, color: t.ink }}
+            >
+              {car.soc}
+              <span
+                style={{
+                  fontFamily: body,
+                  fontSize: 10,
+                  color: t.mute,
+                  marginLeft: 1,
+                }}
+              >
+                %
+              </span>
+            </span>
+          </div>
+        ))}
+      </div>
+      {charging ? (
+        <span style={{ ...ital(t, 12), color: ACC }}>laddar nu</span>
+      ) : list.some((c) => c.plugged_in) ? (
+        <span style={ital(t, 12, t.dim)}>inkopplad, ej aktiv</span>
+      ) : (
+        <span style={ital(t, 12, t.dim)}>ej inkopplade</span>
       )}
     </Tile>
   );
 }
 
-function RoomsRow({
+// ─── Rum-rader — minimalistiskt ──────────────────────────────────────────────
+
+function RoomList({
   t,
   lights,
   sensors,
@@ -540,40 +535,60 @@ function RoomsRow({
   lights: LightsData | undefined;
   sensors: SensorsData | undefined;
 }) {
-  const rooms = useMemo(() => {
-    return HUB_FAVORITE_ROOMS.map((slug) => {
-      const name = SLUG_TO_NAME[slug];
-      const lightArea = lights?.areas.find((a) => a.name === name);
-      const sensorArea = sensors?.areas.find((a) => a.name === name);
-      return { slug, name, lightArea, sensorArea };
-    });
-  }, [lights, sensors]);
+  const rooms = useMemo(
+    () =>
+      HUB_FAVORITE_ROOMS.map((slug) => {
+        const name = SLUG_TO_NAME[slug];
+        const lightArea = lights?.areas.find((a) => a.name === name);
+        const sensorArea = sensors?.areas.find((a) => a.name === name);
+        return { slug, name, lightArea, sensorArea };
+      }),
+    [lights, sensors]
+  );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={lab(t)}>Rum</span>
-        <Link
-          href="/v3/home/belysning"
-          style={{
-            fontFamily: body,
-            fontSize: 11,
-            fontWeight: 600,
-            color: t.mute,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 2,
-          }}
-        >
-          Belysning <ChevronRight size={12} color={t.mute} />
-        </Link>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+        }}
+      >
+        <span style={lab(t)}>RUM</span>
+        <span style={ital(t, 12, t.dim)}>tryck för att styra</span>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {rooms.map((r) => {
+      <div
+        style={{
+          background: t.paper,
+          border: `1px solid ${t.line}`,
+          borderRadius: 14,
+          overflow: "hidden",
+        }}
+      >
+        {rooms.map((r, i) => {
           const on = (r.lightArea?.on_count ?? 0) > 0;
+          const avgPct = (() => {
+            if (!r.lightArea) return null;
+            const onLights = r.lightArea.lights.filter(
+              (l) => l.state === "on" && l.brightness_pct != null
+            );
+            if (onLights.length === 0) return null;
+            return Math.round(
+              onLights.reduce((s, l) => s + (l.brightness_pct ?? 0), 0) /
+                onLights.length
+            );
+          })();
           const tempStr = r.sensorArea
             ? `${r.sensorArea.temperature.toFixed(1)}°`
-            : "–";
+            : "—";
+          const lightLabel = r.lightArea
+            ? on
+              ? avgPct != null
+                ? `ljus ${avgPct}%`
+                : "ljus på"
+              : "ljus av"
+            : "ljus —";
           return (
             <Link
               key={r.slug}
@@ -581,74 +596,45 @@ function RoomsRow({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 12,
-                padding: "12px 14px",
-                borderRadius: 14,
-                background: t.paper,
-                border: `1px solid ${on ? ACC : t.line}`,
-                cursor: "pointer",
+                gap: 14,
+                padding: "14px 16px",
                 color: t.ink,
-                transition: "border-color 160ms",
+                borderTop: i === 0 ? "none" : `1px solid ${t.line}`,
+                textDecoration: "none",
               }}
             >
-              <div
+              <span
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: on ? t.tint : t.tintSky,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: on ? ACC : "transparent",
+                  border: `1.5px solid ${on ? ACC : t.dim}`,
                   flexShrink: 0,
                 }}
-              >
-                <BulbIcon size={16} color={on ? ACC : t.mute} fill={on ? ACC : undefined} />
-              </div>
+              />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <span
+                <p
                   style={{
-                    fontFamily: body,
-                    fontSize: 14,
-                    fontWeight: 600,
+                    fontFamily: serif,
+                    fontSize: 18,
+                    fontWeight: 500,
                     color: t.ink,
+                    letterSpacing: "-0.01em",
+                    lineHeight: 1.1,
                   }}
                 >
                   {r.name}
-                </span>
-                <span
+                </p>
+                <p
                   style={{
-                    display: "block",
-                    fontFamily: body,
-                    fontSize: 11,
-                    color: t.mute,
-                    marginTop: 1,
+                    ...ital(t, 13, t.mute),
+                    marginTop: 2,
                   }}
                 >
-                  {r.lightArea
-                    ? r.lightArea.total_count > 1
-                      ? `${r.lightArea.on_count}/${r.lightArea.total_count} på`
-                      : on
-                      ? "På"
-                      : "Av"
-                    : "—"}
-                  {r.sensorArea ? ` · ${tempStr}` : ""}
-                </span>
+                  {tempStr} · {lightLabel}
+                </p>
               </div>
-              <span
-                className="warm-tab-nums"
-                style={{
-                  fontFamily: serif,
-                  fontSize: 17,
-                  color: t.ink,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                <ThermoIcon size={14} color={t.mute} />
-                {tempStr}
-              </span>
               <ChevronRight size={16} color={t.dim} />
             </Link>
           );
@@ -656,6 +642,16 @@ function RoomsRow({
       </div>
     </div>
   );
+}
+
+// ─── Hook: aktiv scen från API:s last_changed ────────────────────────────────
+
+function useActiveSceneSince(
+  scenes: ScenePayload[] | undefined,
+  activeKey: string | null
+): string | null {
+  if (!scenes || !activeKey) return null;
+  return scenes.find((s) => s.key === activeKey)?.last_changed ?? null;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -668,23 +664,29 @@ export default function WarmHomeHub() {
     data: lights,
     error: lightsError,
     mutate: mLights,
-  } = useSWR<LightsData>("/api/homeassistant/lights", fetcher, { refreshInterval: 5_000 });
+  } = useSWR<LightsData>("/api/homeassistant/lights", fetcher, {
+    refreshInterval: 5_000,
+  });
   const { data: scenesData } = useSWR<{ scenes: ScenePayload[] }>(
     "/api/homeassistant/scenes",
     fetcher,
     { refreshInterval: 60_000 }
   );
-  const { data: sensors } = useSWR<SensorsData>("/api/homeassistant/sensors", fetcher, {
-    refreshInterval: 30_000,
-  });
+  const { data: sensors } = useSWR<SensorsData>(
+    "/api/homeassistant/sensors",
+    fetcher,
+    { refreshInterval: 30_000 }
+  );
   const { data: weather, error: weatherError } = useSWR<WeatherData>(
     "/api/homeassistant/weather",
     fetcher,
     { refreshInterval: 300_000 }
   );
-  const { data: energy } = useSWR<EnergyData>("/api/homeassistant/energy", fetcher, {
-    refreshInterval: 5_000,
-  });
+  const { data: energy } = useSWR<EnergyData>(
+    "/api/homeassistant/energy",
+    fetcher,
+    { refreshInterval: 5_000 }
+  );
   const { data: cars } = useSWR<CarsData>("/api/homeassistant/cars", fetcher, {
     refreshInterval: 60_000,
   });
@@ -701,6 +703,8 @@ export default function WarmHomeHub() {
     return detectActiveScene(scenesData.scenes, snapshot);
   }, [lights, scenesData]);
 
+  const activeSince = useActiveSceneSince(scenesData?.scenes, activeScene);
+
   const handleScene = async (key: string) => {
     if (sceneLoading) return;
     setSceneLoading(key);
@@ -715,16 +719,11 @@ export default function WarmHomeHub() {
 
   return (
     <>
-      <HubHeader
-        t={t}
-        title={`${greeting()}, Adam`}
-        subtitle="Villa Björkdalen"
-        right={<ThemeButton t={t} dark={dark} onClick={toggle} />}
-      />
+      <HubHeading t={t} dark={dark} onToggle={toggle} />
 
       <div
         style={{
-          padding: "4px 18px 24px",
+          padding: "0 22px 24px",
           display: "flex",
           flexDirection: "column",
           gap: 18,
@@ -740,51 +739,28 @@ export default function WarmHomeHub() {
           />
         )}
 
-        {weather && "current" in weather ? (
-          <WeatherCard t={t} data={weather} />
-        ) : (
-          <Tile t={t}>
-            <span style={{ fontFamily: body, fontSize: 12, color: t.mute }}>Hämtar väder…</span>
-          </Tile>
-        )}
+        <WeatherTile t={t} data={weather} />
 
-        <SceneRow
+        <ScenesSection
           t={t}
           active={activeScene}
-          loadingKey={sceneLoading}
+          loading={sceneLoading}
+          activeSince={activeSince}
           onActivate={handleScene}
         />
 
-        <EnergyCarsCard t={t} energy={energy} cars={cars} />
-
-        <RoomsRow t={t} lights={lights} sensors={sensors} />
-
-        <Link
-          href="/v3/home/media"
+        <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "14px 16px",
-            borderRadius: 14,
-            background: t.paper,
-            border: `1px solid ${t.line}`,
-            color: t.ink,
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 10,
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={lab(t)}>Media</span>
-            <span style={ital(t, 14, t.ink)}>Sonos · Apple TV</span>
-          </div>
-          <ChevronRight size={18} color={t.mute} />
-        </Link>
-
-        <div style={{ display: "flex", gap: 8 }}>
-          <Pill t={t}>
-            <BulbIcon size={13} color={t.mute} fill={t.mute} /> Belysning
-          </Pill>
-          <Pill t={t}>{Math.round(energy?.accumulated_kwh ?? 0)} kWh idag</Pill>
+          <TibberTile t={t} energy={energy} />
+          <CarsTile t={t} cars={cars} />
         </div>
+
+        <RoomList t={t} lights={lights} sensors={sensors} />
       </div>
     </>
   );
