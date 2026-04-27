@@ -203,6 +203,55 @@ Varje session är **en egen chatt**, en egen commit-cykel, eget acceptance-test.
 
 ---
 
+### Session W1.5 — Hem-polish (todo för nästa session)
+
+> **Påminnelse:** allt ska följa Warm-designen slaviskt. Funktion får portas från v2; design **inte**. Inline-style. Inga `md:`-prefix.
+>
+> Tag första 10 minuter på att läsa screenshots från W1-slutet (mobile 375 px, både light + dark) innan du börjar koda — designen är låst, inte kreativ.
+
+**🔥 KRITISK BUGG (fixa först):**
+- [ ] **Light/dark-mode-toggle uppdaterar inte alla sidor.** Varje `useWarmTheme()`-anrop har egen lokal `useState` → toggla i HubHeading uppdaterar bara hubbens state, inte TabBar:en (som lever i `(warm)/v3/layout.tsx`) eller en redan öppen detalj-sida i en annan tab. localStorage läses bara på mount.
+  - **Lösning:** gör temat globalt via React Context (`WarmThemeProvider` i `(warm)/v3/layout.tsx`) eller en Zustand-store. Alternativt: lägg till `window.addEventListener("storage", ...)` + en custom-event som broadcastar inom samma fönster (storage-event triggar inte i samma tab).
+  - **Verifiera efter fix:** öppna hubben i light, togga till dark, drilla ner till `/v3/home/rum/vardagsrum` → master-tilen, klimat-strippen och TabBar:en ska alla ha bytt tema. Repeat reverse. Då går testen.
+
+**Datakällor som behöver läggas till:**
+- [ ] **Sol-arc med riktig data**: `sun.sun`-entiteten i HA exponerar `next_rising`/`next_setting` + `elevation`. Utöka `/api/homeassistant/weather/route.ts` att inkludera `sunrise`/`sunset` (ISO) + `elevation` (deg). Hubbens väderkort visar nu hårdkodat `06:00 / 20:30` — ersätt med live-data och rita en faktisk sol-arc-graf (SVG, sol-position längs båge baserat på tid mellan rising och setting). Kolla `getState("sun.sun")` mönstret.
+- [ ] **Värmepumpar på klimatsidan**: Lägg till sektion på `/v3/home/klimat` med Nibe S735 + Mitsubishi Hero. Återanvänd `/api/homeassistant/hvac` orörd. Visa minimalt: NIBE BT1 utomhus-temp + BT50 inomhus + varmvatten + kompressor + fläktstyrka; Hero current/target temp. Inga lägesväxlare på klimatsidan — bara läsvärden. Lägesväxling kan gå på en framtida `/v3/home/varme`-route.
+- [ ] **Temperaturgrafer**: Användaren skriver "implementeras på belysningssidan (se v2 för inspiration)". V2 har grafer i `EnergyCard` (`SpotPriceChart`, `PowerChart`) + `IndoorTempChart`/`OutdoorTempChart` på hem-sidan. **Bekräfta vid sessionsstart om det är belysningssidan eller klimatsidan användaren menar — verkar vara klimatsidan eftersom temperatur ej hör belysning till.** Använd befintliga `/api/homeassistant/history`-endpoints + dynamic import av chart-komponenter (samma `useChartSize`-mönster).
+- [ ] **Dammsugare**: oklar plats. Klimat passar dåligt (Chomper är inte klimat). Förslag att diskutera vid start: egen `/v3/home/dammsugare` (drill-down från en ny "städ"-rad på hub) eller bara en kompakt strip på hubben (ovanför rum-listan). `/api/homeassistant/vacuum` ska användas oförändrad.
+
+**UI-fixar enligt feedback:**
+- [ ] **CO₂ borttaget från rum-detaljen** — `ClimateTriplet` använde redan `UTE` istället. Bekräfta att inget annat ställe nämner CO₂.
+- [ ] **Tomma värden visar inget istället för "—"**: gå igenom alla `value ?? "—"`-mönster i hub, klimat och rum-detalj. När data saknas: rendera `null` (gömd rad/cell), inte placeholder-bindestreck. Undantag: när raden måste finnas av layout-skäl, använd subtila `opacity: 0.4`-streck.
+- [ ] **K-värden ska vara editerbara per lampa**: stöd HA:s `light.turn_on`-service-data:
+  - `color_temp_kelvin` (numeric K)
+  - `rgb_color` / `hs_color` (för färg)
+  - "Följ solen / auto" → bind till HA:s `adaptive_lighting`-integration om installerad; annars en custom-automation. Bekräfta vid start om adaptive_lighting finns. UI-pattern: liten "K"-pill bredvid varje lamp-rads brightness-bar → klick öppnar en bottom-sheet med slider (2200–6500 K) + 4-5 färgvariationer + "Följ solen"-toggle.
+- [ ] **Rum-kortens font för stor**: `serif 18` → `serif 16` (eller mindre). Subtitle ska bara visas om sensor-data finns ELLER lampor är på — inte rendera tomma "—"-rader.
+- [ ] **Hub-rum-favoriter**: byt ordning till **Vardagsrum, Kök, Allrum, Sovrum, Adrian, Elvira** (lägg till Adrian; ta bort eventuella andra). Resten av rummen (Hall, Entré, Stora badrummet osv) flyttar till `/v3/home/belysning`-sidan. Uppdatera `HUB_FAVORITE_ROOMS` i `src/lib/warm/rooms.ts`.
+- [ ] **Navigering till belysningssidan saknas på hubben**: lägg en "BELYSNING"-länk under rum-listan eller en ekstra rad "Alla rum" längst ner i listan, eller en pill ovanför listan. Förslag: en italic länk under rumslistan i samma stil som "tryck för att styra"-hint, men som faktisk Link.
+- [ ] **Tibber + Bilar saknar navigering**: skapa `/v3/home/energi`-sida som drill-down. Båda korten blir Links dit. Energi-sidan visar: Tibber-pris + spark över 24h, månadsförbrukning, bilar med detaljer (SOC, range, target, nästa schemalagda laddning), laddboxar (vänster/höger). Återanvänd `/api/homeassistant/{energy,cars}`.
+
+**Generella regler för fortsatta polish-passet:**
+- Ingen `md:`-prefix, allt inline-style.
+- Verifiera mot screenshot för varje skärm innan commit.
+- Skippa `—`-placeholders. Tomma värden = gömda fält.
+- Animationer: fortsätt 0.2s ease-out-mönstret (samma som expand/collapse i RoomLightRow).
+- Prepend `RUM ·`/`HEM ·`/`KLIMAT ·`/`ENERGI ·`-caps på alla sidors-headers + `formatTime(new Date())` för aktuellt klockslag.
+
+**Föreslagen ordning vid uppstart:**
+1. Fråga användaren om temperaturgrafer = klimat eller belysning
+2. Fråga om dammsugaren ska ha egen route eller strip
+3. Fråga om adaptive_lighting-integrationen finns i HA
+4. Fixa enkla UI-polish först (rum-fonten, "—" → null, hub-favoriter, navigering till belysning)
+5. Sol-arc + sun.sun-data
+6. Energi-undersida (Tibber + Bilar drill-down)
+7. K-redigering bottom-sheet
+8. Värmepumpar på klimatsidan
+9. Temperaturgrafer
+
+---
+
 ### Session W2 — Lab-spåret (hub + Proxmox + Unraid)
 **Mål:** Hela Homelab-sektionen i Warm Home.
 
