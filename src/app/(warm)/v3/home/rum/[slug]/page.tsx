@@ -20,9 +20,10 @@ import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import ArcGauge from "@/components/warm/ArcGauge";
 import LightEditSheet from "@/components/warm/LightEditSheet";
 import WarmPress from "@/components/warm/WarmPress";
-import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
+import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { slugToName } from "@/lib/warm/rooms";
 import { formatTime, kelvinLabel, sceneLabel } from "@/lib/warm/format";
+import { formatEvents, type RawEvent } from "@/lib/warm/events";
 
 type LightEntry = {
   entity_id: string;
@@ -586,45 +587,111 @@ function Stat({
   );
 }
 
-// ─── Senaste-strip (bottom-of-content) ───────────────────────────────────────
+// ─── Senaste-händelser-lista ─────────────────────────────────────────────────
 
-function ActivityStrip({
+type FormattedEvent = {
+  entity_id: string;
+  time: string;
+  description: string;
+  source: string;
+};
+
+function RecentEvents({
   t,
-  activeScene,
-  activeSince,
+  events,
+  scene,
+  sceneSince,
 }: {
   t: WarmTheme;
-  activeScene: string | null;
-  activeSince: string | null;
+  events: FormattedEvent[];
+  scene: string | null;
+  sceneSince: string | null;
 }) {
-  if (!activeScene || !activeSince) return null;
-  const time = formatTime(activeSince);
-  const sceneLab = sceneLabel(activeScene);
+  // Slå ihop scen-aktivering (om finns) med faktiska events. Scen-eventet
+  // läggs in på rätt plats i tidsordningen.
+  type Row = {
+    time: string;
+    description: string;
+    descriptionScene?: string;
+    source: string;
+    isScene?: boolean;
+  };
+  const rows: Row[] = events.map((e) => ({
+    time: e.time,
+    description: e.description,
+    source: e.source,
+  }));
+  if (scene && sceneSince) {
+    rows.push({
+      time: sceneSince,
+      description: `Scen ${sceneLabel(scene)} aktiverad`,
+      descriptionScene: sceneLabel(scene),
+      source: "auto",
+      isScene: true,
+    });
+  }
+  rows.sort((a, b) => b.time.localeCompare(a.time));
+  const top = rows.slice(0, 4);
+  if (top.length === 0) return null;
+
   return (
-    <div
-      style={{
-        marginTop: 8,
-        padding: "10px 16px",
-        borderTop: `1px solid ${t.line}`,
-        borderBottom: `1px solid ${t.line}`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-      }}
-    >
-      <span
-        className="warm-tab-nums"
-        style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
+    <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <span style={lab(t)}>SENASTE</span>
+      <div
+        style={{
+          background: t.paper,
+          border: `1px solid ${t.line}`,
+          borderRadius: 14,
+          overflow: "hidden",
+        }}
       >
-        {time}
-      </span>
-      <span style={ital(t, 13, t.mute)}>
-        Scen <span style={{ color: t.ink, fontWeight: 500 }}>{sceneLab}</span>{" "}
-        aktiverad
-      </span>
-      <span style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}>auto</span>
-    </div>
+        {top.map((r, i) => (
+          <div
+            key={`${r.time}-${i}`}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "auto 1fr auto",
+              alignItems: "center",
+              gap: 14,
+              padding: "12px 16px",
+              borderTop: i === 0 ? "none" : `1px solid ${t.line}`,
+            }}
+          >
+            <span
+              className="warm-tab-nums"
+              style={{
+                ...lab(t, { fontSize: 11 }),
+                color: t.dim,
+                letterSpacing: "0.06em",
+              }}
+            >
+              {formatTime(r.time)}
+            </span>
+            <span
+              style={{
+                fontFamily: serif,
+                fontSize: 15,
+                fontWeight: 500,
+                color: t.ink,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {r.description}
+            </span>
+            <span
+              style={{
+                ...ital(t, 12, t.mute),
+                whiteSpace: "nowrap",
+              }}
+            >
+              {r.source}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -649,7 +716,7 @@ export default function WarmRoomDetail() {
     fetcher,
     { refreshInterval: 30_000 }
   );
-  const { data: scenesData } = useSWR<{ scenes: ScenePayload[] }>(
+  const { data: scenesData, mutate: mScenes } = useSWR<{ scenes: ScenePayload[] }>(
     hydrated ? "/api/homeassistant/scenes" : null,
     fetcher,
     { refreshInterval: 60_000 }
@@ -666,6 +733,22 @@ export default function WarmRoomDetail() {
   });
 
   const area = lights?.areas.find((a) => a.name === roomName);
+  // Senaste händelser: bygg query-string av rummets lampor.
+  const eventEntities = useMemo(() => {
+    if (!area) return null;
+    return area.lights.map((l) => l.entity_id).join(",");
+  }, [area]);
+  const { data: eventsData, mutate: mEvents } = useSWR<{ events: RawEvent[] }>(
+    hydrated && eventEntities
+      ? `/api/homeassistant/events?entities=${eventEntities}&hours=24`
+      : null,
+    fetcher,
+    { refreshInterval: 60_000 }
+  );
+  const recentEvents = useMemo(
+    () => formatEvents(eventsData?.events ?? [], 6),
+    [eventsData]
+  );
   // Kök har en felklassad sensor (60° konstant) — visa ingen sensor-data
   // för rummet förrän bug:en är fixad i sensors-route.
   const isKitchen = roomName?.toLowerCase() === "kök" || roomName?.toLowerCase() === "köket";
@@ -689,21 +772,12 @@ export default function WarmRoomDetail() {
     return bySlug ?? alData.instances[0] ?? null;
   };
 
-  const activeScene = useMemo(() => {
-    if (!lights || !("areas" in lights) || !scenesData?.scenes) return null;
-    const snapshot = lights.areas.flatMap((a) =>
-      a.lights.map((l) => ({
-        entity_id: l.entity_id,
-        state: l.state,
-        brightness_pct: l.brightness_pct,
-      }))
-    );
-    return detectActiveScene(scenesData.scenes, snapshot);
-  }, [lights, scenesData]);
-  const activeSince =
-    activeScene && scenesData?.scenes
-      ? scenesData.scenes.find((s) => s.key === activeScene)?.last_changed ?? null
-      : null;
+  const sceneActive = useMemo(
+    () => activeSceneByLastChanged(scenesData?.scenes),
+    [scenesData]
+  );
+  const activeScene = sceneActive?.key ?? null;
+  const activeSince = sceneActive?.lastChanged ?? null;
 
   async function handleAllOff() {
     if (!area) return;
@@ -863,7 +937,12 @@ export default function WarmRoomDetail() {
           </section>
         )}
 
-        <ActivityStrip t={t} activeScene={activeScene} activeSince={activeSince} />
+        <RecentEvents
+          t={t}
+          events={recentEvents}
+          scene={activeScene}
+          sceneSince={activeSince}
+        />
       </div>
 
       <LightEditSheet

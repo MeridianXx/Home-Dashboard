@@ -17,9 +17,10 @@ import {
 import { DetailHeader, Pill } from "@/components/warm/primitives";
 import { SceneGlyph } from "@/components/warm/icons";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
-import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
+import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { RoomLightRow, type LightArea, type LightEntry } from "@/components/warm/RoomLights";
 import { NEDERVANING, OVERVANING, UTOMHUS } from "@/lib/warm/rooms";
+import { formatTime, sceneLabel } from "@/lib/warm/format";
 
 type LightsData = { areas: LightArea[] };
 
@@ -46,59 +47,85 @@ function sortByFloor(areas: LightArea[]) {
 function SceneRow({
   t,
   active,
+  activeSince,
   loading,
   onActivate,
 }: {
   t: WarmTheme;
   active: string | null;
+  activeSince: string | null;
   loading: string | null;
   onActivate: (key: string) => void;
 }) {
+  const sinceLabel =
+    active && activeSince
+      ? `${sceneLabel(active)} sedan ${formatTime(activeSince)}`
+      : null;
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${SCENE_ENTRIES.length}, minmax(0, 1fr))`,
-        gap: 8,
-      }}
-    >
-      {SCENE_ENTRIES.map((s) => {
-        const isActive = active === s.key;
-        const isLoading = loading === s.key;
-        return (
-          <button
-            key={s.key}
-            type="button"
-            onClick={() => onActivate(s.key)}
-            aria-pressed={isActive}
-            style={{
-              display: "inline-flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 6,
-              padding: "12px 4px",
-              borderRadius: 14,
-              background: isActive ? ACC : t.paper,
-              border: `1px solid ${isActive ? ACC : t.line}`,
-              color: isActive ? "#FFFBF0" : t.ink,
-              cursor: "pointer",
-              opacity: isLoading ? 0.6 : 1,
-              transition: "background 160ms, border-color 160ms",
-            }}
-          >
-            <SceneGlyph scene={s.glyph} size={18} color={isActive ? "#FFFBF0" : t.mute} />
-            <span
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+        }}
+      >
+        <span style={lab(t)}>SCENER</span>
+        {sinceLabel && <span style={ital(t, 12, t.dim)}>{sinceLabel}</span>}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "nowrap",
+          justifyContent: "space-between",
+          gap: 6,
+          overflow: "hidden",
+        }}
+      >
+        {SCENE_ENTRIES.map((s) => {
+          const isActive = active === s.key;
+          const isLoading = loading === s.key;
+          return (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => onActivate(s.key)}
+              aria-pressed={isActive}
               style={{
-                fontFamily: body,
-                fontSize: 11,
-                fontWeight: isActive ? 600 : 500,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                padding: "8px 11px",
+                borderRadius: 999,
+                background: isActive ? ACC : t.paper,
+                border: `1px solid ${isActive ? ACC : t.line}`,
+                color: isActive ? "#FFFBF0" : t.ink,
+                cursor: "pointer",
+                opacity: isLoading ? 0.6 : 1,
+                transition: "background 160ms, border-color 160ms",
+                flex: "0 0 auto",
               }}
             >
-              {s.label}
-            </span>
-          </button>
-        );
-      })}
+              <SceneGlyph
+                scene={s.glyph}
+                size={15}
+                color={isActive ? "#FFFBF0" : t.mute}
+              />
+              <span
+                style={{
+                  fontFamily: body,
+                  fontSize: 12,
+                  fontWeight: isActive ? 600 : 500,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {s.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -203,7 +230,7 @@ export default function WarmLightingPage() {
     fetcher,
     { refreshInterval: 3_000 }
   );
-  const { data: scenesData } = useSWR<{ scenes: ScenePayload[] }>(
+  const { data: scenesData, mutate: mScenes } = useSWR<{ scenes: ScenePayload[] }>(
     hydrated ? "/api/homeassistant/scenes" : null,
     fetcher,
     { refreshInterval: 60_000 }
@@ -213,17 +240,12 @@ export default function WarmLightingPage() {
   const [offLoading, setOffLoading] = useState<string | null>(null);
   const [sceneLoading, setSceneLoading] = useState<string | null>(null);
 
-  const activeScene = useMemo(() => {
-    if (!lights || !("areas" in lights) || !scenesData?.scenes) return null;
-    const snapshot = lights.areas.flatMap((a) =>
-      a.lights.map((l) => ({
-        entity_id: l.entity_id,
-        state: l.state,
-        brightness_pct: l.brightness_pct,
-      }))
-    );
-    return detectActiveScene(scenesData.scenes, snapshot);
-  }, [lights, scenesData]);
+  const sceneActive = useMemo(
+    () => activeSceneByLastChanged(scenesData?.scenes),
+    [scenesData]
+  );
+  const activeScene = sceneActive?.key ?? null;
+  const activeSince = sceneActive?.lastChanged ?? null;
 
   const areas = lights && "areas" in lights ? lights.areas : [];
   const totalOn = areas.reduce((s, a) => s + a.on_count, 0);
@@ -235,8 +257,8 @@ export default function WarmLightingPage() {
     setSceneLoading(key);
     try {
       await callAction("scene", "turn_on", `scene.${key}`);
-      await new Promise((r) => setTimeout(r, 600));
-      await mutate();
+      await new Promise((r) => setTimeout(r, 500));
+      await Promise.all([mutate(), mScenes()]);
     } finally {
       setSceneLoading(null);
     }
@@ -290,29 +312,6 @@ export default function WarmLightingPage() {
         back={() => router.push("/v3/home")}
         backLabel="Hem"
         title="Belysning"
-        right={
-          totalOn > 0 ? (
-            <button
-              type="button"
-              onClick={handleAllOff}
-              disabled={offLoading === "all"}
-              style={{
-                fontFamily: body,
-                fontSize: 11,
-                fontWeight: 600,
-                color: t.mute,
-                padding: "4px 10px",
-                borderRadius: 999,
-                background: t.tint,
-                border: `1px solid ${t.line}`,
-                opacity: offLoading === "all" ? 0.5 : 1,
-                cursor: "pointer",
-              }}
-            >
-              Släck allt
-            </button>
-          ) : null
-        }
       />
 
       <div
@@ -325,27 +324,62 @@ export default function WarmLightingPage() {
       >
         {error && <WarmErrorBanner t={t} onRetry={() => mutate()} />}
 
+        {/* Stat-rad: poetisk text + räknare + Släck allt */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            gap: 12,
           }}
         >
           <span style={ital(t, 14, t.mute)}>
-            {totalOn > 0 ? `${totalOn} av ${totalAll} lampor på` : "Allt är släckt"}
+            {(() => {
+              if (totalAll === 0) return "inga lampor";
+              if (totalOn === 0) return "huset i mörker";
+              if (totalOn === totalAll) return "fullt belyst";
+              const ratio = totalOn / totalAll;
+              if (ratio < 0.3) return "ett dämpat sken";
+              if (ratio < 0.7) return "huset i ljus";
+              return "nästan allt på";
+            })()}
           </span>
-          <span
-            className="warm-tab-nums"
-            style={{ ...num(t, 18, 500), color: t.ink }}
-          >
-            {totalOn}/{totalAll}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span
+              className="warm-tab-nums"
+              style={{ ...num(t, 22, 400), color: t.ink, lineHeight: 1 }}
+            >
+              {totalOn}
+              <span style={{ color: t.dim }}>/{totalAll}</span>
+            </span>
+            {totalOn > 0 && (
+              <button
+                type="button"
+                onClick={handleAllOff}
+                disabled={offLoading === "all"}
+                style={{
+                  fontFamily: body,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: t.ink,
+                  padding: "6px 12px",
+                  borderRadius: 999,
+                  background: t.tint,
+                  border: `1px solid ${t.line}`,
+                  opacity: offLoading === "all" ? 0.5 : 1,
+                  cursor: "pointer",
+                }}
+              >
+                Släck allt
+              </button>
+            )}
+          </div>
         </div>
 
         <SceneRow
           t={t}
           active={activeScene}
+          activeSince={activeSince}
           loading={sceneLoading}
           onActivate={handleScene}
         />

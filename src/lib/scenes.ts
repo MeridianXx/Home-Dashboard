@@ -6,6 +6,7 @@ export type ScenePayload = {
   key: string;
   entity_id: string;
   name: string;
+  last_changed: string | null;
   targets: Record<string, SceneTarget>;
 };
 
@@ -28,6 +29,36 @@ const BRIGHTNESS_TOLERANCE = 5; // ±%
  * If multiple scenes match, the most specific wins (most target entities).
  * Returns the scene key, or null if none match.
  */
+/**
+ * Hämtar den scen som senast aktiverades inom `windowMs` (default 24h).
+ * Robust signal för "vilken scen är aktiv just nu" — uppdateras direkt vid
+ * klick eftersom HA-entitetens `last_changed` ändras synkront.
+ *
+ * Detta är den primära logiken för pill-tändning i Warm Home. Tidigare
+ * `detectActiveScene` (state-jämförelse) är ytterligare för exakt match
+ * men brister så fort en lampa rapporterar fel brightness-värde.
+ */
+export function activeSceneByLastChanged(
+  scenes: ScenePayload[] | undefined,
+  windowMs: number = 24 * 3600 * 1000
+): { key: string; lastChanged: string } | null {
+  if (!scenes || scenes.length === 0) return null;
+  let newest: ScenePayload | null = null;
+  let newestTs = -Infinity;
+  for (const s of scenes) {
+    if (!s.last_changed) continue;
+    const ts = new Date(s.last_changed).getTime();
+    if (!isFinite(ts)) continue;
+    if (ts > newestTs) {
+      newest = s;
+      newestTs = ts;
+    }
+  }
+  if (!newest || !newest.last_changed) return null;
+  if (Date.now() - newestTs > windowMs) return null;
+  return { key: newest.key, lastChanged: newest.last_changed };
+}
+
 export function detectActiveScene(
   scenes: ScenePayload[],
   lights: LightSnapshot[],

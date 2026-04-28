@@ -21,7 +21,7 @@ import { ChevronRight } from "@/components/warm/icons/extra";
 import { weatherGlyph } from "@/lib/warm/weather";
 import SunArc from "@/components/warm/SunArc";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
-import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
+import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { HUB_FAVORITE_ROOMS, SLUG_TO_NAME } from "@/lib/warm/rooms";
 import { formatTime, sceneLabel, spotLabel, svGreeting } from "@/lib/warm/format";
 
@@ -383,11 +383,15 @@ function ScenesSection({
           </span>
         )}
       </div>
+      {/* Pillar på en rad — varje pill får sin innehållsbredd, fördelas
+          jämnt över hela bredden via space-between. */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: 8,
+          display: "flex",
+          flexWrap: "nowrap",
+          justifyContent: "space-between",
+          gap: 6,
+          overflow: "hidden",
         }}
       >
         {SCENE_ENTRIES.map((s) => {
@@ -403,8 +407,8 @@ function ScenesSection({
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 6,
-                padding: "10px 8px",
+                gap: 5,
+                padding: "8px 11px",
                 borderRadius: 999,
                 background: isActive ? ACC : t.paper,
                 border: `1px solid ${isActive ? ACC : t.line}`,
@@ -412,19 +416,21 @@ function ScenesSection({
                 cursor: "pointer",
                 opacity: isLoading ? 0.6 : 1,
                 transition: "background 160ms, border-color 160ms",
+                flex: "0 0 auto",
               }}
             >
               <SceneGlyph
                 scene={s.glyph}
-                size={16}
+                size={15}
                 color={isActive ? "#FFFBF0" : t.mute}
               />
               <span
                 style={{
                   fontFamily: body,
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: isActive ? 600 : 500,
                   letterSpacing: "0.01em",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {s.label}
@@ -767,15 +773,6 @@ function RoomList({
   );
 }
 
-// ─── Hook: aktiv scen från API:s last_changed ────────────────────────────────
-
-function useActiveSceneSince(
-  scenes: ScenePayload[] | undefined,
-  activeKey: string | null
-): string | null {
-  if (!scenes || !activeKey) return null;
-  return scenes.find((s) => s.key === activeKey)?.last_changed ?? null;
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -795,7 +792,7 @@ export default function WarmHomeHub() {
   } = useSWR<LightsData>(hydrated ? "/api/homeassistant/lights" : null, fetcher, {
     refreshInterval: 5_000,
   });
-  const { data: scenesData } = useSWR<{ scenes: ScenePayload[] }>(
+  const { data: scenesData, mutate: mScenes } = useSWR<{ scenes: ScenePayload[] }>(
     hydrated ? "/api/homeassistant/scenes" : null,
     fetcher,
     { refreshInterval: 60_000 }
@@ -821,27 +818,22 @@ export default function WarmHomeHub() {
     { refreshInterval: 60_000 }
   );
 
-  const activeScene = useMemo(() => {
-    if (!lights || !("areas" in lights) || !scenesData?.scenes) return null;
-    const snapshot = lights.areas.flatMap((a) =>
-      a.lights.map((l) => ({
-        entity_id: l.entity_id,
-        state: l.state,
-        brightness_pct: l.brightness_pct,
-      }))
-    );
-    return detectActiveScene(scenesData.scenes, snapshot);
-  }, [lights, scenesData]);
-
-  const activeSince = useActiveSceneSince(scenesData?.scenes, activeScene);
+  const sceneActive = useMemo(
+    () => activeSceneByLastChanged(scenesData?.scenes),
+    [scenesData]
+  );
+  const activeScene = sceneActive?.key ?? null;
+  const activeSince = sceneActive?.lastChanged ?? null;
 
   const handleScene = async (key: string) => {
     if (sceneLoading) return;
     setSceneLoading(key);
     try {
       await callAction("scene", "turn_on", `scene.${key}`);
-      await new Promise((r) => setTimeout(r, 600));
-      await mLights();
+      await new Promise((r) => setTimeout(r, 500));
+      // Refresh BÅDA — lights uppdaterar UI-status, scenes uppdaterar
+      // last_changed så pillen tänds direkt efter klick.
+      await Promise.all([mLights(), mScenes()]);
     } finally {
       setSceneLoading(null);
     }
