@@ -75,12 +75,12 @@ function calcStreak(workouts: Workout[]): number {
 const WEEKDAY_SE = ["söndag", "måndag", "tisdag", "onsdag", "torsdag", "fredag", "lördag"];
 
 /** Tagline-par {title, italicTail} härlett från dagsform. Display-rubriken
- *  ska kännas vass och konkret — undvik samma anchor-ord som COACH-quote
- *  så de inte ekar (tidigare upprepade båda "form"). */
+ *  ska kännas vass och konkret — alla buckets beskriver kroppstillstånd
+ *  (återhämtning, grund, tröghet, batteri) så de pratar samma språk. */
 function deriveTagline(r: ReadinessResponse | undefined): { title: string; tail: string } {
   if (!r) return { title: "Hämtar dagsformen", tail: "" };
   if (r.score >= 75) return { title: "Bra återhämtning,", tail: "kör tungt." };
-  if (r.score >= 55) return { title: "Solid morgon,", tail: "håll riktningen." };
+  if (r.score >= 55) return { title: "Stabil grund,", tail: "håll riktningen." };
   if (r.score >= 40) return { title: "Lite tröghet,", tail: "släpp på gasen." };
   return { title: "Tom batteri,", tail: "vila eller kort lätt." };
 }
@@ -285,10 +285,10 @@ function ReadinessTile({ data }: { data: ReadinessResponse | undefined }) {
         <div style={{ ...ital(t, 12, t.mute), lineHeight: 1.4 }}>
           {data
             ? [
-                data.components.hrv.value != null ? `HRV ${data.components.hrv.value} ms` : null,
-                data.components.tsb ? `form ${data.components.tsb.value > 0 ? "+" : ""}${data.components.tsb.value}` : null,
+                data.components.hrv.value != null ? `HRV ${data.components.hrv.value} ms` : null,
+                data.components.tsb ? `form ${data.components.tsb.value > 0 ? "+" : ""}${data.components.tsb.value}` : null,
                 data.components.sleep.hours != null
-                  ? `sömn ${Math.floor(data.components.sleep.hours)} t ${Math.round((data.components.sleep.hours % 1) * 60)} m`
+                  ? `sömn ${Math.floor(data.components.sleep.hours)} t ${Math.round((data.components.sleep.hours % 1) * 60)} m`
                   : null,
               ]
                 .filter(Boolean)
@@ -628,9 +628,16 @@ function RecentTile({
       right={
         <Link
           href="/v3/fitness/historik"
-          style={{ fontFamily: body, fontSize: 11, color: ACC, textDecoration: "none" }}
+          style={{
+            ...ital(t, 12, ACC),
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
+          }}
         >
-          se all historik →
+          se all historik
+          <ChevronRight size={11} color={ACC} />
         </Link>
       }
     >
