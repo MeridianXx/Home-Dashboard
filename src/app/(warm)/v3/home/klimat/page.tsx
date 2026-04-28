@@ -81,6 +81,15 @@ type HvacData = {
   };
 };
 
+// Generisk sensorrad — används av RoomTempList för att kunna
+// prependa syntetiska rader (BT50 / BT1) utan att förorena SensorArea.
+type SensorRow = {
+  key: string;
+  label: string;
+  temperature: number;
+  humidity: number | null;
+};
+
 type VacuumData = {
   state: string;
   battery_pct: number | null;
@@ -529,30 +538,69 @@ export default function WarmKlimatPage() {
           </section>
         )}
 
-        {/* Inomhus + utomhus per rum (växthus separat) */}
-        {sensors && "areas" in sensors && sensors.areas.length > 0 && (() => {
+        {/* Inomhus + utomhus per rum */}
+        {sensors && "areas" in sensors && (() => {
           // Kök filtreras bort — sensor.kok_jalusi är felklassad som
           // device_class: temperature i HA och rapporterar 60° konstant.
-          // Pre-existerande v2-data-bug.
           const isKitchen = (n: string) => {
             const l = n.toLowerCase();
             return l === "kök" || l === "köket";
           };
-          const isOutdoor = (n: string) => {
+          const isGreenhouse = (n: string) => {
             const l = n.toLowerCase();
             return l.includes("växthus") || l.includes("vaxthus");
           };
-          const indoor = sensors.areas.filter(
-            (a) => !isKitchen(a.name) && !isOutdoor(a.name)
-          );
-          const outdoor = sensors.areas.filter((a) => isOutdoor(a.name));
+
+          // Önskad ordning för inomhusrum
+          const INDOOR_ORDER = ["Vardagsrum", "Sovrum", "Allrum"];
+
+          const indoorAreas = sensors.areas
+            .filter((a) => !isKitchen(a.name) && !isGreenhouse(a.name))
+            .sort((a, b) => {
+              const ai = INDOOR_ORDER.indexOf(a.name);
+              const bi = INDOOR_ORDER.indexOf(b.name);
+              if (ai !== -1 && bi !== -1) return ai - bi;
+              if (ai !== -1) return -1;
+              if (bi !== -1) return 1;
+              return a.name.localeCompare(b.name, "sv");
+            });
+
+          const greens = sensors.areas.filter((a) => isGreenhouse(a.name));
+
+          // INOMHUS: BT50 överst, sedan rum i specificerad ordning
+          const indoorRows: SensorRow[] = [
+            ...(sensors.nibe_indoor_temp != null
+              ? [{ key: "nibe-bt50", label: "Inomhustemperatur", temperature: sensors.nibe_indoor_temp, humidity: null }]
+              : []),
+            ...indoorAreas.map((a) => ({
+              key: a.area_id,
+              label: a.name,
+              temperature: a.temperature,
+              humidity: a.humidity,
+            })),
+          ];
+
+          // UTOMHUS: BT1 överst, sedan Växthus
+          const nibeOutdoor = hvac?.nibe?.outdoor_temp ?? null;
+          const outdoorRows: SensorRow[] = [
+            ...(nibeOutdoor != null
+              ? [{ key: "nibe-bt1", label: "Utomhustemperatur", temperature: nibeOutdoor, humidity: null }]
+              : []),
+            ...greens.map((a) => ({
+              key: a.area_id,
+              label: a.name,
+              temperature: a.temperature,
+              humidity: a.humidity,
+            })),
+          ];
+
           return (
             <>
-              {indoor.length > 0 && (
-                <RoomTempList t={t} title="INOMHUS" rooms={indoor} />
+              {indoorRows.length > 0 && (
+                <RoomTempList t={t} title="INOMHUS" rows={indoorRows} />
               )}
-              {outdoor.length > 0 && (
-                <RoomTempList t={t} title="UTOMHUS" rooms={outdoor} />
+              {outdoorRows.length > 0 && (
+                <RoomTempList t={t} title="UTOMHUS" rows={outdoorRows} />
               )}
             </>
           );
@@ -924,12 +972,13 @@ function ClimateStat({
 function RoomTempList({
   t,
   title,
-  rooms,
+  rows,
 }: {
   t: WarmTheme;
   title: string;
-  rooms: SensorArea[];
+  rows: SensorRow[];
 }) {
+  if (rows.length === 0) return null;
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <span style={lab(t)}>{title}</span>
@@ -941,9 +990,9 @@ function RoomTempList({
           overflow: "hidden",
         }}
       >
-        {rooms.map((a, i) => (
+        {rows.map((r, i) => (
           <div
-            key={a.area_id}
+            key={r.key}
             style={{
               display: "grid",
               gridTemplateColumns: "1fr auto auto",
@@ -961,9 +1010,9 @@ function RoomTempList({
                 color: t.ink,
               }}
             >
-              {a.name}
+              {r.label}
             </span>
-            {a.humidity != null ? (
+            {r.humidity != null ? (
               <span
                 style={{
                   display: "inline-flex",
@@ -976,7 +1025,7 @@ function RoomTempList({
               >
                 <DropletIcon size={12} color={t.mute} />
                 <span className="warm-tab-nums">
-                  {Math.round(a.humidity)}%
+                  {Math.round(r.humidity)}%
                 </span>
               </span>
             ) : (
@@ -998,7 +1047,7 @@ function RoomTempList({
                   color: t.ink,
                 }}
               >
-                {a.temperature.toFixed(1)}°
+                {r.temperature.toFixed(1)}°
               </span>
             </span>
           </div>
