@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { callAction } from "@/lib/actions";
 import { useHydrated, useWarmTheme } from "@/lib/warm/theme";
+import WarmSwitch from "@/components/warm/Switch";
 import {
   ACC,
   SAGE,
@@ -58,15 +60,22 @@ type HvacData = {
     state: string;
     current_temp: number | null;
     target_temp: number | null;
+    hvac_modes: string[] | null;
     fan_mode: string | null;
+    fan_modes: string[] | null;
   };
   nibe: {
     outdoor_temp: number | null;
     hot_water_temp: number | null;
     fan_speed_pct: number | null;
     alarm: boolean;
+    kaminlage: boolean;
+    nattsvalka: boolean;
     system_power_kw: number | null;
     compressor_hz: number | null;
+    heater_kw: number | null;
+    hot_water_boost: string;
+    hot_water_boost_options: string[];
     indoor_setpoint: number | null;
   };
 };
@@ -79,6 +88,32 @@ type VacuumData = {
   cleaned_area: number | null;
   charging: boolean;
   cleaning: boolean;
+};
+
+type SolkylaData = {
+  solar_gain_score: number | null;
+  master_enabled: boolean;
+  ac: {
+    state: string;
+    hvac_mode: string;
+    current_temp: number | null;
+    target_temp: number | null;
+    fan_mode: string | null;
+  };
+  room_temp: number | null;
+  context: {
+    bedroom_temp: number | null;
+    clouds_used: number | null;
+    nibe_indoor_temp: number | null;
+    outdoor_temp: number | null;
+    sun_elevation: number | null;
+  };
+  automations: Array<{
+    name: string;
+    entity_id: string;
+    enabled: boolean;
+    last_triggered: string | null;
+  }>;
 };
 
 const DAY_NAMES_SV = ["sön", "mån", "tis", "ons", "tor", "fre", "lör"];
@@ -165,16 +200,96 @@ export default function WarmKlimatPage() {
     fetcher,
     { refreshInterval: 300_000 }
   );
-  const { data: hvac } = useSWR<HvacData>(
+  const { data: hvac, mutate: mHvac } = useSWR<HvacData>(
     hydrated ? "/api/homeassistant/hvac" : null,
     fetcher,
     { refreshInterval: 15_000 }
   );
-  const { data: vacuum } = useSWR<VacuumData>(
+  const { data: vacuum, mutate: mVacuum } = useSWR<VacuumData>(
     hydrated ? "/api/homeassistant/vacuum" : null,
     fetcher,
     { refreshInterval: 10_000 }
   );
+  const { data: solkyla, mutate: mSolkyla } = useSWR<SolkylaData>(
+    hydrated ? "/api/homeassistant/solkyla" : null,
+    fetcher,
+    { refreshInterval: 15_000 }
+  );
+
+  // Action-handlers (alla anropar /api/homeassistant/action — orörda routes)
+  const refresh = (m: () => void, ms = 700) => () => setTimeout(m, ms);
+  const handleNibeBoost = async () => {
+    await callAction(
+      "select",
+      "select_option",
+      "select.villa_bjorkdalen_more_hot_water",
+      { option: "One-time incr." }
+    );
+    refresh(mHvac)();
+  };
+  const handleNibeNattsvalka = async (on: boolean) => {
+    await callAction(
+      "switch",
+      on ? "turn_off" : "turn_on",
+      "switch.nibe_nattsvalka"
+    );
+    refresh(mHvac)();
+  };
+  const handleNibeKaminlage = async (on: boolean) => {
+    await callAction(
+      "switch",
+      on ? "turn_off" : "turn_on",
+      "switch.nibe_kaminlage"
+    );
+    refresh(mHvac)();
+  };
+  const handleHeroMode = async (mode: string, currentlyActive: boolean) => {
+    if (!hvac?.heat_pump.entity_id) return;
+    await callAction(
+      "climate",
+      currentlyActive ? "turn_off" : "set_hvac_mode",
+      hvac.heat_pump.entity_id,
+      currentlyActive ? undefined : { hvac_mode: mode }
+    );
+    refresh(mHvac)();
+  };
+  const handleHeroTemp = async (temp: number) => {
+    if (!hvac?.heat_pump.entity_id) return;
+    await callAction(
+      "climate",
+      "set_temperature",
+      hvac.heat_pump.entity_id,
+      { temperature: temp }
+    );
+    refresh(mHvac)();
+  };
+  const handleHeroFan = async (mode: string) => {
+    if (!hvac?.heat_pump.entity_id) return;
+    await callAction(
+      "climate",
+      "set_fan_mode",
+      hvac.heat_pump.entity_id,
+      { fan_mode: mode }
+    );
+    refresh(mHvac)();
+  };
+  const handleSolkylaToggle = async () => {
+    if (!solkyla) return;
+    await callAction(
+      "input_boolean",
+      solkyla.master_enabled ? "turn_off" : "turn_on",
+      "input_boolean.solkyla_automation"
+    );
+    refresh(mSolkyla)();
+  };
+  const handleVacuumAction = async (
+    domain: string,
+    service: string,
+    entity_id: string
+  ) => {
+    await callAction(domain, service, entity_id);
+    refresh(mVacuum)();
+  };
 
   const conditionSv = (state: string | undefined) => {
     if (!state) return "—";
@@ -422,7 +537,15 @@ export default function WarmKlimatPage() {
         )}
 
         {/* Inomhus per rum */}
-        {sensors && "areas" in sensors && sensors.areas.length > 0 && (
+        {sensors && "areas" in sensors && sensors.areas.length > 0 && (() => {
+          // Kök filtreras bort — sensor.kok_jalusi är felklassad som
+          // device_class: temperature i HA och rapporterar 60° konstant.
+          // Pre-existerande v2-data-bug, kandidat att fixa i sensors-route.
+          const filtered = sensors.areas.filter(
+            (a) => a.name.toLowerCase() !== "kök" && a.name.toLowerCase() !== "köket"
+          );
+          if (filtered.length === 0) return null;
+          return (
           <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <span style={lab(t)}>INOMHUS</span>
             <div
@@ -433,7 +556,7 @@ export default function WarmKlimatPage() {
                 overflow: "hidden",
               }}
             >
-              {sensors.areas.map((a, i) => (
+              {filtered.map((a, i) => (
                 <div
                   key={a.area_id}
                   style={{
@@ -497,7 +620,8 @@ export default function WarmKlimatPage() {
               ))}
             </div>
           </section>
-        )}
+          );
+        })()}
 
         {/* Temp-graf 24h */}
         <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -590,6 +714,14 @@ export default function WarmKlimatPage() {
                       unit="Hz"
                     />
                   )}
+                  {hvac.nibe.heater_kw != null && (
+                    <ClimateStat
+                      t={t}
+                      label="ELPATRON"
+                      value={hvac.nibe.heater_kw.toFixed(1)}
+                      unit="kW"
+                    />
+                  )}
                   {hvac.nibe.system_power_kw != null && (
                     <ClimateStat
                       t={t}
@@ -598,6 +730,39 @@ export default function WarmKlimatPage() {
                       unit="kW"
                     />
                   )}
+                </div>
+                {/* Toggle-pillar för Nibe — varmvattenboost / nattsvalka / kaminläge */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    marginTop: 14,
+                  }}
+                >
+                  <NibePill
+                    t={t}
+                    label="Boost VV"
+                    active={hvac.nibe.hot_water_boost !== "Off"}
+                    onClick={handleNibeBoost}
+                    note={
+                      hvac.nibe.hot_water_boost !== "Off"
+                        ? hvac.nibe.hot_water_boost
+                        : null
+                    }
+                  />
+                  <NibePill
+                    t={t}
+                    label="Nattsvalka"
+                    active={hvac.nibe.nattsvalka}
+                    onClick={() => handleNibeNattsvalka(hvac.nibe.nattsvalka)}
+                  />
+                  <NibePill
+                    t={t}
+                    label="Kaminläge"
+                    active={hvac.nibe.kaminlage}
+                    onClick={() => handleNibeKaminlage(hvac.nibe.kaminlage)}
+                  />
                 </div>
               </div>
               {/* Hero / luftvärmepump */}
@@ -633,7 +798,7 @@ export default function WarmKlimatPage() {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                     gap: 12,
                     marginTop: 10,
                   }}
@@ -654,123 +819,130 @@ export default function WarmKlimatPage() {
                       unit="°"
                     />
                   )}
-                  {hvac.heat_pump.fan_mode && (
-                    <ClimateStat
-                      t={t}
-                      label="FLÄKT"
-                      value={hvac.heat_pump.fan_mode}
-                      unit=""
-                    />
-                  )}
                 </div>
+
+                {/* Hero-läge: Kyla / Värme / Av */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                    gap: 6,
+                    marginTop: 14,
+                  }}
+                >
+                  {(["cool", "heat", "off"] as const).map((mode) => {
+                    const labels: Record<typeof mode, string> = {
+                      cool: "Kyla",
+                      heat: "Värme",
+                      off: "Av",
+                    };
+                    const active = hvac.heat_pump.state === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => handleHeroMode(mode, active)}
+                        aria-pressed={active}
+                        style={{
+                          padding: "8px 6px",
+                          borderRadius: 999,
+                          background: active ? ACC : t.paperHi,
+                          border: `1px solid ${active ? ACC : t.line}`,
+                          color: active ? "#FFFBF0" : t.ink,
+                          fontFamily: body,
+                          fontSize: 12,
+                          fontWeight: active ? 600 : 500,
+                          cursor: "pointer",
+                          transition: "background 160ms",
+                        }}
+                      >
+                        {labels[mode]}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Temperatur-slider — bara om läget är aktivt */}
+                {hvac.heat_pump.state !== "off" && hvac.heat_pump.target_temp != null && (
+                  <HeroTempSlider
+                    t={t}
+                    value={hvac.heat_pump.target_temp}
+                    onSet={handleHeroTemp}
+                  />
+                )}
+
+                {/* Fläktstyrka — synlig när AC är på */}
+                {hvac.heat_pump.state !== "off" &&
+                  hvac.heat_pump.fan_modes &&
+                  hvac.heat_pump.fan_modes.length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 6,
+                        marginTop: 12,
+                      }}
+                    >
+                      <span
+                        style={{
+                          ...lab(t, { fontSize: 9 }),
+                          color: t.dim,
+                        }}
+                      >
+                        FLÄKTSTYRKA
+                      </span>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: `repeat(${hvac.heat_pump.fan_modes.length}, minmax(0, 1fr))`,
+                          gap: 4,
+                        }}
+                      >
+                        {hvac.heat_pump.fan_modes.map((m) => {
+                          const active = hvac.heat_pump.fan_mode === m;
+                          const label = m === "auto" ? "Auto" : m;
+                          return (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => handleHeroFan(m)}
+                              style={{
+                                padding: "6px 0",
+                                borderRadius: 999,
+                                background: active ? ACC : t.paperHi,
+                                border: `1px solid ${active ? ACC : t.line}`,
+                                color: active ? "#FFFBF0" : t.ink,
+                                fontFamily: body,
+                                fontSize: 11,
+                                fontWeight: active ? 600 : 500,
+                                cursor: "pointer",
+                                transition: "background 160ms",
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
               </div>
             </div>
           </section>
         )}
 
-        {/* Dammsugare-strip */}
+        {/* Solkyla */}
+        {solkyla && "master_enabled" in solkyla && (
+          <SolkylaCard
+            t={t}
+            data={solkyla}
+            onToggle={handleSolkylaToggle}
+          />
+        )}
+
+        {/* Dammsugare */}
         {vacuum && "state" in vacuum && (
-          <section
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "12px 16px",
-              borderRadius: 14,
-              background: t.paper,
-              border: `1px solid ${
-                vacuum.cleaning ? ACC : vacuum.charging ? SAGE : t.line
-              }`,
-            }}
-          >
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: "50%",
-                background: vacuum.cleaning
-                  ? t.tint
-                  : vacuum.charging
-                  ? t.tintSage
-                  : t.tintSky,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="8"
-                  stroke={
-                    vacuum.cleaning ? ACC : vacuum.charging ? SAGE : t.mute
-                  }
-                  strokeWidth={1.6}
-                />
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="3.5"
-                  fill={vacuum.cleaning ? ACC : vacuum.charging ? SAGE : t.mute}
-                />
-              </svg>
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p
-                style={{
-                  fontFamily: serif,
-                  fontSize: 15,
-                  fontWeight: 500,
-                  color: t.ink,
-                  letterSpacing: "-0.01em",
-                  lineHeight: 1.1,
-                }}
-              >
-                Dammsugare
-              </p>
-              <p style={ital(t, 12, t.mute)}>
-                {vacuum.cleaning
-                  ? vacuum.current_room
-                    ? `städar · ${vacuum.current_room}`
-                    : "städar"
-                  : vacuum.charging
-                  ? "laddar"
-                  : vacuum.state === "docked"
-                  ? "dockad"
-                  : vacuum.state === "idle"
-                  ? "vilar"
-                  : vacuum.state}
-                {vacuum.cleaned_area != null && vacuum.cleaning
-                  ? ` · ${vacuum.cleaned_area.toFixed(0)} m²`
-                  : ""}
-              </p>
-            </div>
-            {vacuum.battery_pct != null && (
-              <span
-                className="warm-tab-nums"
-                style={{
-                  fontFamily: serif,
-                  fontSize: 17,
-                  color: vacuum.battery_pct < 25 ? "#B0452E" : t.ink,
-                }}
-              >
-                {vacuum.battery_pct}
-                <span
-                  style={{
-                    fontFamily: body,
-                    fontSize: 11,
-                    color: t.mute,
-                    marginLeft: 1,
-                    fontWeight: 500,
-                  }}
-                >
-                  %
-                </span>
-              </span>
-            )}
-          </section>
+          <VacuumCard t={t} data={vacuum} onAction={handleVacuumAction} />
         )}
       </div>
     </>
@@ -810,5 +982,479 @@ function ClimateStat({
         </span>
       </div>
     </div>
+  );
+}
+
+// ─── NibePill: kompakt knapp med ACC-fyllning vid active ────────────────────
+
+function NibePill({
+  t,
+  label,
+  active,
+  onClick,
+  note,
+}: {
+  t: WarmTheme;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  note?: string | null;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "7px 12px",
+        borderRadius: 999,
+        background: active ? ACC : t.paperHi,
+        border: `1px solid ${active ? ACC : t.line}`,
+        color: active ? "#FFFBF0" : t.ink,
+        fontFamily: body,
+        fontSize: 12,
+        fontWeight: active ? 600 : 500,
+        cursor: "pointer",
+        transition: "background 160ms",
+      }}
+    >
+      <span>{label}</span>
+      {note && (
+        <span
+          style={{
+            fontFamily: body,
+            fontStyle: "italic",
+            fontSize: 11,
+            opacity: 0.85,
+          }}
+        >
+          · {note}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ─── Hero temp-slider ────────────────────────────────────────────────────────
+
+function HeroTempSlider({
+  t,
+  value,
+  onSet,
+}: {
+  t: WarmTheme;
+  value: number;
+  onSet: (v: number) => void;
+}) {
+  const [live, setLive] = useState<number | null>(null);
+  const display = live ?? value;
+  const fillPct = ((display - 16) / (30 - 16)) * 100;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginTop: 12,
+      }}
+    >
+      <span
+        className="warm-tab-nums"
+        style={{ fontFamily: body, fontSize: 11, color: t.dim, minWidth: 22 }}
+      >
+        16°
+      </span>
+      <input
+        type="range"
+        min={16}
+        max={30}
+        step={0.5}
+        aria-label="Mål-temperatur"
+        key={value}
+        defaultValue={value}
+        style={
+          {
+            flex: 1,
+            "--fill": `${fillPct.toFixed(1)}%`,
+          } as React.CSSProperties
+        }
+        onInput={(e) => {
+          const el = e.currentTarget;
+          const v = parseFloat(el.value);
+          el.style.setProperty(
+            "--fill",
+            `${(((v - 16) / (30 - 16)) * 100).toFixed(1)}%`
+          );
+          setLive(v);
+        }}
+        onMouseUp={(e) => onSet(parseFloat((e.target as HTMLInputElement).value))}
+        onTouchEnd={(e) => onSet(parseFloat((e.target as HTMLInputElement).value))}
+      />
+      <span
+        className="warm-tab-nums"
+        style={{
+          fontFamily: serif,
+          fontSize: 15,
+          color: t.ink,
+          minWidth: 44,
+          textAlign: "right",
+        }}
+      >
+        {display}°
+      </span>
+    </div>
+  );
+}
+
+// ─── Solkyla-kort ────────────────────────────────────────────────────────────
+
+const SOLKYLA_AC_LABELS: Record<string, string> = {
+  off: "av",
+  cool: "kyla",
+  dry: "torr",
+  fan_only: "fläkt",
+  heat: "värme",
+  heat_cool: "auto",
+};
+
+function SolkylaCard({
+  t,
+  data,
+  onToggle,
+}: {
+  t: WarmTheme;
+  data: SolkylaData;
+  onToggle: () => void;
+}) {
+  const score = data.solar_gain_score;
+  const acOn = data.ac.state !== "off";
+  const acMode = SOLKYLA_AC_LABELS[data.ac.hvac_mode] ?? data.ac.hvac_mode;
+  const lastTriggered = data.automations
+    .map((a) => a.last_triggered)
+    .filter((x): x is string => x != null)
+    .sort()
+    .pop();
+  const triggeredLabel = lastTriggered
+    ? (() => {
+        const diffMs = Date.now() - new Date(lastTriggered).getTime();
+        if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)} min sedan`;
+        if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)} h sedan`;
+        return new Date(lastTriggered).toLocaleDateString("sv-SE", {
+          day: "numeric",
+          month: "short",
+        });
+      })()
+    : null;
+
+  const ctxParts: string[] = [];
+  if (data.room_temp != null) ctxParts.push(`${data.room_temp.toFixed(1)}° inne`);
+  if (data.context.outdoor_temp != null)
+    ctxParts.push(`${Math.round(data.context.outdoor_temp)}° ute`);
+  if (data.context.clouds_used != null)
+    ctxParts.push(`${Math.round(data.context.clouds_used)}% moln`);
+  if (data.context.sun_elevation != null && data.context.sun_elevation > 0)
+    ctxParts.push(`elev ${data.context.sun_elevation.toFixed(1)}°`);
+
+  return (
+    <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <span style={lab(t)}>SOLKYLA</span>
+      <div
+        style={{
+          background: t.paper,
+          border: `1px solid ${t.line}`,
+          borderRadius: 14,
+          padding: "14px 16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <span
+              className="warm-tab-nums"
+              style={{ ...num(t, 22, 400), lineHeight: 1.1 }}
+            >
+              {score != null ? score : "—"}
+              <span
+                style={{
+                  fontFamily: body,
+                  fontSize: 11,
+                  color: t.mute,
+                  fontWeight: 500,
+                  marginLeft: 2,
+                }}
+              >
+                %
+              </span>
+            </span>
+            {acOn && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "3px 9px",
+                  borderRadius: 999,
+                  background: t.tintSky,
+                  color: t.ink,
+                  fontFamily: body,
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              >
+                {acMode}
+                {data.ac.target_temp != null ? ` ${data.ac.target_temp}°` : ""}
+              </span>
+            )}
+          </div>
+          <WarmSwitch
+            on={data.master_enabled}
+            onChange={onToggle}
+            t={t}
+            ariaLabel="Solkyla-automation"
+          />
+        </div>
+        {ctxParts.length > 0 && (
+          <span style={ital(t, 12, t.mute)}>{ctxParts.join(" · ")}</span>
+        )}
+        {triggeredLabel && (
+          <span style={ital(t, 11, t.dim)}>
+            senast triggad {triggeredLabel}
+          </span>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ─── Dammsugare-kort med v2:s kontroller ─────────────────────────────────────
+
+function VacuumCard({
+  t,
+  data,
+  onAction,
+}: {
+  t: WarmTheme;
+  data: VacuumData;
+  onAction: (domain: string, service: string, entity_id: string) => Promise<void>;
+}) {
+  const accent = data.cleaning ? ACC : data.charging ? SAGE : t.line;
+  const accentBg = data.cleaning
+    ? t.tint
+    : data.charging
+    ? t.tintSage
+    : t.tintSky;
+
+  const StatusLabel = data.cleaning
+    ? data.current_room
+      ? `städar · ${data.current_room}`
+      : "städar"
+    : data.charging
+    ? "laddar"
+    : data.state === "docked"
+    ? "dockad"
+    : data.state === "idle"
+    ? "vilar"
+    : data.state;
+
+  // Två primär-actions (Starta / Docka) följt av fyra program-knappar.
+  // Samma entity_id:n som v2:s VacuumCard.
+  const primaryActions: Array<{ label: string; action: () => Promise<void> }> = [
+    {
+      label: "Starta",
+      action: () => onAction("vacuum", "start", "vacuum.chomper"),
+    },
+    {
+      label: "Docka",
+      action: () => onAction("vacuum", "return_to_base", "vacuum.chomper"),
+    },
+  ];
+  const programActions: Array<{ label: string; action: () => Promise<void> }> = [
+    {
+      label: "Kök & hall",
+      action: () =>
+        onAction("button", "press", "button.dammsugare_snabb_kok_hall"),
+    },
+    {
+      label: "Djup",
+      action: () => onAction("button", "press", "button.dammsugare_djup"),
+    },
+    {
+      label: "Efter maten",
+      action: () => onAction("button", "press", "button.chomper_after_meals"),
+    },
+    {
+      label: "Damm + mopp",
+      action: () =>
+        onAction("button", "press", "button.chomper_vac_followed_by_mop"),
+    },
+  ];
+
+  return (
+    <section
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <span style={lab(t)}>DAMMSUGARE</span>
+      <div
+        style={{
+          background: t.paper,
+          border: `1px solid ${accent}`,
+          borderRadius: 14,
+          padding: "14px 16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        {/* Status-rad */}
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 12 }}
+        >
+          <div
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: "50%",
+              background: accentBg,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle
+                cx="12"
+                cy="12"
+                r="8"
+                stroke={
+                  data.cleaning ? ACC : data.charging ? SAGE : t.mute
+                }
+                strokeWidth={1.6}
+              />
+              <circle
+                cx="12"
+                cy="12"
+                r="3.5"
+                fill={
+                  data.cleaning ? ACC : data.charging ? SAGE : t.mute
+                }
+              />
+            </svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                fontFamily: serif,
+                fontSize: 16,
+                fontWeight: 500,
+                color: t.ink,
+                letterSpacing: "-0.01em",
+                lineHeight: 1.1,
+              }}
+            >
+              Chomper
+            </p>
+            <p style={ital(t, 12, t.mute)}>
+              {StatusLabel}
+              {data.cleaned_area != null && data.cleaning
+                ? ` · ${data.cleaned_area.toFixed(0)} m²`
+                : ""}
+            </p>
+          </div>
+          {data.battery_pct != null && (
+            <span
+              className="warm-tab-nums"
+              style={{
+                fontFamily: serif,
+                fontSize: 17,
+                color: data.battery_pct < 25 ? "#B0452E" : t.ink,
+              }}
+            >
+              {data.battery_pct}
+              <span
+                style={{
+                  fontFamily: body,
+                  fontSize: 11,
+                  color: t.mute,
+                  marginLeft: 1,
+                  fontWeight: 500,
+                }}
+              >
+                %
+              </span>
+            </span>
+          )}
+        </div>
+
+        {/* Primärknappar */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 8,
+          }}
+        >
+          {primaryActions.map(({ label, action }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={action}
+              style={{
+                padding: "9px 0",
+                borderRadius: 999,
+                background: t.paperHi,
+                border: `1px solid ${t.line}`,
+                color: t.ink,
+                fontFamily: body,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Programknappar */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {programActions.map(({ label, action }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={action}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 999,
+                background: "transparent",
+                border: `1px solid ${t.line}`,
+                color: t.mute,
+                fontFamily: body,
+                fontSize: 11,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
