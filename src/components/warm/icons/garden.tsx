@@ -308,3 +308,11 @@ export function ProgressIcon({ size = 14, color = "currentColor", style }: IconP
     </svg>
   );
 }
+
+export function DropletIcon({ size = 16, color = "currentColor", style }: IconProps) {
+  return (
+    <svg {...baseSvg(size, color)} style={{ flexShrink: 0, ...style }}>
+      <path d="M12 3C12 3 6 10 6 14a6 6 0 0 0 12 0C18 10 12 3 12 3Z" />
+    </svg>
+  );
+}

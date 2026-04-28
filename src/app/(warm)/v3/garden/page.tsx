@@ -2,36 +2,31 @@
 
 // ─── Warm Home · Trädgård · Hub ──────────────────────────────────────────────
 // Layout: ACC-eyebrow "TRÄDGÅRD · {dag}" + display-rubrik baserad på säsong,
-// AI-briefing-hero (terracotta-tinted), säsongs-klocka (12-månader-bar med
-// aktuell månad markerad), aktiva växter denna säsong (lista), kommande
-// uppgifter, AI quick-prompt + dörrar till växtregister/säsong/projekt/AI.
+// kompakt briefing-citat, "Att göra nu" (kommande uppgifter som primärt content),
+// "Att sköta nu" (växter med kopplade kommande uppgifter), dörr-tiles.
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useWarmTheme } from "@/lib/warm/theme";
-import { ACC, AMBER, SAGE, body, ital, lab, num } from "@/lib/warm/tokens";
+import { ACC, SAGE, body, ital, lab, num } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { HubDisplay, Section } from "@/components/warm/fit/parts";
-import { ChevronRight, ChevronLeft } from "@/components/warm/icons/extra";
+import { ChevronRight } from "@/components/warm/icons/extra";
 import { ThemeIcon } from "@/components/warm/icons";
 import {
-  CalendarIcon,
-  ListIcon,
   SparkleIcon,
   RefreshIcon,
   ChatIcon,
   plantGlyph,
-  CheckCircleIcon,
+  CheckIcon,
 } from "@/components/warm/icons/garden";
 import {
   isoToday,
-  monthShort,
   seasonPhase,
   shortDateSv,
   formatRelativeSv,
-  plantsActiveThisSeason,
   TASK_STATUS_COLOR,
   plantTypeColor,
 } from "@/lib/warm/garden";
@@ -59,12 +54,19 @@ function formatTodayHeader(): string {
   return WEEKDAYS[d.getDay()] ?? "";
 }
 
-// ── BriefingHero ────────────────────────────────────────────────────────────
+// Hämta första meningens text ur briefingen (max 140 tecken).
+function firstSentence(text: string, maxLen = 140): string {
+  const dot = text.search(/[.!?]/);
+  const candidate = dot > 0 ? text.slice(0, dot + 1) : text;
+  return candidate.length <= maxLen ? candidate : `${candidate.slice(0, maxLen - 1)}…`;
+}
 
-function BriefingHero() {
+// ── BriefingQuote — kompakt citat-band ──────────────────────────────────────
+
+function BriefingQuote() {
   const { t } = useWarmTheme();
-  const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const { data, error, mutate, isLoading } = useSWR<BriefingResponse>(
     `/api/garden/briefing${refreshKey ? `?refresh=1&t=${refreshKey}` : ""}`,
@@ -82,187 +84,127 @@ function BriefingHero() {
     setRefreshing(false);
   };
 
+  const quoteText = data?.briefing ? firstSentence(data.briefing) : null;
+
   return (
-    <Tile
-      t={t}
-      hi
+    <div
       style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 14px",
         background: t.tint,
         border: `1px solid ${ACC}33`,
-        padding: 16,
+        borderRadius: 14,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <SparkleIcon size={14} color={ACC} />
-        <span style={lab(t, { color: ACC })}>Daglig briefing</span>
-        <div style={{ flex: 1 }} />
-        {data?.generatedAt && !error && (
-          <span style={{ fontFamily: body, fontSize: 10, color: t.dim }}>
-            {formatRelativeSv(data.generatedAt)}
+      <SparkleIcon size={13} color={ACC} style={{ flexShrink: 0 }} />
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {notReady ? (
+          <span style={{ fontFamily: body, fontSize: 12, color: t.mute }}>
+            AI-briefing kräver <code>ANTHROPIC_API_KEY</code>.
+          </span>
+        ) : error ? (
+          <span style={{ fontFamily: body, fontSize: 12, color: t.bad }}>
+            Kunde inte hämta briefing.
+          </span>
+        ) : isLoading || !quoteText ? (
+          <div
+            style={{
+              height: 12,
+              borderRadius: 4,
+              background: t.line,
+              width: "70%",
+            }}
+          />
+        ) : (
+          <span
+            style={{
+              ...ital(t, 12.5, t.ink),
+              lineHeight: 1.45,
+              fontWeight: 400,
+              display: "block",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {quoteText}
           </span>
         )}
       </div>
 
-      {notReady ? (
-        <p style={{ fontFamily: body, fontSize: 13, color: t.mute, lineHeight: 1.55 }}>
-          AI-briefing kräver att <code>ANTHROPIC_API_KEY</code> är satt i miljön.
-        </p>
-      ) : error ? (
-        <p style={{ fontFamily: body, fontSize: 13, color: t.bad, lineHeight: 1.55 }}>
-          Kunde inte hämta briefing. {errMsg}
-        </p>
-      ) : isLoading || !data ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={skel(t, "100%")} />
-          <div style={skel(t, "85%")} />
-          <div style={skel(t, "60%")} />
-        </div>
-      ) : (
-        <p
+      {/* Knappar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {data?.generatedAt && !error && !isLoading && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={refreshing}
+            aria-label="Generera ny briefing"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 26,
+              height: 26,
+              background: t.paper,
+              border: `1px solid ${t.line}`,
+              borderRadius: 999,
+              cursor: refreshing ? "not-allowed" : "pointer",
+              opacity: refreshing ? 0.5 : 1,
+            }}
+          >
+            <RefreshIcon
+              size={12}
+              color={t.mute}
+              style={{ animation: refreshing ? "spin-anim 0.8s linear infinite" : undefined }}
+            />
+          </button>
+        )}
+        <Link
+          href="/v3/garden/ai"
           style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
             fontFamily: body,
-            fontSize: 13.5,
-            color: t.ink,
-            lineHeight: 1.6,
-            whiteSpace: "pre-wrap",
+            fontSize: 11,
+            fontWeight: 600,
+            color: ACC,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
           }}
         >
-          {data.briefing}
-        </p>
-      )}
-
-      <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={refreshing || isLoading || notReady}
-          style={pillBtn(t, false, refreshing || isLoading || notReady)}
-        >
-          <RefreshIcon
-            size={12}
-            color={t.mute}
-            style={{
-              animation: refreshing ? "spin-anim 0.8s linear infinite" : undefined,
-            }}
-          />
-          Generera ny
-        </button>
-        <Link href="/v3/garden/ai" style={{ ...pillBtn(t, true, false), textDecoration: "none" }}>
-          <ChatIcon size={12} color="#FFFBF0" />
-          Öppna chat
+          <ChatIcon size={11} color={ACC} />
+          AI-chat
         </Link>
       </div>
-    </Tile>
+    </div>
   );
 }
 
-function skel(t: { line: string }, width: string): React.CSSProperties {
-  return {
-    height: 12,
-    borderRadius: 4,
-    background: t.line,
-    width,
-  };
-}
+// ── Att göra nu — primärt content ──────────────────────────────────────────
 
-function pillBtn(
-  t: { paper: string; line: string; ink: string; mute: string },
-  primary: boolean,
-  disabled: boolean,
-): React.CSSProperties {
-  return {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-    fontFamily: body,
-    fontSize: 11,
-    fontWeight: 600,
-    background: primary ? ACC : t.paper,
-    color: primary ? "#FFFBF0" : t.ink,
-    border: primary ? "none" : `1px solid ${t.line}`,
-    borderRadius: 999,
-    padding: "6px 12px",
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.55 : 1,
-  };
-}
-
-// ── Säsongs-klocka ──────────────────────────────────────────────────────────
-
-function SeasonClock({ now }: { now: Date }) {
-  const { t } = useWarmTheme();
-  const m = now.getMonth();
-  const phase = seasonPhase(m);
-  return (
-    <Tile t={t} style={{ padding: 14 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={lab(t)}>Säsong</span>
-        <span style={{ ...ital(t, 12, phase.color), fontWeight: 500 }}>
-          {phase.label} <span style={{ fontStyle: "italic" }}>{phase.italicTail}</span>
-        </span>
-      </div>
-      <div style={{ display: "flex", gap: 3 }}>
-        {Array.from({ length: 12 }, (_, i) => {
-          const isCurrent = i === m;
-          const isPast = i < m;
-          return (
-            <div
-              key={i}
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              <div
-                style={{
-                  width: "100%",
-                  height: isCurrent ? 22 : 14,
-                  borderRadius: 4,
-                  background: isCurrent ? phase.color : isPast ? t.line : t.paper,
-                  border: isCurrent ? "none" : `1px solid ${t.line}`,
-                  transition: "height 200ms ease",
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: body,
-                  fontSize: 9,
-                  fontWeight: isCurrent ? 600 : 400,
-                  color: isCurrent ? phase.color : t.dim,
-                  letterSpacing: "0.04em",
-                }}
-              >
-                {monthShort(i)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </Tile>
-  );
-}
-
-// ── Kommande uppgifter ──────────────────────────────────────────────────────
-
-function UpcomingTasks({ tasks }: { tasks: SeasonTask[] }) {
+function AttGoraNu({ tasks }: { tasks: SeasonTask[] }) {
   const { t } = useWarmTheme();
   const today = isoToday();
-  const upcoming = tasks
-    .filter((tk) => tk.status !== "Klar" && tk.datum && tk.datum >= today)
-    .sort((a, b) => a.datum.localeCompare(b.datum))
-    .slice(0, 4);
+
   const overdue = tasks
     .filter((tk) => tk.status !== "Klar" && tk.datum && tk.datum < today)
     .sort((a, b) => a.datum.localeCompare(b.datum));
 
-  if (upcoming.length === 0 && overdue.length === 0) {
+  const upcoming = tasks
+    .filter((tk) => tk.status !== "Klar" && tk.datum && tk.datum >= today)
+    .sort((a, b) => a.datum.localeCompare(b.datum))
+    .slice(0, 5);
+
+  if (overdue.length === 0 && upcoming.length === 0) {
     return (
       <Tile t={t}>
         <div style={{ ...ital(t, 13), textAlign: "center", padding: "8px 0" }}>
-          Inga kommande uppgifter.
+          Inga uppgifter planerade.
         </div>
       </Tile>
     );
@@ -270,21 +212,42 @@ function UpcomingTasks({ tasks }: { tasks: SeasonTask[] }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Försenade — varnings-chip */}
       {overdue.length > 0 && (
-        <Tile t={t} style={{ padding: "10px 14px", background: "rgba(176,69,46,0.08)", borderColor: t.bad }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontFamily: body, fontSize: 12, fontWeight: 600, color: t.bad }}>
-              {overdue.length} försenade
-            </span>
-            <span style={{ fontFamily: body, fontSize: 11, color: t.mute }}>·</span>
-            <span style={{ fontFamily: body, fontSize: 11, color: t.mute }}>
-              äldsta {shortDateSv(overdue[0]!.datum)}
-            </span>
-          </div>
-        </Tile>
+        <Link
+          href="/v3/garden/sasong"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            background: "rgba(176,69,46,0.08)",
+            border: `1px solid ${t.bad}`,
+            borderRadius: 14,
+            textDecoration: "none",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: body,
+              fontSize: 12,
+              fontWeight: 700,
+              color: t.bad,
+            }}
+          >
+            {overdue.length} försenad{overdue.length > 1 ? "e" : ""}
+          </span>
+          <span style={{ fontFamily: body, fontSize: 11, color: t.mute }}>
+            · äldsta {shortDateSv(overdue[0]!.datum)}
+          </span>
+          <ChevronRight size={13} color={t.bad} style={{ marginLeft: "auto" }} />
+        </Link>
       )}
+
+      {/* Kommande rader */}
       {upcoming.map((tk) => {
         const dotColor = TASK_STATUS_COLOR[tk.status] ?? ACC;
+        const isToday = tk.datum === today;
         return (
           <Link
             key={tk.id}
@@ -294,17 +257,17 @@ function UpcomingTasks({ tasks }: { tasks: SeasonTask[] }) {
               alignItems: "center",
               gap: 12,
               padding: "10px 14px",
-              background: t.paper,
-              border: `1px solid ${t.line}`,
+              background: isToday ? `${ACC}0F` : t.paper,
+              border: `1px solid ${isToday ? `${ACC}44` : t.line}`,
               borderRadius: 14,
               textDecoration: "none",
             }}
           >
             <span
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: 5,
+                width: 8,
+                height: 8,
+                borderRadius: 4,
                 background: dotColor,
                 flexShrink: 0,
               }}
@@ -323,8 +286,8 @@ function UpcomingTasks({ tasks }: { tasks: SeasonTask[] }) {
               >
                 {tk.uppgift || "Namnlös uppgift"}
               </div>
-              <div style={{ fontFamily: body, fontSize: 11, color: t.mute, marginTop: 2 }}>
-                {shortDateSv(tk.datum)}
+              <div style={{ fontFamily: body, fontSize: 11, color: t.mute, marginTop: 1 }}>
+                {isToday ? "Idag" : shortDateSv(tk.datum)}
                 {tk.typ ? ` · ${tk.typ}` : ""}
               </div>
             </div>
@@ -332,84 +295,156 @@ function UpcomingTasks({ tasks }: { tasks: SeasonTask[] }) {
           </Link>
         );
       })}
+
+      {/* Länk till säsongsplan */}
+      <Link
+        href="/v3/garden/sasong"
+        style={{
+          fontFamily: body,
+          fontSize: 12,
+          fontWeight: 600,
+          color: ACC,
+          textDecoration: "none",
+          padding: "4px 2px",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
+        Se hela säsongsplanen
+        <ChevronRight size={12} color={ACC} />
+      </Link>
     </div>
   );
 }
 
-// ── Aktiva växter denna säsong ──────────────────────────────────────────────
+// ── Att sköta nu — växter med kommande uppgifter ────────────────────────────
+// Visar växter som har uppgifter kopplade till dem de närmaste 60 dagarna.
 
-function ActivePlants({ plants, monthIdx }: { plants: Plant[]; monthIdx: number }) {
+function AttSkotaNu({ plants, tasks }: { plants: Plant[]; tasks: SeasonTask[] }) {
   const { t } = useWarmTheme();
-  const active = useMemo(() => plantsActiveThisSeason(plants, monthIdx).slice(0, 5), [plants, monthIdx]);
+  const today = isoToday();
 
-  if (active.length === 0) {
-    return (
-      <Tile t={t}>
-        <div style={{ ...ital(t, 13), textAlign: "center", padding: "8px 0" }}>
-          Inga växter passar säsongen just nu.
-        </div>
-      </Tile>
-    );
+  // ISO-datum 60 dagar framåt
+  const cutoff = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 60);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  // Samla plantIds som förekommer i kommande uppgifter
+  const activeIds = useMemo(() => {
+    const ids = new Set<string>();
+    tasks
+      .filter((tk) => tk.status !== "Klar" && tk.datum >= today && tk.datum <= cutoff)
+      .forEach((tk) => tk.plantIds.forEach((id) => ids.add(id)));
+    return ids;
+  }, [tasks, today, cutoff]);
+
+  const activePlants = useMemo(
+    () => plants.filter((p) => activeIds.has(p.id)).slice(0, 4),
+    [plants, activeIds],
+  );
+
+  if (activePlants.length === 0) {
+    return null; // dölj sektionen om inga träffar — vill inte visa tomma tillstånd
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {active.map((p) => {
-        const color = plantTypeColor(p.typ);
-        return (
-          <Link
-            key={p.id}
-            href={`/v3/garden/vaxt/${p.id}`}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "10px 14px",
-              background: t.paper,
-              border: `1px solid ${t.line}`,
-              borderRadius: 14,
-              textDecoration: "none",
-            }}
-          >
-            <span
+    <Section label="Att sköta nu">
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {activePlants.map((p) => {
+          const color = plantTypeColor(p.typ);
+          const plantTasks = tasks
+            .filter(
+              (tk) =>
+                tk.plantIds.includes(p.id) &&
+                tk.status !== "Klar" &&
+                tk.datum >= today &&
+                tk.datum <= cutoff,
+            )
+            .sort((a, b) => a.datum.localeCompare(b.datum));
+          const nextTask = plantTasks[0];
+
+          return (
+            <Link
+              key={p.id}
+              href={`/v3/garden/vaxt/${p.id}`}
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                background: t.paperHi,
-                border: `1px solid ${t.line}`,
-                display: "inline-flex",
+                display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
+                gap: 12,
+                padding: "10px 14px",
+                background: t.paper,
+                border: `1px solid ${t.line}`,
+                borderRadius: 14,
+                textDecoration: "none",
               }}
             >
-              {plantGlyph(p.typ, 16, color)}
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
+              <span
                 style={{
-                  fontFamily: body,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: t.ink,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
+                  width: 34,
+                  height: 34,
+                  borderRadius: 17,
+                  background: `${color}1A`,
+                  border: `1px solid ${color}33`,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
                 }}
               >
-                {p.vaxt || "Namnlös växt"}
+                {plantGlyph(p.typ, 16, color)}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontFamily: body,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: t.ink,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {p.vaxt || "Namnlös växt"}
+                </div>
+                {nextTask && (
+                  <div style={{ fontFamily: body, fontSize: 11, color: t.mute, marginTop: 1 }}>
+                    {nextTask.uppgift
+                      ? `${nextTask.uppgift.length > 28 ? nextTask.uppgift.slice(0, 27) + "…" : nextTask.uppgift}`
+                      : "Uppgift"}
+                    {" · "}
+                    {shortDateSv(nextTask.datum)}
+                    {plantTasks.length > 1 ? ` +${plantTasks.length - 1} till` : ""}
+                  </div>
+                )}
               </div>
-              <div style={{ fontFamily: body, fontSize: 11, color: t.mute, marginTop: 2 }}>
-                {p.typ}
-                {p.platser.length > 0 ? ` · ${p.platser.slice(0, 2).join(", ")}` : ""}
-              </div>
-            </div>
-            <ChevronRight size={14} color={t.dim} />
-          </Link>
-        );
-      })}
-    </div>
+              <ChevronRight size={14} color={t.dim} />
+            </Link>
+          );
+        })}
+
+        <Link
+          href="/v3/garden/vaxter"
+          style={{
+            fontFamily: body,
+            fontSize: 12,
+            fontWeight: 600,
+            color: ACC,
+            textDecoration: "none",
+            padding: "4px 2px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          Alla växter
+          <ChevronRight size={12} color={ACC} />
+        </Link>
+      </div>
+    </Section>
   );
 }
 
@@ -523,7 +558,7 @@ export default function GardenHubPage() {
         }
       />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: "0 18px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "0 18px" }}>
         {notReady ? (
           <Tile t={t}>
             <p style={{ fontFamily: body, fontSize: 13, color: t.mute, lineHeight: 1.55 }}>
@@ -533,19 +568,19 @@ export default function GardenHubPage() {
           </Tile>
         ) : (
           <>
-            <BriefingHero />
+            {/* Kompakt briefing-citat */}
+            <BriefingQuote />
 
-            <SeasonClock now={now} />
-
-            <Section label="Aktiva växter denna säsong">
-              <ActivePlants plants={plants} monthIdx={monthIdx} />
+            {/* Att göra nu — primärt content */}
+            <Section label="Att göra nu">
+              <AttGoraNu tasks={tasks} />
             </Section>
 
-            <Section label="Kommande uppgifter">
-              <UpcomingTasks tasks={tasks} />
-            </Section>
+            {/* Växter med kopplade kommande uppgifter */}
+            <AttSkotaNu plants={plants} tasks={tasks} />
 
-            <Section label="Hela trädgården">
+            {/* Dörr-tiles */}
+            <Section label="Trädgården">
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <DoorTile
                   href="/v3/garden/vaxter"

@@ -126,6 +126,20 @@ function mapPlant(page: NotionPageLike): Plant {
     skotselrad: readEmail(p["Skötselråd"]),
     atgardIds: readRelation(p["Åtgärder"]),
     notionUrl: page.url ?? notionUrl(page.id),
+    sorttnamn: readText(p["Sorttnamn"]) || null,
+    sadddatum: readDate(p["Sådddatum"]) || null,
+    antalPlantor: readNumber(p["Antal plantor"]),
+    fas: readSelect(p["Fas"]) || null,
+    sasongslangd: readNumber(p["Säsongslängd"]),
+    senastVattnad: readDate(p["Senast vattnad"]) || null,
+    vattningsintervall: readSelect(p["Vattningsintervall"]) || null,
+    vattningsnotering: readText(p["Vattningsnotering"]) || null,
+    naring: readText(p["Näring"]) || null,
+    ljusbehov: readText(p["Ljusbehov"]) || null,
+    temperaturintervall: readText(p["Temperaturintervall"]) || null,
+    hojd: readText(p["Höjd"]) || null,
+    skordeperiod: readText(p["Skördeperiod"]) || null,
+    skotselguide: readText(p["Skötselguide"]) || null,
   };
 }
 
@@ -200,6 +214,20 @@ function plantProps(input: PlantInput): Record<string, unknown> {
   if (input.godsling !== undefined) out["Gödsling"] = multiProp(input.godsling);
   if (input.skotselrad !== undefined) out["Skötselråd"] = emailProp(input.skotselrad);
   if (input.atgardIds !== undefined) out["Åtgärder"] = relationProp(input.atgardIds);
+  if (input.sorttnamn !== undefined) out["Sorttnamn"] = input.sorttnamn ? textProp(input.sorttnamn) : { rich_text: [] };
+  if (input.sadddatum !== undefined) out["Sådddatum"] = dateProp(input.sadddatum ?? "");
+  if (input.antalPlantor !== undefined) out["Antal plantor"] = numberProp(input.antalPlantor);
+  if (input.fas !== undefined) out["Fas"] = input.fas ? selectProp(input.fas) : { select: null };
+  if (input.sasongslangd !== undefined) out["Säsongslängd"] = numberProp(input.sasongslangd);
+  if (input.senastVattnad !== undefined) out["Senast vattnad"] = dateProp(input.senastVattnad ?? "");
+  if (input.vattningsintervall !== undefined) out["Vattningsintervall"] = input.vattningsintervall ? selectProp(input.vattningsintervall) : { select: null };
+  if (input.vattningsnotering !== undefined) out["Vattningsnotering"] = input.vattningsnotering ? textProp(input.vattningsnotering) : { rich_text: [] };
+  if (input.naring !== undefined) out["Näring"] = input.naring ? textProp(input.naring) : { rich_text: [] };
+  if (input.ljusbehov !== undefined) out["Ljusbehov"] = input.ljusbehov ? textProp(input.ljusbehov) : { rich_text: [] };
+  if (input.temperaturintervall !== undefined) out["Temperaturintervall"] = input.temperaturintervall ? textProp(input.temperaturintervall) : { rich_text: [] };
+  if (input.hojd !== undefined) out["Höjd"] = input.hojd ? textProp(input.hojd) : { rich_text: [] };
+  if (input.skordeperiod !== undefined) out["Skördeperiod"] = input.skordeperiod ? textProp(input.skordeperiod) : { rich_text: [] };
+  if (input.skotselguide !== undefined) out["Skötselguide"] = input.skotselguide ? textProp(input.skotselguide) : { rich_text: [] };
   return out;
 }
 
