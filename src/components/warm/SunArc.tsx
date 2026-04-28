@@ -36,6 +36,10 @@ export default function SunArc({
   const startX = 0;
   const baseY = height;
 
+  // Beräkna hur mycket bågen sticker upp ovanför y=0 (inkl. punkt + strålar).
+  const arcTopY = cy - r; // negativ om r > height
+  const topPad = Math.max(0, -arcTopY + 14); // 14 = punkt (r4) + strålar (l9) + marginal
+
   const arcPath = `M ${startX} ${baseY} A ${r} ${r} 0 0 1 ${width} ${baseY}`;
 
   // Beräkna progress (0 vid soluppgång, 1 vid solnedgång).
@@ -73,18 +77,16 @@ export default function SunArc({
   // Aktiv båg-segment från start till sol-positionen
   const activePath =
     progress != null && progress > 0 && dotX != null && dotY != null
-      ? `M ${startX} ${baseY} A ${r} ${r} 0 ${progress > 0.5 ? 1 : 0} 1 ${dotX.toFixed(
-          2
-        )} ${dotY.toFixed(2)}`
+      ? `M ${startX} ${baseY} A ${r} ${r} 0 0 1 ${dotX.toFixed(2)} ${dotY.toFixed(2)}`
       : null;
 
   return (
     <svg
       width={width}
-      height={height + 6}
-      viewBox={`0 0 ${width} ${height + 6}`}
+      height={height + 6 + topPad}
+      viewBox={`0 ${-topPad} ${width} ${height + 6 + topPad}`}
       aria-hidden="true"
-      style={{ display: "block", overflow: "visible" }}
+      style={{ display: "block", overflow: "hidden" }}
     >
       {/* Mark-linje (horisont) */}
       <line
