@@ -510,9 +510,17 @@ function LampRow({
   );
 }
 
-// ─── Klimat 3-col ────────────────────────────────────────────────────────────
+// ─── Klimat — individuella kort ──────────────────────────────────────────────
 
-function ClimateTriplet({
+type ClimateCard = {
+  key: string;
+  label: string;
+  sub: string | null;
+  value: string;
+  unit: string;
+};
+
+function ClimateCards({
   t,
   sensor,
   outdoorTemp,
@@ -521,72 +529,89 @@ function ClimateTriplet({
   sensor: SensorArea | undefined;
   outdoorTemp: number | null;
 }) {
-  const cells: Array<{ label: string; value: string; unit: string }> = [];
+  const cards: ClimateCard[] = [];
+
   if (sensor) {
-    cells.push({ label: "TEMP", value: sensor.temperature.toFixed(1), unit: "°C" });
+    cards.push({
+      key: "temp",
+      label: "TEMP",
+      sub: "inomhus",
+      value: sensor.temperature.toFixed(1),
+      unit: "°C",
+    });
     if (sensor.humidity != null) {
-      cells.push({
+      cards.push({
+        key: "hum",
         label: "LUFTFUKT",
+        sub: "inomhus",
         value: `${Math.round(sensor.humidity)}`,
         unit: "%",
       });
     }
   }
-  if (outdoorTemp != null) {
-    cells.push({ label: "UTE", value: outdoorTemp.toFixed(1), unit: "°" });
-  }
-  if (cells.length === 0) return null;
-  return (
-    <div
-      style={{
-        background: t.paper,
-        border: `1px solid ${t.line}`,
-        borderRadius: 14,
-        padding: 16,
-        display: "grid",
-        gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))`,
-        gap: 12,
-      }}
-    >
-      {cells.map((c) => (
-        <Stat key={c.label} t={t} label={c.label} value={c.value} unit={c.unit} />
-      ))}
-    </div>
-  );
-}
 
-function Stat({
-  t,
-  label,
-  value,
-  unit,
-}: {
-  t: WarmTheme;
-  label: string;
-  value: string;
-  unit: string;
-}) {
+  if (outdoorTemp != null) {
+    cards.push({
+      key: "ute",
+      label: "UTE",
+      sub: null,
+      value: outdoorTemp.toFixed(1),
+      unit: "°C",
+    });
+  }
+
+  if (cards.length === 0) return null;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <span style={{ ...lab(t, { fontSize: 9 }), color: t.dim }}>{label}</span>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
-        <span
-          className="warm-tab-nums"
-          style={{ ...num(t, 22, 400), lineHeight: 1.1 }}
-        >
-          {value}
-        </span>
-        <span
+    <div style={{ display: "flex", gap: 10 }}>
+      {cards.map((c) => (
+        <div
+          key={c.key}
           style={{
-            fontFamily: body,
-            fontSize: 11,
-            color: t.mute,
-            fontWeight: 500,
+            flex: 1,
+            background: t.paper,
+            border: `1px solid ${t.line}`,
+            borderRadius: 14,
+            padding: "14px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
           }}
         >
-          {unit}
-        </span>
-      </div>
+          <span style={{ ...lab(t, { fontSize: 9 }), color: t.dim }}>{c.label}</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 3, marginTop: 4 }}>
+            <span
+              className="warm-tab-nums"
+              style={{ ...num(t, 26, 400), lineHeight: 1 }}
+            >
+              {c.value}
+            </span>
+            <span
+              style={{
+                fontFamily: body,
+                fontSize: 13,
+                color: t.mute,
+                fontWeight: 500,
+              }}
+            >
+              {c.unit}
+            </span>
+          </div>
+          {c.sub && (
+            <span
+              style={{
+                fontFamily: body,
+                fontStyle: "italic",
+                fontSize: 11,
+                color: t.dim,
+                marginTop: 2,
+              }}
+            >
+              {c.sub}
+            </span>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -944,7 +969,7 @@ export default function WarmRoomDetail() {
         {(sensor || sensors?.outdoor_temp != null) && (
           <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <span style={lab(t)}>KLIMAT</span>
-            <ClimateTriplet
+            <ClimateCards
               t={t}
               sensor={sensor}
               outdoorTemp={sensors?.outdoor_temp ?? null}
