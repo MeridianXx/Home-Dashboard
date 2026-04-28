@@ -39,6 +39,7 @@ export default function SunArc({
   // Beräkna hur mycket bågen sticker upp ovanför y=0 (inkl. punkt + strålar).
   const arcTopY = cy - r; // negativ om r > height
   const topPad = Math.max(0, -arcTopY + 14); // 14 = punkt (r4) + strålar (l9) + marginal
+  const hPad = 10; // horisontell marginal så sol-strålar inte clipper vid soluppg/nedg
 
   const arcPath = `M ${startX} ${baseY} A ${r} ${r} 0 0 1 ${width} ${baseY}`;
 
@@ -82,9 +83,9 @@ export default function SunArc({
 
   return (
     <svg
-      width={width}
+      width={width + 2 * hPad}
       height={height + 6 + topPad}
-      viewBox={`0 ${-topPad} ${width} ${height + 6 + topPad}`}
+      viewBox={`${-hPad} ${-topPad} ${width + 2 * hPad} ${height + 6 + topPad}`}
       aria-hidden="true"
       style={{ display: "block", overflow: "hidden" }}
     >
