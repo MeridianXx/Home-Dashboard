@@ -148,7 +148,7 @@ export async function runWithTools(args: RunWithToolsArgs): Promise<RunWithTools
 
     // Pipe text-deltas vidare till klienten medan modellen skriver.
     if (onEvent) {
-      stream.on("text", (delta) => {
+      stream.on("text", (delta: string) => {
         onEvent({ type: "text", delta });
       });
     }

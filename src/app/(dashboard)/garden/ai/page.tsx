@@ -5,7 +5,7 @@
 // renderas som inline-chips i assistantens svar. Bilduppladdning som base64
 // (max 5 MB) så användaren kan visa upp en växtbild för diagnos.
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -269,7 +269,17 @@ function MessageBubble({ message }: { message: UIMessage }) {
 
 // ─── Huvudkomponent ──────────────────────────────────────────────────────────
 
+// useSearchParams() måste wrappas i Suspense vid prerendering.
+// Inner-komponenten gör allt jobb; default-export wrap:ar den.
 export default function GardenAIPage() {
+  return (
+    <Suspense fallback={null}>
+      <GardenAIPageInner />
+    </Suspense>
+  );
+}
+
+function GardenAIPageInner() {
   const search = useSearchParams();
   const initialPrompt = search.get("prompt") ?? "";
 
