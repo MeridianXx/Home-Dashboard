@@ -1,8 +1,8 @@
 "use client";
 
-// SunArc — visar solens dagsbåge ovanför horisonten med en prick som markerar
-// nuvarande sol-position. Beräknas från `sun.sun`s next_rising/next_setting +
-// rising-flagga (som indikerar om solen är på väg upp eller ned).
+// SunArc — visar solens dagsbåge ovanför horisonten med en sol-glyph som
+// markerar nuvarande position. Beräknas från `sun.sun`s next_rising/
+// next_setting (HA-entiteten).
 
 type SunPayload = {
   state: string;
@@ -28,27 +28,28 @@ export default function SunArc({
   dotColor: string;
   belowColor: string;
 }) {
-  // Båge går från (0, h) → mitten-topp (w/2, 0) → (w, h). Halv-cirkel.
-  // Pricken positioneras längs bågen baserat på dagens framsteg.
+  // Halv-cirkel: vänster (0, h) → topp (w/2, 0) → höger (w, h).
+  // Soluppgång = vänster ända, middag = topp, solnedgång = höger ända.
   const r = width / 2;
   const cx = width / 2;
   const cy = height;
   const startX = 0;
-  const endX = width;
   const baseY = height;
 
-  const arcPath = `M ${startX} ${baseY} A ${r} ${r} 0 0 1 ${endX} ${baseY}`;
+  const arcPath = `M ${startX} ${baseY} A ${r} ${r} 0 0 1 ${width} ${baseY}`;
 
-  // Bestäm dagens "soltid": föregående soluppg → nästa nedg, eller
-  // föregående nedg → nästa uppg om vi är efter solnedgång.
+  // Beräkna progress (0 vid soluppgång, 1 vid solnedgång).
+  // sun.sun.next_rising/next_setting är ALLTID framtida tidsstämplar.
+  // - Om solen är uppe (above_horizon): senaste rising = next_rising − 24h,
+  //   dagens slut = next_setting. progress = (now − prevRising) / dayLength.
+  // - Om solen är nere: visa ingen prick (utanför dagsbågen).
   const now = Date.now();
   const above = sun?.state === "above_horizon";
   const nextRising = sun?.next_rising ? new Date(sun.next_rising).getTime() : null;
   const nextSetting = sun?.next_setting ? new Date(sun.next_setting).getTime() : null;
 
-  let progress: number | null = null; // 0..1 längs bågen
+  let progress: number | null = null;
   if (above && nextSetting != null && nextRising != null) {
-    // Solen är uppe. Föregående soluppg = nästa soluppg − 24h (approx).
     const prevRising = nextRising - 24 * 3600 * 1000;
     const dayLength = nextSetting - prevRising;
     if (dayLength > 0) {
@@ -57,14 +58,25 @@ export default function SunArc({
   }
 
   // Punkt på halv-cirkeln vid `progress`:
-  // theta går från π (vänster, x=0) till 0 (höger, x=w), via π/2 (topp).
+  // theta går 0 → π, x = cx − r·cos(θ), y = cy − r·sin(θ).
+  // p=0  → θ=0  → (cx−r, cy) = vänster bas (soluppgång)
+  // p=0.5 → θ=π/2 → (cx, cy−r) = topp (middag)
+  // p=1  → θ=π  → (cx+r, cy) = höger bas (solnedgång)
   let dotX: number | null = null;
   let dotY: number | null = null;
   if (progress != null) {
-    const theta = Math.PI * (1 - progress);
+    const theta = Math.PI * progress;
     dotX = cx - r * Math.cos(theta);
     dotY = cy - r * Math.sin(theta);
   }
+
+  // Aktiv båg-segment från start till sol-positionen
+  const activePath =
+    progress != null && progress > 0 && dotX != null && dotY != null
+      ? `M ${startX} ${baseY} A ${r} ${r} 0 ${progress > 0.5 ? 1 : 0} 1 ${dotX.toFixed(
+          2
+        )} ${dotY.toFixed(2)}`
+      : null;
 
   return (
     <svg
@@ -95,26 +107,30 @@ export default function SunArc({
         opacity={0.6}
       />
       {/* Aktiv båge (från soluppg till nu) */}
-      {progress != null && progress > 0 && (() => {
-        const theta = Math.PI * (1 - progress);
-        const px = cx - r * Math.cos(theta);
-        const py = cy - r * Math.sin(theta);
-        const largeArc = progress > 0.5 ? 1 : 0;
-        return (
-          <path
-            d={`M ${startX} ${baseY} A ${r} ${r} 0 ${largeArc} 1 ${px.toFixed(
-              2
-            )} ${py.toFixed(2)}`}
-            fill="none"
-            stroke={arcColor}
-            strokeWidth={1.6}
-            strokeLinecap="round"
-          />
-        );
-      })()}
-      {/* Sol-prick */}
+      {activePath && (
+        <path
+          d={activePath}
+          fill="none"
+          stroke={arcColor}
+          strokeWidth={1.6}
+          strokeLinecap="round"
+        />
+      )}
+      {/* Sol-glyph på positionen — fylld cirkel + strålar för tydlighet */}
       {dotX != null && dotY != null && (
-        <circle cx={dotX} cy={dotY} r={5} fill={dotColor} />
+        <g transform={`translate(${dotX} ${dotY})`}>
+          <circle r={4} fill={dotColor} />
+          <g stroke={dotColor} strokeWidth={1.2} strokeLinecap="round">
+            <line x1={0} y1={-7} x2={0} y2={-9} />
+            <line x1={0} y1={7} x2={0} y2={9} />
+            <line x1={-7} y1={0} x2={-9} y2={0} />
+            <line x1={7} y1={0} x2={9} y2={0} />
+            <line x1={-5} y1={-5} x2={-6.5} y2={-6.5} />
+            <line x1={5} y1={-5} x2={6.5} y2={-6.5} />
+            <line x1={-5} y1={5} x2={-6.5} y2={6.5} />
+            <line x1={5} y1={5} x2={6.5} y2={6.5} />
+          </g>
+        </g>
       )}
     </svg>
   );

@@ -85,14 +85,18 @@ export function SceneGlyph({
   const props = baseSvg(size, color);
   switch (scene) {
     case "morgon":
-      // Halvsol över horisontlinje. Förenklad för läsbarhet vid 14 px.
+      // Hel sol med strålar (samma storlek som "Dag"-ikonen) över en
+      // horisontlinje = soluppgång. Tidigare halvsol-version blev för
+      // tunn vid 14–16 px; en full disk ger samma optiska tyngd som Dag.
       return (
         <svg {...props} style={style}>
-          <path d="M5 16h14" />
-          <path d="M7.5 16a4.5 4.5 0 0 1 9 0" />
-          <path d="M12 6v2.5" />
-          <path d="M5 11h2" />
-          <path d="M17 11h2" />
+          <circle cx="12" cy="10" r="3.4" />
+          <path d="M12 3.5v1.8" />
+          <path d="M4.5 10h1.8" />
+          <path d="M17.7 10h1.8" />
+          <path d="M5.6 3.6l1.3 1.3" />
+          <path d="M17.1 4.9l1.3-1.3" />
+          <path d="M3 17.5h18" />
         </svg>
       );
     case "dag":

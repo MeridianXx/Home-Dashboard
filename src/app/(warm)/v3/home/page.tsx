@@ -183,7 +183,15 @@ function HubHeading({
 
 // ─── Väderkort (klickbart → /v3/home/klimat) ────────────────────────────────
 
-function WeatherTile({ t, data }: { t: WarmTheme; data: WeatherData | undefined }) {
+function WeatherTile({
+  t,
+  data,
+  outdoorBt1,
+}: {
+  t: WarmTheme;
+  data: WeatherData | undefined;
+  outdoorBt1: number | null;
+}) {
   if (!data || !("current" in data)) {
     return (
       <Tile t={t}>
@@ -195,6 +203,9 @@ function WeatherTile({ t, data }: { t: WarmTheme; data: WeatherData | undefined 
   }
   const c = data.current;
   const Glyph = weatherGlyph(c.state);
+  // Ute-temp: alltid Nibe BT1 om tillgänglig (verklig sensor) — annars
+  // weather-entiteten som fallback.
+  const displayTemp = outdoorBt1 != null ? outdoorBt1 : c.temperature;
   const conditionSv = (() => {
     const map: Record<string, string> = {
       sunny: "klart",
@@ -276,7 +287,7 @@ function WeatherTile({ t, data }: { t: WarmTheme; data: WeatherData | undefined 
                   lineHeight: 1,
                 }}
               >
-                {Math.round(c.temperature)}
+                {Math.round(displayTemp)}
               </span>
               <span
                 style={{
@@ -405,7 +416,7 @@ function ScenesSection({
             >
               <SceneGlyph
                 scene={s.glyph}
-                size={14}
+                size={16}
                 color={isActive ? "#FFFBF0" : t.mute}
               />
               <span
@@ -484,13 +495,9 @@ function TibberTile({ t, energy }: { t: WarmTheme; energy: EnergyData | undefine
 
 function CarsTile({ t, cars }: { t: WarmTheme; cars: CarsData | undefined }) {
   const list = cars && "cars" in cars ? cars.cars : [];
-  // Visa bara Enyaq på hubben — full översikt över alla bilar finns
-  // på /v3/home/energi. "Skoda Enyaq" visas som "Enyaq".
-  const enyaq = list.find((c) => c.id.toLowerCase().includes("enyaq"));
-  const car = enyaq ?? list[0] ?? null;
-  const displayName = car?.name?.replace(/^Skoda\s+/i, "") ?? "";
-  const SAGE_GREEN = "#5A7F4A"; // matchar lightT.ok men hårt fixerat så det
-  // är samma signal i både light/dark
+  // "Skoda Enyaq" → "Enyaq" på hubben för att korta texten — full info finns
+  // på /v3/home/energi.
+  const cleanName = (n: string) => n.replace(/^Skoda\s+/i, "");
   return (
     <Tile
       t={t}
@@ -509,56 +516,76 @@ function CarsTile({ t, cars }: { t: WarmTheme; cars: CarsData | undefined }) {
       <div
         style={{
           display: "flex",
-          alignItems: "baseline",
-          gap: 4,
-          minHeight: 24,
+          flexDirection: "column",
+          gap: 2,
+          minHeight: 40,
+          justifyContent: "center",
         }}
       >
-        {car && (
-          <>
-            <span
-              className="warm-tab-nums"
-              style={{ ...num(t, 22, 400), lineHeight: 1.1, color: car.charging ? t.ok : t.ink }}
-            >
-              {car.soc}
-            </span>
+        {list.map((car) => (
+          <div
+            key={car.id}
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 6,
+            }}
+          >
             <span
               style={{
-                fontFamily: body,
-                fontSize: 11,
-                color: t.mute,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                fontFamily: serif,
+                fontSize: 14,
                 fontWeight: 500,
+                color: t.ink,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
-              %
+              {cleanName(car.name)}
+              {car.plugged_in && (
+                <span
+                  aria-label={car.charging ? "laddar" : "inkopplad"}
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: t.ok,
+                    flexShrink: 0,
+                  }}
+                />
+              )}
             </span>
-          </>
-        )}
+            <span
+              className="warm-tab-nums"
+              style={{
+                fontFamily: serif,
+                fontSize: 16,
+                color: car.charging ? t.ok : t.ink,
+                flexShrink: 0,
+              }}
+            >
+              {car.soc}
+              <span
+                style={{
+                  fontFamily: body,
+                  fontSize: 10,
+                  color: t.mute,
+                  marginLeft: 1,
+                  fontWeight: 500,
+                }}
+              >
+                %
+              </span>
+            </span>
+          </div>
+        ))}
       </div>
-      <span
-        style={{
-          ...ital(t, 12, t.dim),
-          minHeight: 16,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-        }}
-      >
-        {car?.plugged_in && (
-          <span
-            aria-label={car.charging ? "laddar" : "inkopplad"}
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: SAGE_GREEN,
-              display: "inline-block",
-              flexShrink: 0,
-            }}
-          />
-        )}
-        {displayName}
-      </span>
     </Tile>
   );
 }
@@ -605,7 +632,7 @@ function RoomList({
             gap: 3,
           }}
         >
-          alla rum & belysning
+          all belysning
           <ChevronRight size={11} color={t.dim} />
         </Link>
       </div>
@@ -804,7 +831,11 @@ export default function WarmHomeHub() {
           />
         )}
 
-        <WeatherTile t={t} data={weather} />
+        <WeatherTile
+          t={t}
+          data={weather}
+          outdoorBt1={sensors?.outdoor_temp ?? null}
+        />
 
         <ScenesSection
           t={t}
