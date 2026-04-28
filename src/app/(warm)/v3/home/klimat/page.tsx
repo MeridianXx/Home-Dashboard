@@ -717,9 +717,9 @@ export default function WarmKlimatPage() {
                 {/* Toggle-pillar för Nibe — varmvattenboost / nattsvalka / kaminläge */}
                 <div
                   style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 8,
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                    gap: 6,
                     marginTop: 14,
                   }}
                 >
@@ -728,11 +728,6 @@ export default function WarmKlimatPage() {
                     label="Boost VV"
                     active={hvac.nibe.hot_water_boost !== "Off"}
                     onClick={handleNibeBoost}
-                    note={
-                      hvac.nibe.hot_water_boost !== "Off"
-                        ? hvac.nibe.hot_water_boost
-                        : null
-                    }
                   />
                   <NibePill
                     t={t}
@@ -778,31 +773,16 @@ export default function WarmKlimatPage() {
                       : hvac.heat_pump.state}
                   </span>
                 </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                    gap: 12,
-                    marginTop: 10,
-                  }}
-                >
-                  {hvac.heat_pump.current_temp != null && (
+                {hvac.heat_pump.current_temp != null && (
+                  <div style={{ marginTop: 10 }}>
                     <ClimateStat
                       t={t}
                       label="RUMSTEMP"
                       value={hvac.heat_pump.current_temp.toFixed(1)}
                       unit="°"
                     />
-                  )}
-                  {hvac.heat_pump.target_temp != null && (
-                    <ClimateStat
-                      t={t}
-                      label="MÅL"
-                      value={`${hvac.heat_pump.target_temp}`}
-                      unit="°"
-                    />
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* Hero-läge: Kyla / Värme / Av */}
                 <div
@@ -1064,13 +1044,11 @@ function NibePill({
   label,
   active,
   onClick,
-  note,
 }: {
   t: WarmTheme;
   label: string;
   active: boolean;
   onClick: () => void | Promise<void>;
-  note?: string | null;
 }) {
   return (
     <WarmPress
@@ -1078,10 +1056,7 @@ function NibePill({
       ariaPressed={active}
       spinnerColor={active ? "#FFFBF0" : ACC}
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "7px 12px",
+        padding: "8px 6px",
         borderRadius: 999,
         background: active ? ACC : t.paperHi,
         border: `1px solid ${active ? ACC : t.line}`,
@@ -1092,19 +1067,7 @@ function NibePill({
         transition: "background 160ms",
       }}
     >
-      <span>{label}</span>
-      {note && (
-        <span
-          style={{
-            fontFamily: body,
-            fontStyle: "italic",
-            fontSize: 11,
-            opacity: 0.85,
-          }}
-        >
-          · {note}
-        </span>
-      )}
+      {label}
     </WarmPress>
   );
 }
