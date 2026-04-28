@@ -230,16 +230,32 @@ Varje session är **en egen chatt**, en egen commit-cykel, eget acceptance-test.
 **Mål:** Hela Homelab-sektionen i Warm Home.
 
 **Levererar:**
-- [ ] `(warm)/v3/lab/page.tsx` — `LabHub` med tillstånds-card, hosts (Proxmox/Unraid/eventuellt TrueNAS om det finns), services-strip
-- [ ] `(warm)/v3/lab/host/proxmox/page.tsx` — `LabDetalj`-mönstret: 3 ringar (CPU/RAM/Disk), Foot-rad (Temp/IO/Nät/Last), container-lista, actions (Backup/SSH/Starta om)
-- [ ] `(warm)/v3/lab/host/unraid/page.tsx` — anpassad efter Unraid: array-status, parity, cache pools, disk-temp-lista
-- [ ] Beslut i sessionen: services-strip vs egen `/v3/lab/services` (om det blir mer än 8 services rekommenderar designen ingenting — ta beslut och dokumentera)
-- [ ] Återanvänder `/api/proxmox/*`, `/api/unraid/*`, `/api/portainer/*` (alla data-only, oförändrade)
-- [ ] Action-knappar (Backup nu / SSH / Starta om) — bestäm om de faktiskt körs eller bara visuella i v3 (V2 har inte alla actions implementerade)
+- [x] `(warm)/v3/lab/page.tsx` — `LabHub` med tillstånds-card, två host-cards (Proxmox + Unraid), services-strip (3 räknare: VM/LXC, Docker · proxmox, Docker · unraid).
+- [x] `(warm)/v3/lab/host/proxmox/page.tsx` — back-chevron, ring-duo (CPU/RAM), foot-rad (NÄT IN/UT, VM/LXC, DOCKER), VM/LXC-lista, Portainer-containerlista med klickbara webui-pills, ÅTGÄRDER med Backup/SSH/Starta om som visuella platshållare.
+- [x] `(warm)/v3/lab/host/unraid/page.tsx` — back-chevron, ring-trio (CPU/RAM/ARRAY), foot-rad (DISKAR/PARITET/CACHE/LEDIGT), array-låda med `started`-state + 91 %-bar + disk-rader, cache-pool-lådor, docker-lista (8 default + "Visa alla N"), ÅTGÄRDER (Paritetscheck/Spin down/SSH).
+- [x] `src/components/warm/icons/lab.tsx` — `ServerIcon`, `StorageIcon`, `ContainerIcon`, `DiskDot`, `StatusDot`. 1.6 px stroke + utlinjeform.
+- [x] Återanvänder `/api/homelab/proxmox`, `/api/homelab/unraid`, `/api/homelab/portainer` orörda. (Path är `/api/homelab/...`, inte `/api/proxmox/...` som WARM_HOME.md tidigare antydde.)
+- [x] Action-knappar = visuella platshållare. `title="Ej implementerat — visuell platshållare"` + dashed-border + `cursor: not-allowed` + `aria-disabled` + footer-not "Åtgärderna är visuella platshållare och anropar inga tjänster ännu."
+- [x] **Beslut: services-strip på hubben, ingen egen `/v3/lab/services`.** Räknare i 3 boxar (VM/LXC, Docker · proxmox, Docker · unraid). Containrar listas i sin helhet på respektive host-detalj — separat tjänstesida hade bara duplicerat data.
 
-**Acceptance:** Lab-tab klar. Hosts klickbara → host-detalj → tillbaka.
+**Acceptance:** Lab-tab klar. Hosts klickbara → host-detalj → tillbaka. Verifierat i mobile (375 px) viewport, både ljust och mörkt tema. Inga route-fel i `/v3/lab`-grenen (de fel som syns i `preview_logs` är pre-existerande W1-issues i `/v3/home/klimat` + `/v3/home/rum/[slug]`).
 
-**Observera:** *tomt*
+**Observera:**
+- **Services-strip-beslut motiverat av datavolym.** Total = 7 Portainer-containers + 29 Unraid-containers + 5 Proxmox VM/LXC = 41 entiteter. En egen `/v3/lab/services`-sida hade dubbelt-listat det som redan finns på host-detaljerna. Hubben äger summan + tagline, host-detaljerna äger listan. Mönstret är samma som "korten är dörrar"-principen (W1 p1) — strippen är alltså inte en dörr utan en sammanställning.
+- **`Bar`-primitiven tar `t={t}` som första prop** (inte bara `value` och `color`). Den läser `t.line` som track-färg — utelämnas det får man "Cannot read properties of undefined". Värt att kolla primitivens signatur i `primitives.tsx` när man återanvänder den från ny kod.
+- **Foot-stat-funktionen återanvändbar men inte lyft än** — Proxmox och Unraid behöver båda en kompakt 3–4-kolumns mätar-rad med små tabular-nums. Skrev `FootRow` lokalt i Proxmox-filen och `FootStat` lokalt i Unraid (lite olika prop-set) hellre än att lyfta ut för tidigt; om W3 (Fitness) eller W4 (Trädgård) får liknande behov, plocka upp till `primitives.tsx` då.
+- **"Visa alla N"-button på Unraid-docker-listan** är en `<button>` direkt på sektionslådans bottensektion med `borderTop`. `useState` sparar expand-state. Default 8, expand → alla. Användaren behöver sällan se hela listan — alla `nextcloud-aio-*` paddar listan. Stoppade containers visas i samma ordning som API:t returnerar dem; kandidat: sortera stoppade först eller flagga rad-kant. Lämnas till W6.
+- **`cache2` rapporterar `spinning=true` + `temp=49°` men `used_pct=null`** från Unraid. UI:t visar "standby" italic även där eftersom `disk.used_pct == null`. Samma bug i v2 (samma villkor i `DiskTableRow`). Verklig orsak: cache2 är slav-disken i en BTRFS-mirror — Unraid-GraphQL exponerar inte fs-storlek per slav, bara på master. "standby" är vilseledande i det fallet, men eftersom det är en data-modellbegränsning (inte UI-bug) lämnas det. Kandidat till fix på API-sidan: i `/api/homelab/unraid` rapportera "BTRFS-slav" istället för null när disken är spinning men saknar fsSize. Skippas i W2.
+- **Tagline-logiken är optimistisk** ("Hemlab, allt rullar.") även när 9 services är stoppade, så länge båda hostarna är online. Stoppade services är ofta avsiktliga (homepage LXC, gamla nextcloud-aio-pre-services). Att flagga rött för avstängd `homepage` hade gjort hemmet alltid larmigt. Tröskeln "host nere" är striktare än "service avstängd" — bra default.
+- **`(warm)/v3/lab/host/[host]`-pattern ej använt** — endast två konkreta hosts finns och deras dataformer är så olika (Proxmox = VM/LXC + Portainer-Docker, Unraid = array + cache + Docker) att en delad mall hade krävt union-types som inte gav vinst. Två separata route-filer är enklare.
+- **`SectionBox`/`StorageBox` är lokala duplikater** (Proxmox-filen har sin variant, Unraid har en annan med `summary`-prop). Ej lyfta till primitives ännu — vänta på W3/W4 för att se om mönstret stabiliseras eller om var sektion behöver sina specialfält.
+- **`StatusDot` som hollow ring (no fill, border only) vid `ok=false`** är ett mer subtilt sätt att signalera "inte aktivt" än röd punkt. Använd genomgående: tomma cirkel = vilande/avstängd, fylld = aktiv. Disk `DiskDot` följer samma princip (spinning=fyllt, standby=tomt).
+- **Portainer-webui-pillar har `onClick stopPropagation`** så klickar inte triggar förälderns Link. Pillen själv är `<a target="_blank">` direkt — användaren öppnar i ny flik, host-detaljen håller sig kvar.
+
+**Öppna frågor / vidare till W3+:**
+- **Tagline-styrka:** "Hemlab, allt rullar." är samma evergreen oavsett antal stoppade services. Kandidat: visa antal nere i tagline-kursiven när det är ovanligt högt (`> 10`). Kommer först om det blir ett verkligt problem.
+- **Action-knappar — när hänger på riktigt?** Backup/SSH/Starta om/Paritetscheck/Spin down är verkliga behov, men kräver separata API-endpoints (`POST /api/homelab/proxmox/backup`, `POST /api/homelab/unraid/spin_down`, etc.). Var och en är icke-trivial (auth, error-states, async polling). Park i W6+ och kom tillbaka när dashboarden är komplett.
+- **TrueNAS / annan host:** finns inte i hemmet idag. Om en tredje host läggs till, är `lab/page.tsx` lätt att utöka med ett tredje `<HostCard>` — strukturen är list-driven men just nu hårdkodade två rader.
 
 ---
 
