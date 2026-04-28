@@ -580,11 +580,11 @@ export default function WarmKlimatPage() {
             })),
           ];
 
-          // UTOMHUS: BT1 överst, sedan Växthus
-          const nibeOutdoor = hvac?.nibe?.outdoor_temp ?? null;
+          // UTOMHUS: BT1 överst (sensors.outdoor_temp = sensor.nibe_utomhustemperatur_bt1),
+          // sedan Växthus
           const outdoorRows: SensorRow[] = [
-            ...(nibeOutdoor != null
-              ? [{ key: "nibe-bt1", label: "Utomhustemperatur", temperature: nibeOutdoor, humidity: null }]
+            ...(sensors.outdoor_temp != null
+              ? [{ key: "nibe-bt1", label: "Utomhustemperatur", temperature: sensors.outdoor_temp, humidity: null }]
               : []),
             ...greens.map((a) => ({
               key: a.area_id,
