@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useHydrated, useWarmTheme } from "@/lib/warm/theme";
@@ -17,7 +17,7 @@ import {
 } from "@/lib/warm/tokens";
 import { Bar } from "@/components/warm/primitives";
 import { ChevronRight } from "@/components/warm/icons/extra";
-import { ServerIcon, StorageIcon, ContainerIcon, StatusDot } from "@/components/warm/icons/lab";
+import { ServerIcon, StorageIcon, StatusDot } from "@/components/warm/icons/lab";
 import { ThemeIcon } from "@/components/warm/icons";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import { formatTime } from "@/lib/warm/format";
@@ -176,7 +176,7 @@ function HubHeading({
           letterSpacing: "-0.02em",
         }}
       >
-        Hemlab,{" "}
+        Homelab,{" "}
         <span style={{ ...ital(t, 32, t.dim), fontWeight: 400 }}>
           allt rullar.
         </span>
@@ -273,6 +273,7 @@ function HostCard({
   storagePct,
   storageOk,
   servicesLabel,
+  webui,
   loading,
 }: {
   t: WarmTheme;
@@ -289,27 +290,30 @@ function HostCard({
   storagePct: number | null;
   storageOk: boolean | null;
   servicesLabel: string;
+  webui: string;
   loading: boolean;
 }) {
+  const router = useRouter();
   return (
-    <Link
-      href={href}
+    <div
+      onClick={() => router.push(href)}
       style={{
         display: "block",
-        textDecoration: "none",
         color: t.ink,
         background: t.paper,
         border: `1px solid ${t.line}`,
         borderRadius: 16,
         padding: 16,
+        cursor: "pointer",
       }}
     >
+      {/* Header: icon + title/status + chevron */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 14,
+          marginBottom: 6,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -322,6 +326,7 @@ function HostCard({
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
+              flexShrink: 0,
             }}
           >
             {icon}
@@ -348,117 +353,124 @@ function HostCard({
                 gap: 5,
               }}
             >
-              <StatusDot
-                ok={online}
-                color={online ? SAGE : t.bad}
-                size={6}
-              />
-              {loading
-                ? "hämtar…"
-                : online
-                ? `online · ${uptime}`
-                : "offline"}
+              <StatusDot ok={online} color={online ? SAGE : t.bad} size={6} />
+              {loading ? "hämtar…" : online ? `online · ${uptime}` : "offline"}
             </span>
           </div>
         </div>
-        <ChevronRight size={16} color={t.dim} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <a
+            href={webui}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              fontFamily: body,
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.07em",
+              textTransform: "uppercase" as const,
+              color: t.mute,
+              textDecoration: "none",
+              padding: "3px 8px",
+              borderRadius: 6,
+              border: `1px solid ${t.line}`,
+              background: t.paperHi,
+            }}
+          >
+            WebUI ↗
+          </a>
+          <ChevronRight size={16} color={t.dim} />
+        </div>
       </div>
 
-      {/* Stats: CPU / RAM */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap: 10,
-          marginBottom: storageLabel != null ? 10 : 0,
-        }}
-      >
-        <StatBlock t={t} label="CPU" value={`${cpu_pct}%`} pct={cpu_pct} />
-        <StatBlock
+      {/* Services summary — full-width row, small italic, no wrap risk */}
+      {!loading && servicesLabel && (
+        <p
+          style={{
+            fontFamily: body,
+            fontSize: 10,
+            color: t.dim,
+            fontStyle: "italic",
+            margin: "0 0 10px 0",
+            lineHeight: 1.3,
+          }}
+        >
+          {servicesLabel}
+        </p>
+      )}
+
+      {/* Stats: flat rows — no nested boxes */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        <FlatStatRow t={t} label="CPU" value={`${cpu_pct}%`} pct={cpu_pct} />
+        <FlatStatRow
           t={t}
           label="RAM"
           value={`${mem_used_gb.toFixed(1)}/${mem_total_gb.toFixed(0)} GB`}
           pct={mem_pct}
         />
-      </div>
-
-      {/* Storage-rad */}
-      {storageLabel != null && storagePct != null && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            paddingTop: 10,
-            borderTop: `1px solid ${t.line}`,
-          }}
-        >
-          <span style={{ ...lab(t), minWidth: 56 }}>LAGRING</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Bar
-              t={t}
-              value={storagePct}
-              color={
-                storagePct >= 90
-                  ? t.bad
-                  : storagePct >= 80
-                  ? t.warn
-                  : SAGE
-              }
-              height={5}
-            />
+        {storageLabel != null && storagePct != null && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              paddingTop: 6,
+              borderTop: `1px solid ${t.line}`,
+            }}
+          >
+            <span style={{ ...lab(t), minWidth: 44 }}>ARRAY</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Bar
+                t={t}
+                value={storagePct}
+                color={storagePct >= 90 ? t.bad : storagePct >= 80 ? t.warn : SAGE}
+                height={4}
+              />
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                minWidth: 0,
+              }}
+            >
+              <span
+                className="warm-tab-nums"
+                style={{
+                  fontFamily: body,
+                  fontSize: 11,
+                  color:
+                    storagePct >= 90 ? t.bad : storagePct >= 80 ? t.warn : t.mute,
+                  fontWeight: 500,
+                }}
+              >
+                {storageLabel}
+              </span>
+              {storageOk != null && (
+                <span
+                  style={{
+                    fontFamily: body,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase" as const,
+                    color: storageOk ? SAGE : t.warn,
+                  }}
+                >
+                  {storageOk ? "✓" : "!"}
+                </span>
+              )}
+            </div>
           </div>
-          <span
-            className="warm-tab-nums"
-            style={{
-              fontFamily: body,
-              fontSize: 11,
-              color:
-                storagePct >= 90
-                  ? t.bad
-                  : storagePct >= 80
-                  ? t.warn
-                  : t.mute,
-              fontWeight: 500,
-            }}
-          >
-            {storageLabel}
-          </span>
-        </div>
-      )}
-
-      {/* Tjänst-rad */}
-      <div
-        style={{
-          marginTop: storageLabel != null ? 8 : 10,
-          paddingTop: storageLabel != null ? 0 : 10,
-          borderTop: storageLabel != null ? "none" : `1px solid ${t.line}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <span style={ital(t, 12, t.mute)}>{servicesLabel}</span>
-        {storageOk != null && (
-          <span
-            style={{
-              fontFamily: body,
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: storageOk ? SAGE : t.warn,
-            }}
-          >
-            {storageOk ? "✓ paritet ok" : "kontrollera"}
-          </span>
         )}
       </div>
-    </Link>
+    </div>
   );
 }
 
-function StatBlock({
+function FlatStatRow({
   t,
   label,
   value,
@@ -469,111 +481,86 @@ function StatBlock({
   value: string;
   pct: number;
 }) {
+  const color = pct >= 85 ? t.bad : pct >= 70 ? t.warn : ACC;
   return (
-    <div
-      style={{
-        background: t.paperHi,
-        border: `1px solid ${t.line}`,
-        borderRadius: 12,
-        padding: "9px 11px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
-    >
-      <div
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ ...lab(t), minWidth: 32 }}>{label}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Bar t={t} value={pct} color={color} height={4} />
+      </div>
+      <span
+        className="warm-tab-nums"
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
+          fontFamily: body,
+          fontSize: 11,
+          fontWeight: 500,
+          color: pct >= 70 ? color : t.mute,
+          minWidth: 56,
+          textAlign: "right" as const,
         }}
       >
-        <span style={lab(t)}>{label}</span>
-        <span
-          className="warm-tab-nums"
-          style={{
-            fontFamily: serif,
-            fontSize: 14,
-            fontWeight: 500,
-            color: t.ink,
-            letterSpacing: "-0.01em",
-          }}
-        >
-          {value}
-        </span>
-      </div>
-      <Bar
-        t={t}
-        value={pct}
-        color={pct >= 85 ? t.bad : pct >= 70 ? t.warn : ACC}
-        height={4}
-      />
+        {value}
+      </span>
     </div>
   );
 }
 
-// ─── Services-strip ──────────────────────────────────────────────────────────
+// ─── Services grid ───────────────────────────────────────────────────────────
 
-function ServicesStrip({
-  t,
-  proxVms,
-  proxContainers,
-  unraidContainers,
-}: {
-  t: WarmTheme;
-  proxVms: number;
-  proxContainers: number;
-  unraidContainers: number;
-}) {
-  const items: Array<{ label: string; count: number; tone: string }> = [
-    { label: "VM/LXC", count: proxVms, tone: "vm" },
-    { label: "Docker · proxmox", count: proxContainers, tone: "ctr" },
-    { label: "Docker · unraid", count: unraidContainers, tone: "ctr" },
-  ];
+const NAMED_SERVICES = [
+  { name: "HA", href: "https://iot.inicio.cloud" },
+  { name: "Nextcloud", href: "https://nextcloud.inicio.cloud" },
+  { name: "Adguard", href: "https://adblock.inicio.cloud" },
+  { name: "Portainer", href: "https://portainer.inicio.cloud" },
+  { name: "Seerr", href: "https://overseerr.inicio.cloud" },
+  { name: "Sonarr", href: "https://sonarr.inicio.cloud" },
+  { name: "Radarr", href: "https://radarr.inicio.cloud" },
+  { name: "Torrent", href: "https://torrent.inicio.cloud" },
+];
+
+function ServicesGrid({ t }: { t: WarmTheme }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <span style={lab(t)}>TJÄNSTER</span>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
           gap: 8,
         }}
       >
-        {items.map((it) => (
-          <div
-            key={it.label}
+        {NAMED_SERVICES.map((svc) => (
+          <a
+            key={svc.name}
+            href={svc.href}
             style={{
               background: t.paper,
               border: `1px solid ${t.line}`,
               borderRadius: 12,
-              padding: "10px 12px",
+              padding: "10px 10px 8px",
               display: "flex",
               flexDirection: "column",
-              gap: 4,
+              gap: 6,
+              textDecoration: "none",
+              color: t.ink,
             }}
           >
-            <span
-              className="warm-tab-nums"
-              style={{
-                ...num(t, 22, 400),
-                lineHeight: 1,
-              }}
-            >
-              {it.count}
-            </span>
+            <StatusDot ok={true} color={SAGE} size={7} />
             <span
               style={{
                 fontFamily: body,
-                fontSize: 10,
-                fontWeight: 500,
+                fontSize: 11,
+                fontWeight: 600,
                 color: t.mute,
-                letterSpacing: "0.04em",
+                letterSpacing: "0.01em",
+                whiteSpace: "nowrap" as const,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}
             >
-              {it.label}
+              {svc.name}
             </span>
-          </div>
+          </a>
         ))}
       </div>
     </div>
@@ -660,6 +647,7 @@ export default function WarmLabHub() {
           <HostCard
             t={t}
             href="/v3/lab/host/proxmox"
+            webui="https://proxmox.inicio.cloud"
             icon={<ServerIcon size={16} color={ACC} />}
             title={proxNode?.node ?? "proxmox"}
             online={proxOnline}
@@ -684,8 +672,9 @@ export default function WarmLabHub() {
           <HostCard
             t={t}
             href="/v3/lab/host/unraid"
+            webui="https://unraid.inicio.cloud"
             icon={<StorageIcon size={16} color={ACC} />}
-            title={unraid?.system?.hostname ?? "unraid"}
+            title="unraid"
             online={unraidOnline}
             uptime={unraid?.system?.uptime ?? "—"}
             cpu_pct={unraid?.system?.cpu_pct ?? 0}
@@ -712,32 +701,32 @@ export default function WarmLabHub() {
           />
         </div>
 
-        <ServicesStrip
-          t={t}
-          proxVms={proxVmsRunning}
-          proxContainers={proxContainers}
-          unraidContainers={unraidContainers}
-        />
+        <ServicesGrid t={t} />
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            paddingTop: 4,
-          }}
-        >
-          <span
+        {/* Status-sektion — placeholder */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <span style={lab(t)}>STATUS</span>
+          <div
             style={{
-              ...ital(t, 12, t.dim),
-              display: "inline-flex",
+              border: `1px dashed ${t.line}`,
+              borderRadius: 14,
+              padding: "20px 16px",
+              display: "flex",
+              flexDirection: "column",
               alignItems: "center",
               gap: 6,
+              background: t.paper,
             }}
           >
-            <ContainerIcon size={13} color={t.dim} />
-            klicka en host för detaljer
-          </span>
+            <span style={{ ...num(t, 13, 400), color: t.dim }}>
+              Kommer snart
+            </span>
+            <span style={ital(t, 12, t.dim)}>
+              uptime · latensmätningar · varningar
+            </span>
+          </div>
         </div>
+
       </div>
     </>
   );
