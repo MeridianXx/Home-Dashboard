@@ -26,14 +26,16 @@ export function Field({
   label,
   children,
   hint,
+  style,
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  style?: CSSProperties;
 }) {
   const { t } = useWarmTheme();
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, ...style }}>
       <span style={lab(t)}>{label}</span>
       {children}
       {hint ? (

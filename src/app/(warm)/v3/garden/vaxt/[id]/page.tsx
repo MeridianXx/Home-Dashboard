@@ -408,10 +408,10 @@ function EditModal({
         <input style={iStyle} value={form.sorttnamn} onChange={(e) => set("sorttnamn", e.target.value)} placeholder="t.ex. San Marzano" />
       </Field>
       <Field label="Typ" style={{ marginBottom: 10 }}>
-        <SelectBox t={t} value={form.typ} onChange={(v) => set("typ", v)} options={PLANT_TYPES} placeholder="Välj typ" />
+        <SelectBox value={form.typ} onChange={(v) => set("typ", v)} options={PLANT_TYPES} placeholder="Välj typ" />
       </Field>
       <Field label="Plats" style={{ marginBottom: 16 }}>
-        <MultiSelectChips t={t} value={form.platser} onChange={(v) => set("platser", v)} options={PLANT_LOCATIONS} />
+        <MultiSelectChips values={form.platser} onChange={(v) => set("platser", v)} options={PLANT_LOCATIONS} />
       </Field>
 
       {/* Livscykel */}
@@ -419,7 +419,7 @@ function EditModal({
         Livscykel
       </div>
       <Field label="Fas" style={{ marginBottom: 10 }}>
-        <SelectBox t={t} value={form.fas} onChange={(v) => set("fas", v)} options={PHASES} placeholder="Välj fas" />
+        <SelectBox value={form.fas} onChange={(v) => set("fas", v)} options={PHASES} placeholder="Välj fas" />
       </Field>
       <Field label="Sådddatum" style={{ marginBottom: 10 }}>
         <input type="date" style={iStyle} value={form.sadddatum} onChange={(e) => set("sadddatum", e.target.value)} />
@@ -439,7 +439,7 @@ function EditModal({
         <input type="date" style={iStyle} value={form.senastVattnad} onChange={(e) => set("senastVattnad", e.target.value)} />
       </Field>
       <Field label="Vattningsintervall" style={{ marginBottom: 10 }}>
-        <SelectBox t={t} value={form.vattningsintervall} onChange={(v) => set("vattningsintervall", v)} options={WATERING_INTERVALS} placeholder="Välj frekvens" />
+        <SelectBox value={form.vattningsintervall} onChange={(v) => set("vattningsintervall", v)} options={WATERING_INTERVALS} placeholder="Välj frekvens" />
       </Field>
       <Field label="Vattningsnotering" style={{ marginBottom: 10 }}>
         <input style={iStyle} value={form.vattningsnotering} onChange={(e) => set("vattningsnotering", e.target.value)} placeholder="t.ex. jord torr ca 2 cm ner" />
@@ -473,10 +473,10 @@ function EditModal({
         />
       </Field>
       <Field label="Beskärning" style={{ marginBottom: 10 }}>
-        <MultiSelectChips t={t} value={form.beskarning} onChange={(v) => set("beskarning", v)} options={PRUNING_SEASONS} />
+        <MultiSelectChips values={form.beskarning} onChange={(v) => set("beskarning", v)} options={PRUNING_SEASONS} />
       </Field>
       <Field label="Gödsling" style={{ marginBottom: 0 }}>
-        <MultiSelectChips t={t} value={form.godsling} onChange={(v) => set("godsling", v)} options={FERTILIZE_SEASONS} />
+        <MultiSelectChips values={form.godsling} onChange={(v) => set("godsling", v)} options={FERTILIZE_SEASONS} />
       </Field>
     </WarmModal>
   );

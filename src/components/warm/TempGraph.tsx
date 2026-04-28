@@ -233,7 +233,7 @@ export default function TempGraph({
           fill={t.dim}
           fontSize={9}
           fontFamily={body}
-          fontVariantNumeric="tabular-nums"
+          style={{ fontVariantNumeric: "tabular-nums" }}
         >
           {yMax}°
         </text>
@@ -243,7 +243,7 @@ export default function TempGraph({
           fill={t.dim}
           fontSize={9}
           fontFamily={body}
-          fontVariantNumeric="tabular-nums"
+          style={{ fontVariantNumeric: "tabular-nums" }}
         >
           {yMin}°
         </text>
@@ -264,7 +264,7 @@ export default function TempGraph({
               fill={t.dim}
               fontSize={9}
               fontFamily={body}
-              fontVariantNumeric="tabular-nums"
+              style={{ fontVariantNumeric: "tabular-nums" }}
               textAnchor="middle"
             >
               {lbl}

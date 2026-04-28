@@ -326,7 +326,7 @@ function CreateModal({
         <SelectBox value={form.typ} onChange={(v) => set("typ", v)} options={PLANT_TYPES} placeholder="Välj typ" />
       </Field>
       <Field label="Plats" style={{ marginBottom: 16 }}>
-        <MultiSelectChips value={form.platser} onChange={(v) => set("platser", v)} options={PLANT_LOCATIONS} />
+        <MultiSelectChips values={form.platser} onChange={(v) => set("platser", v)} options={PLANT_LOCATIONS} />
       </Field>
 
       <div style={{ fontFamily: body, fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: ACC, marginBottom: 8 }}>Livscykel</div>
@@ -368,10 +368,10 @@ function CreateModal({
         <textarea style={{ ...iStyle, height: 80, resize: "vertical" as const }} value={form.skotselguide} onChange={(e) => set("skotselguide", e.target.value)} placeholder="Beskriv skötseln och växtens egenskaper." />
       </Field>
       <Field label="Beskärning" style={{ marginBottom: 10 }}>
-        <MultiSelectChips value={form.beskarning} onChange={(v) => set("beskarning", v)} options={PRUNING_SEASONS} />
+        <MultiSelectChips values={form.beskarning} onChange={(v) => set("beskarning", v)} options={PRUNING_SEASONS} />
       </Field>
       <Field label="Gödsling" style={{ marginBottom: 0 }}>
-        <MultiSelectChips value={form.godsling} onChange={(v) => set("godsling", v)} options={FERTILIZE_SEASONS} />
+        <MultiSelectChips values={form.godsling} onChange={(v) => set("godsling", v)} options={FERTILIZE_SEASONS} />
       </Field>
     </WarmModal>
   );
