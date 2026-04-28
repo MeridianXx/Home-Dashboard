@@ -596,10 +596,12 @@ function RoomList({
   t,
   lights,
   sensors,
+  onToggleArea,
 }: {
   t: WarmTheme;
   lights: LightsData | undefined;
   sensors: SensorsData | undefined;
+  onToggleArea: (area: LightArea) => Promise<void> | void;
 }) {
   const rooms = useMemo(
     () =>
@@ -673,55 +675,91 @@ function RoomList({
           }
           const subtitle = subtitleParts.join(" · ");
           return (
-            <Link
+            <div
               key={r.slug}
-              href={`/v3/home/rum/${r.slug}`}
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 14,
-                padding: "12px 16px",
-                color: t.ink,
                 borderTop: i === 0 ? "none" : `1px solid ${t.line}`,
-                textDecoration: "none",
               }}
             >
-              <span
+              {/* Dot-knappen — togglar rummets lampor på/av */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (r.lightArea) onToggleArea(r.lightArea);
+                }}
+                disabled={!r.lightArea}
+                aria-label={
+                  r.lightArea
+                    ? on
+                      ? `Släck ${r.name}`
+                      : `Tänd ${r.name}`
+                    : `${r.name} har inga lampor`
+                }
                 style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: on ? ACC : "transparent",
-                  border: `1.5px solid ${on ? ACC : t.dim}`,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "12px 0 12px 16px",
+                  cursor: r.lightArea ? "pointer" : "default",
                   flexShrink: 0,
                 }}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p
+              >
+                <span
+                  aria-hidden="true"
                   style={{
-                    fontFamily: serif,
-                    fontSize: 16,
-                    fontWeight: 500,
-                    color: t.ink,
-                    letterSpacing: "-0.01em",
-                    lineHeight: 1.15,
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: on ? ACC : "transparent",
+                    border: `1.5px solid ${on ? ACC : t.dim}`,
+                    transition: "background-color 160ms, border-color 160ms",
                   }}
-                >
-                  {r.name}
-                </p>
-                {subtitle && (
+                />
+              </button>
+              {/* Resten av raden = Link till rum-detalj */}
+              <Link
+                href={`/v3/home/rum/${r.slug}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  padding: "12px 16px 12px 14px",
+                  color: t.ink,
+                  textDecoration: "none",
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <p
                     style={{
-                      ...ital(t, 12, t.mute),
-                      marginTop: 2,
+                      fontFamily: serif,
+                      fontSize: 16,
+                      fontWeight: 500,
+                      color: t.ink,
+                      letterSpacing: "-0.01em",
+                      lineHeight: 1.15,
                     }}
                   >
-                    {subtitle}
+                    {r.name}
                   </p>
-                )}
-              </div>
-              <ChevronRight size={16} color={t.dim} />
-            </Link>
+                  {subtitle && (
+                    <p
+                      style={{
+                        ...ital(t, 12, t.mute),
+                        marginTop: 2,
+                      }}
+                    >
+                      {subtitle}
+                    </p>
+                  )}
+                </div>
+                <ChevronRight size={16} color={t.dim} />
+              </Link>
+            </div>
           );
         })}
       </div>
@@ -809,6 +847,14 @@ export default function WarmHomeHub() {
     }
   };
 
+  const handleToggleArea = async (area: LightArea) => {
+    const ids = area.lights.map((l) => l.entity_id);
+    if (ids.length === 0) return;
+    await callAction("light", area.on_count > 0 ? "turn_off" : "turn_on", ids);
+    await new Promise((r) => setTimeout(r, 400));
+    await mLights();
+  };
+
   return (
     <>
       <HubHeading t={t} dark={dark} onToggle={toggle} />
@@ -866,7 +912,12 @@ export default function WarmHomeHub() {
           </Link>
         </div>
 
-        <RoomList t={t} lights={lights} sensors={sensors} />
+        <RoomList
+          t={t}
+          lights={lights}
+          sensors={sensors}
+          onToggleArea={handleToggleArea}
+        />
       </div>
     </>
   );
