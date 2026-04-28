@@ -643,7 +643,7 @@ function RoomList({
         <Link
           href="/v3/home/belysning"
           style={{
-            ...ital(t, 12, t.dim),
+            ...ital(t, 12, ACC),
             textDecoration: "none",
             display: "inline-flex",
             alignItems: "center",
@@ -651,7 +651,7 @@ function RoomList({
           }}
         >
           all belysning
-          <ChevronRight size={11} color={t.dim} />
+          <ChevronRight size={11} color={ACC} />
         </Link>
       </div>
       <div
