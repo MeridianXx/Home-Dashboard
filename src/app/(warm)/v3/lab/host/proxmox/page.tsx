@@ -91,23 +91,44 @@ function PageHeading({
         gap: 8,
       }}
     >
-      <button
-        type="button"
-        onClick={back}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-          fontFamily: body,
-          fontSize: 14,
-          color: t.mute,
-          cursor: "pointer",
-          alignSelf: "flex-start",
-        }}
-      >
-        <ChevronLeft size={14} color={t.mute} />
-        Lab
-      </button>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button
+          type="button"
+          onClick={back}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            fontFamily: body,
+            fontSize: 14,
+            color: t.mute,
+            cursor: "pointer",
+          }}
+        >
+          <ChevronLeft size={14} color={t.mute} />
+          Lab
+        </button>
+        <a
+          href="https://proxmox.inicio.cloud"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontFamily: body,
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: "0.07em",
+            textTransform: "uppercase" as const,
+            color: t.mute,
+            textDecoration: "none",
+            padding: "3px 8px",
+            borderRadius: 6,
+            border: `1px solid ${t.line}`,
+            background: t.paperHi,
+          }}
+        >
+          WebUI ↗
+        </a>
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span
           style={{ ...lab(t), color: ACC, letterSpacing: "0.18em" }}
@@ -117,14 +138,14 @@ function PageHeading({
         </span>
         <h1
           style={{
-            ...num(t, 30, 400),
+            ...num(t, 32, 400),
             lineHeight: 1.05,
             letterSpacing: "-0.02em",
           }}
         >
-          {title},{" "}
-          <span style={{ ...ital(t, 30, t.dim) }}>{italicTail}</span>
+          {title}
         </h1>
+        <p style={{ ...ital(t, 14, t.dim), marginTop: -2 }}>{italicTail}</p>
         <span
           style={{
             fontFamily: body,
