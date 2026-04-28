@@ -1,19 +1,18 @@
 "use client";
 
 // ─── Warm Home · Trädgård · Säsongsplan ─────────────────────────────────────
-// Tre vy-lägen: Kalender / Lista / Per växt. CRUD via WarmModal (portal). Allt
-// stylas inline mot Warm-tokens. Klick på dag = ny uppgift. Klick på etikett
-// = redigera. "Markera klar"-bock-knapp i listan.
+// Kalender alltid synlig överst. Under den: uppgifter grupperade per tidsperiod
+// (Försenade / Denna vecka / Nästa vecka / månad-för-månad).
+// CRUD via WarmModal (portal). Klick på dag = ny uppgift med datum förifyllt.
+// Klick på dag-event = redigera. "Markera klar"-bock-knapp på rader.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useWarmTheme } from "@/lib/warm/theme";
 import {
   ACC,
-  AMBER,
-  SAGE,
-  SKY,
   body,
   ital,
   lab,
@@ -21,12 +20,11 @@ import {
 } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { DetailHero } from "@/components/warm/fit/parts";
-import { ChevronLeft, ChevronRight, CheckIcon } from "@/components/warm/icons/extra";
+import { ChevronLeft, ChevronRight } from "@/components/warm/icons/extra";
 import {
-  CalendarIcon,
-  ListIcon,
   PlusIcon,
   CheckCircleIcon,
+  CheckIcon,
 } from "@/components/warm/icons/garden";
 import { WarmModal } from "@/components/warm/Modal";
 import {
@@ -59,57 +57,36 @@ const STATUS_OPTIONS = ["Planerad", "Pågår", "Klar"];
 const TYPE_OPTIONS = ["Gräsmatta", "Rabatter", "Träd & buskar", "Grönsaker"];
 const ACTION_OPTIONS = ["Underhåll", "Delning", "Beskärning", "Gödsling", "Inspektion", "Plantering"];
 
-const VIEWS = ["Kalender", "Lista", "Per växt"] as const;
-type View = (typeof VIEWS)[number];
-
 type Draft = SeasonTaskInput & { id?: string };
 
-// ── View-toggle (segmented pill) ────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-function ViewToggle({ value, onChange }: { value: View; onChange: (v: View) => void }) {
-  const { t } = useWarmTheme();
-  return (
-    <div
-      style={{
-        display: "inline-flex",
-        gap: 2,
-        padding: 3,
-        background: t.paper,
-        border: `1px solid ${t.line}`,
-        borderRadius: 999,
-      }}
-    >
-      {VIEWS.map((v) => {
-        const active = v === value;
-        return (
-          <button
-            key={v}
-            type="button"
-            onClick={() => onChange(v)}
-            style={{
-              fontFamily: body,
-              fontSize: 11,
-              fontWeight: 600,
-              background: active ? ACC : "transparent",
-              color: active ? "#FFFBF0" : t.mute,
-              border: "none",
-              borderRadius: 999,
-              padding: "6px 12px",
-              cursor: "pointer",
-              transition: "background 160ms ease, color 160ms ease",
-            }}
-          >
-            {v}
-          </button>
-        );
-      })}
-    </div>
-  );
+function startOfWeek(d: Date): Date {
+  const r = new Date(d);
+  const dow = (r.getDay() + 6) % 7; // 0=Mon
+  r.setDate(r.getDate() - dow);
+  r.setHours(0, 0, 0, 0);
+  return r;
 }
 
-// ── Kalender-vy ─────────────────────────────────────────────────────────────
+function isoFromDate(d: Date): string {
+  return isoDate(d);
+}
 
-function CalendarView({
+// ── Kalender ─────────────────────────────────────────────────────────────────
+
+const navBtn = (t: ReturnType<typeof useWarmTheme>["t"]): React.CSSProperties => ({
+  background: "transparent",
+  border: `1px solid ${t.line}`,
+  borderRadius: 8,
+  padding: "5px 7px",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+});
+
+function CalendarStrip({
   tasks,
   onPickDate,
   onPickTask,
@@ -143,58 +120,50 @@ function CalendarView({
     setMonthIdx(next.getMonth());
   };
   const goToday = () => {
-    const d = new Date();
-    setYear(d.getFullYear());
-    setMonthIdx(d.getMonth());
+    setYear(today.getFullYear());
+    setMonthIdx(today.getMonth());
   };
 
   return (
     <Tile t={t} style={{ padding: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+      {/* Månadsnavigation */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
         <button
           type="button"
           onClick={goToday}
           title="Gå till idag"
           style={{
-            ...num(t, 16, 500),
-            textTransform: "capitalize",
+            ...num(t, 15, 500),
+            textTransform: "capitalize" as const,
             background: "transparent",
             border: "none",
             color: t.ink,
             cursor: "pointer",
             padding: "2px 0",
-            textAlign: "left",
+            textAlign: "left" as const,
             flex: 1,
           }}
         >
           {monthLabelSv(year, monthIdx)}
         </button>
         <button type="button" onClick={() => navigate(-1)} aria-label="Föregående månad" style={navBtn(t)}>
-          <ChevronLeft size={16} color={t.mute} />
+          <ChevronLeft size={14} color={t.mute} />
         </button>
         <button type="button" onClick={() => navigate(1)} aria-label="Nästa månad" style={navBtn(t)}>
-          <ChevronRight size={16} color={t.mute} />
+          <ChevronRight size={14} color={t.mute} />
         </button>
       </div>
 
-      {/* Veckodags-rubriker */}
+      {/* Veckodagshuvuden */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-          gap: 4,
-          marginBottom: 6,
+          marginBottom: 4,
         }}
       >
-        {["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"].map((d) => (
-          <div
-            key={d}
-            style={{
-              ...lab(t),
-              textAlign: "center",
-              fontSize: 9,
-            }}
-          >
+        {["M", "T", "O", "T", "F", "L", "S"].map((d, i) => (
+          <div key={i} style={{ ...lab(t), fontSize: 9, textAlign: "center" as const }}>
             {d}
           </div>
         ))}
@@ -205,430 +174,371 @@ function CalendarView({
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-          gap: 4,
+          gap: 2,
         }}
       >
         {grid.flat().map((cell) => {
           const dayNum = parseISO(cell.iso)?.getDate() ?? 1;
           const dayTasks = tasksByDate.get(cell.iso) ?? [];
           const isToday = cell.iso === todayIso;
+          const hasDone = dayTasks.some((tk) => tk.status === "Klar");
+          const hasPending = dayTasks.some((tk) => tk.status !== "Klar");
+
           return (
             <button
               key={cell.iso}
               type="button"
               onClick={() => onPickDate(cell.iso)}
-              aria-label={`${cell.iso} (${dayTasks.length} uppgifter)`}
+              aria-label={`${cell.iso}`}
               style={{
-                position: "relative",
+                position: "relative" as const,
                 aspectRatio: "1 / 1",
-                minHeight: 44,
-                borderRadius: 8,
+                borderRadius: 7,
                 background: cell.inMonth ? t.paper : "transparent",
-                border: isToday ? `1.5px solid ${ACC}` : `1px solid ${t.line}`,
+                border: isToday ? `1.5px solid ${ACC}` : `1px solid ${cell.inMonth ? t.line : "transparent"}`,
                 color: cell.inMonth ? t.ink : t.dim,
-                opacity: cell.inMonth ? 1 : 0.5,
+                opacity: cell.inMonth ? 1 : 0.4,
                 cursor: "pointer",
-                padding: 4,
+                padding: "3px 2px 2px",
                 display: "flex",
-                flexDirection: "column",
-                alignItems: "stretch",
-                justifyContent: "space-between",
+                flexDirection: "column" as const,
+                alignItems: "center",
+                justifyContent: "flex-start",
                 gap: 2,
               }}
             >
               <span
                 style={{
                   fontFamily: body,
-                  fontSize: 11,
-                  fontWeight: isToday ? 700 : 500,
+                  fontSize: 10,
+                  fontWeight: isToday ? 700 : 400,
                   color: isToday ? ACC : "inherit",
-                  textAlign: "left",
                   lineHeight: 1,
                 }}
               >
                 {dayNum}
               </span>
               {dayTasks.length > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 2,
-                    alignItems: "stretch",
-                  }}
-                >
-                  {dayTasks.slice(0, 2).map((tk) => (
+                <div style={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
+                  {hasPending && (
                     <span
-                      key={tk.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPickTask(tk);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.stopPropagation();
-                          onPickTask(tk);
-                        }
-                      }}
-                      title={tk.uppgift}
                       style={{
-                        fontFamily: body,
-                        fontSize: 9,
-                        lineHeight: 1.2,
-                        background: TASK_STATUS_COLOR[tk.status] ?? ACC,
-                        color: "#FFFBF0",
-                        borderRadius: 4,
-                        padding: "1px 4px",
-                        textAlign: "left",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        cursor: "pointer",
+                        width: 5,
+                        height: 5,
+                        borderRadius: 99,
+                        background: ACC,
                       }}
-                    >
-                      {tk.uppgift}
-                    </span>
-                  ))}
-                  {dayTasks.length > 2 && (
-                    <span style={{ fontFamily: body, fontSize: 9, color: t.mute }}>
-                      +{dayTasks.length - 2}
-                    </span>
+                    />
+                  )}
+                  {hasDone && (
+                    <span
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: 99,
+                        background: TASK_STATUS_COLOR["Klar"] ?? "#5A7F4A",
+                        opacity: 0.6,
+                      }}
+                    />
                   )}
                 </div>
               )}
+              {/* Klick på event: visas som overlay-lager — hantera via onPickDate och låt listan filtrera */}
             </button>
           );
         })}
       </div>
 
-      {/* Status-legend */}
+      {/* Legenda */}
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
-          marginTop: 14,
-        }}
+        style={{ display: "flex", gap: 12, marginTop: 10, alignItems: "center", justifyContent: "flex-end" }}
       >
-        {STATUS_OPTIONS.map((s) => (
-          <div
-            key={s}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              fontFamily: body,
-              fontSize: 10,
-              color: t.mute,
-            }}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                width: 9,
-                height: 9,
-                borderRadius: 2,
-                background: TASK_STATUS_COLOR[s],
-              }}
-            />
-            {s}
-          </div>
-        ))}
-        <div style={{ flex: 1 }} />
-        <span style={ital(t, 10)}>klick på dag · ny uppgift</span>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <span style={{ width: 6, height: 6, borderRadius: 99, background: ACC, display: "inline-block" }} />
+          <span style={{ ...lab(t), fontSize: 9 }}>Planerad</span>
+        </div>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <span style={{ width: 6, height: 6, borderRadius: 99, background: "#5A7F4A", opacity: 0.6, display: "inline-block" }} />
+          <span style={{ ...lab(t), fontSize: 9 }}>Klar</span>
+        </div>
       </div>
     </Tile>
   );
 }
 
-function navBtn(t: { paper: string; line: string }): React.CSSProperties {
-  return {
-    width: 30,
-    height: 30,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 999,
-    background: t.paper,
-    border: `1px solid ${t.line}`,
-    cursor: "pointer",
-  };
-}
+// ── Uppgifts-rad ─────────────────────────────────────────────────────────────
 
-// ── Lista-vy ────────────────────────────────────────────────────────────────
-
-function ListView({
-  tasks,
-  onPickTask,
+function TaskRow({
+  task,
+  onEdit,
   onMarkDone,
+  overdue,
 }: {
-  tasks: SeasonTask[];
-  onPickTask: (t: SeasonTask) => void;
-  onMarkDone: (t: SeasonTask) => Promise<void>;
+  task: SeasonTask;
+  onEdit: (tk: SeasonTask) => void;
+  onMarkDone: (tk: SeasonTask) => void;
+  overdue?: boolean;
 }) {
   const { t } = useWarmTheme();
-  const todayIso = isoToday();
-  const groups: Record<string, SeasonTask[]> = { Planerad: [], Pågår: [], Klar: [] };
-  for (const tk of tasks) {
-    const key = STATUS_OPTIONS.includes(tk.status) ? tk.status : "Planerad";
-    groups[key]!.push(tk);
-  }
-  const sortAsc = (a: SeasonTask, b: SeasonTask) => a.datum.localeCompare(b.datum);
-  const sortDesc = (a: SeasonTask, b: SeasonTask) => b.datum.localeCompare(a.datum);
-  groups.Planerad!.sort(sortAsc);
-  groups["Pågår"]!.sort(sortAsc);
-  groups.Klar!.sort(sortDesc);
-
-  const order = ["Pågår", "Planerad", "Klar"] as const;
+  const isDone = task.status === "Klar";
+  const statusColor = TASK_STATUS_COLOR[task.status] ?? ACC;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {order.map((status) => {
-        const list = groups[status] ?? [];
-        return (
-          <Tile key={status} t={t}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                marginBottom: 10,
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  background: TASK_STATUS_COLOR[status],
-                }}
-              />
-              <span style={lab(t)}>{status}</span>
-              <span style={{ fontFamily: body, fontSize: 11, color: t.dim }}>· {list.length}</span>
-            </div>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 14px",
+        background: t.paper,
+        border: `1px solid ${overdue && !isDone ? `${ACC}55` : t.line}`,
+        borderRadius: 12,
+      }}
+    >
+      {/* Status-prick */}
+      <span
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: 99,
+          background: statusColor,
+          flexShrink: 0,
+          opacity: isDone ? 0.5 : 1,
+        }}
+      />
 
-            {list.length === 0 ? (
-              <div style={ital(t, 12)}>Inga uppgifter.</div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {list.map((tk) => {
-                  const isOverdue = tk.status !== "Klar" && tk.datum && tk.datum < todayIso;
-                  const isToday = tk.datum === todayIso;
-                  return (
-                    <div
-                      key={tk.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "10px 12px",
-                        background: t.paper,
-                        border: `1px solid ${t.line}`,
-                        borderRadius: 12,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onPickTask(tk)}
-                        style={{
-                          flex: 1,
-                          minWidth: 0,
-                          textAlign: "left",
-                          background: "transparent",
-                          border: "none",
-                          padding: 0,
-                          cursor: "pointer",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontFamily: body,
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: t.ink,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {tk.uppgift || "Namnlös uppgift"}
-                        </div>
-                        <div
-                          style={{
-                            fontFamily: body,
-                            fontSize: 11,
-                            color: t.mute,
-                            marginTop: 2,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <span
-                            style={{
-                              color: isOverdue ? t.bad : isToday ? ACC : t.mute,
-                              fontWeight: isToday || isOverdue ? 600 : 400,
-                            }}
-                          >
-                            {isToday ? "I dag" : shortDateSv(tk.datum) || "—"}
-                          </span>
-                          {tk.typ && <span>· {tk.typ}</span>}
-                          {tk.atgarder.length > 0 && <span>· {tk.atgarder.join(", ")}</span>}
-                        </div>
-                      </button>
+      {/* Info */}
+      <button
+        type="button"
+        onClick={() => onEdit(task)}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          textAlign: "left" as const,
+          background: "none",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: body,
+            fontSize: 13,
+            fontWeight: 500,
+            color: isDone ? t.mute : t.ink,
+            textDecoration: isDone ? "line-through" : "none",
+            lineHeight: 1.25,
+            whiteSpace: "nowrap" as const,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {task.uppgift}
+        </div>
+        <div style={{ fontFamily: body, fontSize: 11, color: overdue && !isDone ? ACC : t.mute, marginTop: 2 }}>
+          {shortDateSv(task.datum) || "Inget datum"}
+          {task.typ ? ` · ${task.typ}` : ""}
+        </div>
+      </button>
 
-                      {status !== "Klar" && (
-                        <button
-                          type="button"
-                          onClick={() => onMarkDone(tk)}
-                          aria-label="Markera som klar"
-                          title="Markera som klar"
-                          style={{
-                            width: 30,
-                            height: 30,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderRadius: 15,
-                            background: t.paperHi,
-                            border: `1px solid ${t.line}`,
-                            cursor: "pointer",
-                            color: t.mute,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <CheckIcon size={14} color={SAGE} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Tile>
-        );
-      })}
+      {/* Markera klar */}
+      {!isDone && (
+        <button
+          type="button"
+          onClick={() => onMarkDone(task)}
+          aria-label="Markera klar"
+          style={{
+            background: "none",
+            border: `1px solid ${t.line}`,
+            borderRadius: 99,
+            padding: 5,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <CheckIcon size={13} color={t.mute} />
+        </button>
+      )}
     </div>
   );
 }
 
-// ── Per växt-vy ─────────────────────────────────────────────────────────────
+// ── Tid-grupperad lista ───────────────────────────────────────────────────────
 
-function PerPlantView({
+function TaskList({
   tasks,
-  plants,
-  onPickTask,
+  onEdit,
+  onMarkDone,
 }: {
   tasks: SeasonTask[];
-  plants: Plant[];
-  onPickTask: (t: SeasonTask) => void;
+  onEdit: (tk: SeasonTask) => void;
+  onMarkDone: (tk: SeasonTask) => void;
 }) {
   const { t } = useWarmTheme();
-  const map = new Map<string, SeasonTask[]>();
-  for (const tk of tasks) {
-    for (const pid of tk.plantIds) {
-      const list = map.get(pid) ?? [];
-      list.push(tk);
-      map.set(pid, list);
-    }
-  }
-  const entries = plants
-    .filter((p) => map.has(p.id))
-    .map((p) => ({
-      plant: p,
-      tasks: (map.get(p.id) ?? []).sort((a, b) => a.datum.localeCompare(b.datum)),
-    }))
-    .sort((a, b) => a.plant.vaxt.localeCompare(b.plant.vaxt, "sv"));
+  const today = isoToday();
+  const todayD = parseISO(today)!;
+  const weekStart = isoFromDate(startOfWeek(todayD));
+  const weekEnd = isoFromDate(new Date(startOfWeek(todayD).getTime() + 6 * 86400000));
+  const nextWeekStart = isoFromDate(new Date(startOfWeek(todayD).getTime() + 7 * 86400000));
+  const nextWeekEnd = isoFromDate(new Date(startOfWeek(todayD).getTime() + 13 * 86400000));
 
-  if (entries.length === 0) {
-    return (
-      <Tile t={t}>
-        <p style={{ ...ital(t, 13), textAlign: "center", padding: "8px 0" }}>
-          Inga uppgifter kopplade till växter än.
-        </p>
-      </Tile>
-    );
-  }
+  // Group tasks
+  const grouped = useMemo(() => {
+    const overdue: SeasonTask[] = [];
+    const thisWeek: SeasonTask[] = [];
+    const nextWeek: SeasonTask[] = [];
+    const later = new Map<string, SeasonTask[]>(); // key = "YYYY-MM" label
+    const done: SeasonTask[] = [];
+
+    for (const tk of tasks) {
+      if (tk.status === "Klar") {
+        done.push(tk);
+        continue;
+      }
+      const d = tk.datum;
+      if (!d) {
+        // No date — show in "this week" area
+        thisWeek.push(tk);
+        continue;
+      }
+      if (d < today) {
+        overdue.push(tk);
+      } else if (d >= weekStart && d <= weekEnd) {
+        thisWeek.push(tk);
+      } else if (d >= nextWeekStart && d <= nextWeekEnd) {
+        nextWeek.push(tk);
+      } else {
+        // Group by month label
+        const parsed = parseISO(d);
+        if (!parsed) continue;
+        const key = monthLabelSv(parsed.getFullYear(), parsed.getMonth());
+        const list = later.get(key) ?? [];
+        list.push(tk);
+        later.set(key, list);
+      }
+    }
+
+    return { overdue, thisWeek, nextWeek, later, done };
+  }, [tasks, today, weekStart, weekEnd, nextWeekStart, nextWeekEnd]);
+
+  const [showDone, setShowDone] = useState(false);
+
+  const SectionHeader = ({ label, count }: { label: string; count: number }) => (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "4px 0 8px",
+      }}
+    >
+      <span style={lab(t)}>{label}</span>
+      <span style={{ fontFamily: body, fontSize: 10, color: t.dim }}>· {count}</span>
+      <div style={{ flex: 1, height: 1, background: t.line }} />
+    </div>
+  );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {entries.map(({ plant, tasks }) => (
-        <Tile key={plant.id} t={t}>
-          <div
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      {/* Försenade */}
+      {grouped.overdue.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <SectionHeader label="FÖRSENADE" count={grouped.overdue.length} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {grouped.overdue.map((tk) => (
+              <TaskRow key={tk.id} task={tk} onEdit={onEdit} onMarkDone={onMarkDone} overdue />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Denna vecka */}
+      {grouped.thisWeek.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <SectionHeader label="DENNA VECKA" count={grouped.thisWeek.length} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {grouped.thisWeek.map((tk) => (
+              <TaskRow key={tk.id} task={tk} onEdit={onEdit} onMarkDone={onMarkDone} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Nästa vecka */}
+      {grouped.nextWeek.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <SectionHeader label="NÄSTA VECKA" count={grouped.nextWeek.length} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {grouped.nextWeek.map((tk) => (
+              <TaskRow key={tk.id} task={tk} onEdit={onEdit} onMarkDone={onMarkDone} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Senare månadsvis */}
+      {Array.from(grouped.later.entries()).map(([month, tks]) => (
+        <div key={month} style={{ marginBottom: 12 }}>
+          <SectionHeader label={month.toUpperCase()} count={tks.length} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {tks.map((tk) => (
+              <TaskRow key={tk.id} task={tk} onEdit={onEdit} onMarkDone={onMarkDone} />
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* Klara (kollapsbar) */}
+      {grouped.done.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <button
+            type="button"
+            onClick={() => setShowDone((s) => !s)}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 8,
-              marginBottom: 10,
+              background: "none",
+              border: "none",
+              padding: "4px 0 8px",
+              cursor: "pointer",
+              width: "100%",
             }}
           >
-            <span style={{ ...num(t, 14, 500), color: t.ink }}>{plant.vaxt}</span>
-            {plant.typ && (
-              <span style={{ fontFamily: body, fontSize: 11, color: t.mute }}>· {plant.typ}</span>
-            )}
-            <div style={{ flex: 1 }} />
-            <span style={{ fontFamily: body, fontSize: 11, color: t.mute }}>{tasks.length} st</span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {tasks.map((tk) => (
-              <button
-                key={tk.id}
-                type="button"
-                onClick={() => onPickTask(tk)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  textAlign: "left",
-                  padding: "7px 10px",
-                  background: t.paper,
-                  border: `1px solid ${t.line}`,
-                  borderRadius: 10,
-                  cursor: "pointer",
-                  width: "100%",
-                }}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 3,
-                    background: TASK_STATUS_COLOR[tk.status] ?? ACC,
-                    flexShrink: 0,
-                  }}
-                />
-                <span
-                  style={{
-                    fontFamily: body,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: t.ink,
-                    flex: 1,
-                    minWidth: 0,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {tk.uppgift}
-                </span>
-                <span style={{ fontFamily: body, fontSize: 10, color: t.mute, flexShrink: 0 }}>
-                  {shortDateSv(tk.datum) || "—"}
-                </span>
-              </button>
-            ))}
-          </div>
-        </Tile>
-      ))}
+            <span style={lab(t)}>KLARA</span>
+            <span style={{ fontFamily: body, fontSize: 10, color: t.dim }}>· {grouped.done.length}</span>
+            <div style={{ flex: 1, height: 1, background: t.line }} />
+            <span style={{ ...lab(t), color: ACC }}>{showDone ? "Dölj" : "Visa"}</span>
+          </button>
+          {showDone && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {grouped.done.map((tk) => (
+                <TaskRow key={tk.id} task={tk} onEdit={onEdit} onMarkDone={onMarkDone} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tom-state */}
+      {grouped.overdue.length === 0 &&
+        grouped.thisWeek.length === 0 &&
+        grouped.nextWeek.length === 0 &&
+        grouped.later.size === 0 &&
+        grouped.done.length === 0 && (
+          <p style={{ ...ital(t, 13), textAlign: "center" as const, padding: "32px 0" }}>
+            Inga uppgifter planerade.
+          </p>
+        )}
     </div>
   );
 }
 
-// ── Modal ───────────────────────────────────────────────────────────────────
+// ── Task-modal ────────────────────────────────────────────────────────────────
 
 function TaskModal({
   draft,
@@ -761,7 +671,7 @@ function TaskModal({
             onChange={(e) => upd({ kommentar: e.target.value })}
             rows={3}
             placeholder="Kort om vad som ska göras"
-            style={{ ...inputStyle(t), resize: "vertical", fontFamily: body }}
+            style={{ ...inputStyle(t), resize: "vertical" as const, fontFamily: body }}
           />
         </Field>
 
@@ -779,12 +689,16 @@ function TaskModal({
   );
 }
 
-// ── Sidkomponent ────────────────────────────────────────────────────────────
+// ── Sidkomponent ─────────────────────────────────────────────────────────────
 
 export default function GardenSeasonPage() {
   const { t } = useWarmTheme();
-  const [view, setView] = useState<View>("Kalender");
   const [editing, setEditing] = useState<Draft | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const tasksSwr = useSWR<TasksResponse>("/api/garden/tasks", fetcher, {
     refreshInterval: 10 * 60 * 1000,
@@ -849,33 +763,28 @@ export default function GardenSeasonPage() {
     datum: tk.datum,
     status: tk.status,
     typ: tk.typ,
-    atgarder: tk.atgarder,
+    atgarder: tk.atgarder as string[],
     kommentar: tk.kommentar,
     plantIds: tk.plantIds,
   });
 
+  // Antal aktiva uppgifter (ej klara)
+  const activeCount = tasks.filter((tk) => tk.status !== "Klar").length;
+
   return (
-    <div style={{ paddingBottom: 24 }}>
+    <div style={{ paddingBottom: 140 }}>
       <DetailHero
+        t={t}
         backHref="/v3/garden"
         backLabel="Trädgård"
         eyebrow="SÄSONG"
-        title={`${tasks.length} uppgifter,`}
+        title={`${activeCount} uppgifter,`}
         italicTail="månad för månad."
       />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "0 18px" }}>
-        {/* Verktygsrad */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <ViewToggle value={view} onChange={setView} />
-          <div style={{ flex: 1 }} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "0 18px" }}>
+        {/* Ny uppgift-knapp */}
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button
             type="button"
             onClick={() => setEditing({ datum: isoToday(), status: "Planerad" })}
@@ -902,51 +811,46 @@ export default function GardenSeasonPage() {
         {notReady ? (
           <Tile t={t}>
             <p style={{ fontFamily: body, fontSize: 13, color: t.mute, lineHeight: 1.55 }}>
-              Trädgårds-DB:erna är inte konfigurerade. Sätt <code>NOTION_GARDEN_SEASON_DB</code>{" "}
-              m.fl. i miljön.
+              Trädgårds-DB:erna är inte konfigurerade. Sätt{" "}
+              <code>NOTION_GARDEN_SEASON_DB</code> m.fl. i miljön.
             </p>
           </Tile>
         ) : tasksSwr.isLoading ? (
           <Tile t={t}>
             <p style={ital(t, 13)}>Laddar…</p>
           </Tile>
-        ) : view === "Kalender" ? (
-          <CalendarView
-            tasks={tasks}
-            onPickDate={(iso) => setEditing({ datum: iso, status: "Planerad" })}
-            onPickTask={(tk) => setEditing(draftFromTask(tk))}
-          />
-        ) : view === "Lista" ? (
-          <ListView
-            tasks={tasks}
-            onPickTask={(tk) => setEditing(draftFromTask(tk))}
-            onMarkDone={markDone}
-          />
         ) : (
-          <PerPlantView
-            tasks={tasks}
-            plants={plants}
-            onPickTask={(tk) => setEditing(draftFromTask(tk))}
-          />
+          <>
+            {/* Kalender alltid synlig */}
+            <CalendarStrip
+              tasks={tasks}
+              onPickDate={(iso) => setEditing({ datum: iso, status: "Planerad" })}
+              onPickTask={(tk) => setEditing(draftFromTask(tk))}
+            />
+
+            {/* Uppgiftslista grupperad per tidsperiod */}
+            <TaskList
+              tasks={tasks}
+              onEdit={(tk) => setEditing(draftFromTask(tk))}
+              onMarkDone={markDone}
+            />
+          </>
         )}
       </div>
 
-      {editing && (
-        <TaskModal
-          draft={editing}
-          plants={plants}
-          onClose={() => setEditing(null)}
-          onSave={handleSave}
-          onDelete={editing.id ? () => handleDelete(editing.id!) : undefined}
-        />
-      )}
+      {/* Modal via portal */}
+      {mounted &&
+        editing &&
+        createPortal(
+          <TaskModal
+            draft={editing}
+            plants={plants}
+            onClose={() => setEditing(null)}
+            onSave={handleSave}
+            onDelete={editing.id ? () => handleDelete(editing.id!) : undefined}
+          />,
+          document.body
+        )}
     </div>
   );
 }
-
-// Suppress unused-warning för ikoner som kommer användas i framtida iteration
-void CalendarIcon;
-void ListIcon;
-void CheckCircleIcon;
-void AMBER;
-void SKY;
