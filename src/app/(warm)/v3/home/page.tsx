@@ -19,6 +19,7 @@ import { Tile } from "@/components/warm/primitives";
 import { SceneGlyph, ThemeIcon } from "@/components/warm/icons";
 import { ChevronRight } from "@/components/warm/icons/extra";
 import { weatherGlyph } from "@/lib/warm/weather";
+import SunArc from "@/components/warm/SunArc";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
 import { HUB_FAVORITE_ROOMS, SLUG_TO_NAME } from "@/lib/warm/rooms";
@@ -76,10 +77,21 @@ type WeatherPeriod = {
   condition: string;
   precipitation: number;
 };
+type SunData = {
+  state: string;
+  next_rising: string | null;
+  next_setting: string | null;
+  next_dawn: string | null;
+  next_dusk: string | null;
+  elevation: number | null;
+  azimuth: number | null;
+  rising: boolean | null;
+};
 type WeatherData = {
   current: { state: string; temperature: number; humidity: number; wind_speed: number };
   periods: WeatherPeriod[];
   forecast: Array<{ datetime: string; condition: string; temperature: number; templow: number }>;
+  sun: SunData | null;
 };
 
 const SCENE_ENTRIES: Array<{
@@ -210,8 +222,9 @@ function WeatherTile({ t, data }: { t: WarmTheme; data: WeatherData | undefined 
     if (!upcoming.length) return null;
     return Math.round(Math.min(...upcoming));
   })();
-  const sunrise = "06:00";
-  const sunset = "20:30";
+  const sun = data.sun;
+  const sunrise = sun?.next_rising ? formatTime(sun.next_rising) : null;
+  const sunset = sun?.next_setting ? formatTime(sun.next_setting) : null;
 
   return (
     <Link
@@ -252,62 +265,73 @@ function WeatherTile({ t, data }: { t: WarmTheme; data: WeatherData | undefined 
             marginTop: 10,
           }}
         >
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span
-              className="warm-tab-nums"
-              style={{
-                ...num(t, 44, 400),
-                lineHeight: 1,
-              }}
-            >
-              {Math.round(c.temperature)}
-            </span>
-            <span
-              style={{
-                fontFamily: body,
-                fontSize: 14,
-                color: t.mute,
-                fontWeight: 500,
-              }}
-            >
-              °C,
-            </span>
-            <span style={ital(t, 16, t.ink)}>{conditionSv}</span>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+              <span
+                className="warm-tab-nums"
+                style={{
+                  ...num(t, 44, 400),
+                  lineHeight: 1,
+                }}
+              >
+                {Math.round(c.temperature)}
+              </span>
+              <span
+                style={{
+                  fontFamily: body,
+                  fontSize: 14,
+                  color: t.mute,
+                  fontWeight: 500,
+                }}
+              >
+                °C,
+              </span>
+              <span style={ital(t, 16, t.ink)}>{conditionSv}</span>
+            </div>
+            {lowestNight != null && (
+              <p style={ital(t, 13, t.mute)}>Kallnar till {lowestNight}° i natt.</p>
+            )}
           </div>
-          <Glyph size={36} color={t.mute} />
+          {sun ? (
+            <SunArc
+              sun={sun}
+              width={130}
+              height={48}
+              trackColor={t.line}
+              arcColor={ACC}
+              dotColor={ACC}
+              belowColor={t.line}
+            />
+          ) : (
+            <Glyph size={36} color={t.mute} />
+          )}
         </div>
-        {lowestNight != null && (
-          <p
+        {(sunrise || sunset) && (
+          <div
             style={{
-              ...ital(t, 13, t.mute),
-              marginTop: 4,
+              display: "flex",
+              justifyContent: "space-between",
+              marginTop: 10,
+              paddingTop: 10,
+              borderTop: `1px solid ${t.line}`,
             }}
           >
-            Kallnar till {lowestNight}° i natt.
-          </p>
+            <span
+              style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
+              className="warm-tab-nums"
+            >
+              {sunrise ? `SOLUPPG. ${sunrise}` : ""}
+            </span>
+            <span
+              style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
+              className="warm-tab-nums"
+            >
+              {sunset ? `NEDG. ${sunset}` : ""}
+            </span>
+          </div>
         )}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: 10,
-            paddingTop: 10,
-            borderTop: `1px solid ${t.line}`,
-          }}
-        >
-          <span
-            style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
-            className="warm-tab-nums"
-          >
-            SOLUPPG. {sunrise}
-          </span>
-          <span
-            style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
-            className="warm-tab-nums"
-          >
-            NEDG. {sunset}
-          </span>
-        </div>
       </div>
     </Link>
   );
@@ -786,8 +810,18 @@ export default function WarmHomeHub() {
             gap: 10,
           }}
         >
-          <TibberTile t={t} energy={energy} />
-          <CarsTile t={t} cars={cars} />
+          <Link
+            href="/v3/home/energi"
+            style={{ textDecoration: "none", color: "inherit", display: "block" }}
+          >
+            <TibberTile t={t} energy={energy} />
+          </Link>
+          <Link
+            href="/v3/home/energi"
+            style={{ textDecoration: "none", color: "inherit", display: "block" }}
+          >
+            <CarsTile t={t} cars={cars} />
+          </Link>
         </div>
 
         <RoomList t={t} lights={lights} sensors={sensors} />

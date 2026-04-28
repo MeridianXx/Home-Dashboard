@@ -101,7 +101,7 @@ function buildPeriodBlocks(hourly: HourlyEntry[]): PeriodBlock[] {
 
 export async function GET() {
   try {
-    const [entity, dailyRes, hourlyRes] = await Promise.all([
+    const [entity, dailyRes, hourlyRes, sun] = await Promise.all([
       getState("weather.forecast_hem"),
       haPost("/api/services/weather/get_forecasts?return_response", {
         entity_id: "weather.forecast_hem",
@@ -115,6 +115,10 @@ export async function GET() {
       }) as Promise<{
         service_response: Record<string, { forecast: Array<Record<string, unknown>> }>;
       }>,
+      // sun.sun har: next_rising, next_setting, next_dawn, next_dusk,
+      // elevation (deg), azimuth (deg), rising (bool). Används för
+      // sol-arc + soluppg./nedg.-tider på hemskärmens väderkort.
+      getState("sun.sun").catch(() => null),
     ]);
 
     const attrs = entity.attributes;
@@ -155,6 +159,20 @@ export async function GET() {
     );
     const periods = startIdx >= 0 ? allBlocks.slice(startIdx, startIdx + 4) : allBlocks.slice(0, 4);
 
+    const sunAttrs = sun?.attributes ?? {};
+    const sunPayload = sun
+      ? {
+          state: sun.state, // "above_horizon" | "below_horizon"
+          next_rising: (sunAttrs.next_rising as string) ?? null,
+          next_setting: (sunAttrs.next_setting as string) ?? null,
+          next_dawn: (sunAttrs.next_dawn as string) ?? null,
+          next_dusk: (sunAttrs.next_dusk as string) ?? null,
+          elevation: (sunAttrs.elevation as number) ?? null,
+          azimuth: (sunAttrs.azimuth as number) ?? null,
+          rising: (sunAttrs.rising as boolean) ?? null,
+        }
+      : null;
+
     return NextResponse.json({
       current: {
         state: entity.state,
@@ -165,6 +183,7 @@ export async function GET() {
       },
       periods,
       forecast: dailyForecast,
+      sun: sunPayload,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
