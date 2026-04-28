@@ -52,3 +52,27 @@ export function sceneLabel(key: string | null | undefined): string {
   if (key === "natt") return "nattläge";
   return key;
 }
+
+/**
+ * När släcktes lampor senast — given en lista lampor, hitta den senaste
+ * "off"-state-tidsstämpeln. Används för "släckt sedan HH:MM" på hubben
+ * när inga lampor är på just nu.
+ */
+export function lastDarkenedAt(
+  lights: Array<{ state: string; last_changed?: string | null }> | undefined
+): string | null {
+  if (!lights || lights.length === 0) return null;
+  let newest: string | null = null;
+  let newestTs = -Infinity;
+  for (const l of lights) {
+    if (l.state !== "off") continue;
+    if (!l.last_changed) continue;
+    const ts = new Date(l.last_changed).getTime();
+    if (!isFinite(ts)) continue;
+    if (ts > newestTs) {
+      newest = l.last_changed;
+      newestTs = ts;
+    }
+  }
+  return newest;
+}

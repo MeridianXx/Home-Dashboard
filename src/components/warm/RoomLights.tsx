@@ -12,6 +12,8 @@ type LightEntry = {
   state: string;
   brightness_pct: number | null;
   dimmable: boolean;
+  color_temp_kelvin?: number | null;
+  last_changed?: string | null;
 };
 type LightArea = {
   area_id: string;

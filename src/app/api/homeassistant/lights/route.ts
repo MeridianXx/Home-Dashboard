@@ -18,6 +18,7 @@ export async function GET() {
       entity_id: string; name: string; state: string;
       brightness_pct: number | null; dimmable: boolean;
       color_temp_kelvin: number | null;
+      last_changed: string | null;
     }>> = {};
 
     for (const s of states) {
@@ -48,6 +49,7 @@ export async function GET() {
         brightness_pct: brightness != null ? Math.round((brightness / 255) * 100) : null,
         dimmable,
         color_temp_kelvin,
+        last_changed:   (s as { last_changed?: string }).last_changed ?? null,
       });
     }
 

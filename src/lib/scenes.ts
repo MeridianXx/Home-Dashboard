@@ -30,18 +30,34 @@ const BRIGHTNESS_TOLERANCE = 5; // ±%
  * Returns the scene key, or null if none match.
  */
 /**
- * Hämtar den scen som senast aktiverades inom `windowMs` (default 24h).
- * Robust signal för "vilken scen är aktiv just nu" — uppdateras direkt vid
- * klick eftersom HA-entitetens `last_changed` ändras synkront.
+ * Hämtar den scen som senast aktiverades inom `windowMs` (default 24h)
+ * OCH fortfarande är "live" — dvs en majoritet av scenens "on"-targets
+ * är fortfarande på.
  *
- * Detta är den primära logiken för pill-tändning i Warm Home. Tidigare
- * `detectActiveScene` (state-jämförelse) är ytterligare för exakt match
- * men brister så fort en lampa rapporterar fel brightness-värde.
+ * Två-stegs-kombination för robusthet:
+ *   1. Inom `gracePeriodMs` (default 8s) efter aktivering: lita på
+ *      last_changed direkt — pillen tänds blixtsnabbt vid klick även om
+ *      lamporna ännu inte hunnit nå sina target-värden.
+ *   2. Efter grace-period: verifiera mot live-state. Om <`matchRatio`
+ *      (default 50%) av scenens "on"-targets fortfarande är på, räknas
+ *      scenen INTE längre som aktiv (användaren har manuellt släckt
+ *      lamporna eller annan scen verkställdes utanför HA).
+ *
+ * Returnerar null om ingen scen kvalificerar.
  */
 export function activeSceneByLastChanged(
   scenes: ScenePayload[] | undefined,
-  windowMs: number = 24 * 3600 * 1000
+  lights: LightSnapshot[] | undefined = undefined,
+  opts: {
+    windowMs?: number;
+    gracePeriodMs?: number;
+    matchRatio?: number;
+  } = {}
 ): { key: string; lastChanged: string } | null {
+  const windowMs = opts.windowMs ?? 24 * 3600 * 1000;
+  const gracePeriodMs = opts.gracePeriodMs ?? 8000;
+  const matchRatio = opts.matchRatio ?? 0.5;
+
   if (!scenes || scenes.length === 0) return null;
   let newest: ScenePayload | null = null;
   let newestTs = -Infinity;
@@ -55,7 +71,34 @@ export function activeSceneByLastChanged(
     }
   }
   if (!newest || !newest.last_changed) return null;
-  if (Date.now() - newestTs > windowMs) return null;
+  const ageMs = Date.now() - newestTs;
+  if (ageMs > windowMs) return null;
+
+  // Inom grace-period — lita på last_changed direkt.
+  if (ageMs <= gracePeriodMs) {
+    return { key: newest.key, lastChanged: newest.last_changed };
+  }
+  // Ingen lights-data → fallback till bara last_changed.
+  if (!lights) {
+    return { key: newest.key, lastChanged: newest.last_changed };
+  }
+
+  // Verifiera: hur många "on"-targets är fortfarande på?
+  const liveById = new Map(lights.map((l) => [l.entity_id, l]));
+  const onTargets = Object.entries(newest.targets).filter(
+    ([, t]) => t.state === "on"
+  );
+  // Om scenen bara släcker (inga on-targets) → litar på last_changed.
+  if (onTargets.length === 0) {
+    return { key: newest.key, lastChanged: newest.last_changed };
+  }
+  const stillOn = onTargets.filter(([eid]) => {
+    const live = liveById.get(eid);
+    return live?.state === "on";
+  });
+  const ratio = stillOn.length / onTargets.length;
+  if (ratio < matchRatio) return null;
+
   return { key: newest.key, lastChanged: newest.last_changed };
 }
 
