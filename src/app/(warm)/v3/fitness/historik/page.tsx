@@ -130,7 +130,7 @@ export default function WarmFitnessHistorikPage() {
         </div>
 
         {error ? (
-          <WarmErrorBanner onRetry={() => mutate()} message="Kunde inte läsa passhistoriken." />
+          <WarmErrorBanner t={t} onRetry={() => mutate()} message="Kunde inte läsa passhistoriken." />
         ) : isLoading ? (
           <Tile t={t}>
             <div style={{ fontFamily: body, fontSize: 13, color: t.mute }}>Läser…</div>
