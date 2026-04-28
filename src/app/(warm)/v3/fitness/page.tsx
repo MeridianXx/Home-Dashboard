@@ -17,7 +17,7 @@ import { fetcher } from "@/lib/fetcher";
 import { useWarmTheme } from "@/lib/warm/theme";
 import { ACC, AMBER, LINGON, SAGE, SKY, body, ital, lab, num } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
-import { HubDisplay, SectionLabel } from "@/components/warm/fit/parts";
+import { HubDisplay, Section, SectionLabel } from "@/components/warm/fit/parts";
 import { ChevronRight } from "@/components/warm/icons/extra";
 import { ThemeIcon } from "@/components/warm/icons";
 import { sportIcon, SparkleIcon } from "@/components/warm/icons/fit";
@@ -74,25 +74,34 @@ function calcStreak(workouts: Workout[]): number {
 
 const WEEKDAY_SE = ["söndag", "måndag", "tisdag", "onsdag", "torsdag", "fredag", "lördag"];
 
-/** Tagline-par {title, italicTail} härlett från dagsform. */
+/** Tagline-par {title, italicTail} härlett från dagsform. Display-rubriken
+ *  ska kännas vass och konkret — undvik samma anchor-ord som COACH-quote
+ *  så de inte ekar (tidigare upprepade båda "form"). */
 function deriveTagline(r: ReadinessResponse | undefined): { title: string; tail: string } {
   if (!r) return { title: "Hämtar dagsformen", tail: "" };
   if (r.score >= 75) return { title: "Bra återhämtning,", tail: "kör tungt." };
-  if (r.score >= 55) return { title: "OK form,", tail: "håll planen." };
-  if (r.score >= 40) return { title: "Lite slö,", tail: "ta det lugnare." };
-  return { title: "Trött kropp,", tail: "vila eller kort lätt." };
+  if (r.score >= 55) return { title: "Solid morgon,", tail: "håll riktningen." };
+  if (r.score >= 40) return { title: "Lite tröghet,", tail: "släpp på gasen." };
+  return { title: "Tom batteri,", tail: "vila eller kort lätt." };
 }
 
-/** Coach-quote (italic, ACC-tinted box) härledd från readiness + nästa pass. */
+/** Coach-quote (italic, ACC-tinted box) härledd från readiness + nästa pass.
+ *  Skiljer sig medvetet från display-taglinen i ordval — display anchorar i
+ *  läget (återhämtning, tröghet, batteri) medan quote anchorar i råd
+ *  (kvalitet, planenligt, en zon ner, vila). */
 function coachQuote(r: ReadinessResponse | undefined, nextPlan: PlannedWorkout | null): string {
   if (!r) return "Coachen läser dina senaste värden…";
   if (r.score >= 75) {
-    if (nextPlan?.passnamn) return `Hög dagsform — kör ${nextPlan.passnamn.toLowerCase()} med kvalitet, gå inte över planen.`;
-    return "Hög dagsform — bra dag för intervaller eller långpass.";
+    if (nextPlan?.passnamn) return `Pulsen samarbetar — kör ${nextPlan.passnamn.toLowerCase()} med kvalitet och stanna där.`;
+    return "Pulsen samarbetar — bra dag för intervaller eller långpass.";
   }
-  if (r.score >= 55) return nextPlan?.passnamn ? `Stabil form — ${nextPlan.passnamn.toLowerCase()} som tänkt.` : "Stabil form — håll planen.";
-  if (r.score >= 40) return "Lägg av en zon idag — kör Z2 i stället för Z3.";
-  return "Trött kropp — vila eller en kort promenad räcker idag.";
+  if (r.score >= 55) {
+    return nextPlan?.passnamn
+      ? `Inget skäl att avvika — ${nextPlan.passnamn.toLowerCase()} planenligt.`
+      : "Inget skäl att avvika — planenligt idag.";
+  }
+  if (r.score >= 40) return "Sänk en zon — kör Z2 där du tänkt Z3.";
+  return "Vila eller en kort promenad räcker idag.";
 }
 
 export default function WarmFitnessHubPage() {
@@ -215,19 +224,20 @@ export default function WarmFitnessHubPage() {
         {/* Readiness — terracotta-tinted */}
         <ReadinessTile data={readinessData} />
 
-        {/* IDAG */}
-        <SectionLabel>Idag</SectionLabel>
-        {heroPlan ? (
-          <PlanHeroTile plan={heroPlan} linkedWorkout={planToWorkout.get(heroPlan.id) ?? null} />
-        ) : heroWorkout ? (
-          <WorkoutHeroTile workout={heroWorkout} />
-        ) : nextPlan ? (
-          <NextPlanHint plan={nextPlan} />
-        ) : (
-          <Tile t={t}>
-            <div style={{ fontFamily: body, fontSize: 13, color: t.mute }}>Inga planerade pass.</div>
-          </Tile>
-        )}
+        {/* IDAG — Section-wrapper ger 14 över etiketten + 12 under (matchar Lab/Hem) */}
+        <Section label="Idag">
+          {heroPlan ? (
+            <PlanHeroTile plan={heroPlan} linkedWorkout={planToWorkout.get(heroPlan.id) ?? null} />
+          ) : heroWorkout ? (
+            <WorkoutHeroTile workout={heroWorkout} />
+          ) : nextPlan ? (
+            <NextPlanHint plan={nextPlan} />
+          ) : (
+            <Tile t={t}>
+              <div style={{ fontFamily: body, fontSize: 13, color: t.mute }}>Inga planerade pass.</div>
+            </Tile>
+          )}
+        </Section>
 
         {/* Vecka + streak */}
         <div style={{ display: "flex", gap: 10 }}>
@@ -390,8 +400,11 @@ function PlanHeroTile({ plan, linkedWorkout }: { plan: PlannedWorkout; linkedWor
       </Link>
     );
   }
+  // Ej genomfört än → öppna planen i Coach via ?edit=<id>. Coach läser
+  // query-paramen och autoöppnar redigeringsmodalen så användaren ser hela
+  // pass-detaljerna direkt utan att leta upp dagen i kalendern.
   return (
-    <Link href="/v3/fitness/coach" style={baseStyle}>
+    <Link href={`/v3/fitness/coach?edit=${plan.id}`} style={baseStyle}>
       {inner}
     </Link>
   );
@@ -610,19 +623,17 @@ function RecentTile({
   const { t } = useWarmTheme();
   if (workouts.length === 0) return null;
   return (
-    <div>
-      <SectionLabel
-        right={
-          <Link
-            href="/v3/fitness/historik"
-            style={{ fontFamily: body, fontSize: 11, color: ACC, textDecoration: "none" }}
-          >
-            se all historik →
-          </Link>
-        }
-      >
-        Senaste pass
-      </SectionLabel>
+    <Section
+      label="Senaste pass"
+      right={
+        <Link
+          href="/v3/fitness/historik"
+          style={{ fontFamily: body, fontSize: 11, color: ACC, textDecoration: "none" }}
+        >
+          se all historik →
+        </Link>
+      }
+    >
       <Tile t={t} style={{ padding: "4px 8px" }}>
         {workouts.slice(0, 5).map((w, i) => {
           const color = sportColor(w.type);
@@ -703,8 +714,8 @@ function RecentTile({
           );
         })}
       </Tile>
-    </div>
+    </Section>
   );
 }
 
-void AMBER; void LINGON; void SKY;
+void AMBER; void LINGON; void SKY; void SectionLabel;

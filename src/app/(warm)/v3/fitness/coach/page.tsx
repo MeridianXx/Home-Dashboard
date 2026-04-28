@@ -8,6 +8,7 @@
 // pass för en specifik dag.
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import useSWR from "swr";
@@ -95,6 +96,9 @@ type View = "week" | "month";
 
 export default function WarmFitnessCoachPage() {
   const { t } = useWarmTheme();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editParam = searchParams?.get("edit") ?? null;
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date>(() => mondayOf(new Date()));
   const [editing, setEditing] = useState<Draft | null>(null);
@@ -103,6 +107,20 @@ export default function WarmFitnessCoachPage() {
   const { data, error, isLoading, mutate } = useSWR<PlansResponse>("/api/fitness/plans", fetcher, {
     revalidateOnFocus: false,
   });
+
+  // Auto-öppna redigeringsmodal när FitHub navigerar hit med ?edit=<planId>.
+  // Kör bara när planerna är lästa och paramen matchar — annars hänger
+  // den kvar tills Notion-svaret kommer.
+  useEffect(() => {
+    if (!editParam || !data?.plans) return;
+    const target = data.plans.find((p) => p.id === editParam);
+    if (!target) return;
+    setEditing({ ...target });
+    // Sätt även anchor till passets vecka så användaren ser kontext bakom modalen
+    setAnchor(mondayOf(new Date(target.datum)));
+    // Rensa query-paramen så reload inte återöppnar modalen
+    router.replace("/v3/fitness/coach", { scroll: false });
+  }, [editParam, data, router]);
   const { data: workoutsData } = useSWR<WorkoutsResponse>("/api/fitness/workouts?limit=500", fetcher, {
     revalidateOnFocus: false,
     refreshInterval: 10 * 60 * 1000,

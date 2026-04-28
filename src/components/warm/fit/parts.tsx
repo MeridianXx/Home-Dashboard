@@ -118,12 +118,38 @@ export function SectionLabel({ children, right, style }: { children: ReactNode; 
         alignItems: "center",
         justifyContent: "space-between",
         padding: "0 4px",
-        marginBottom: 8,
         ...style,
       }}
     >
       <span style={lab(t)}>{children}</span>
       {right}
+    </div>
+  );
+}
+
+/**
+ * Wrappar en sektions-etikett med dess innehåll i en inner flex-column
+ * med tight gap (12). Matchar Lab/Hem-mönstret: ytterklassens gap (14)
+ * separerar sektioner från varandra, inner gap (12) håller etiketten
+ * nära sitt innehåll. Ger ~14 över etiketten, ~12 under.
+ */
+export function Section({
+  label,
+  right,
+  children,
+  innerGap = 12,
+  topGap = 14,
+}: {
+  label: string;
+  right?: ReactNode;
+  children: ReactNode;
+  innerGap?: number;
+  topGap?: number;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: innerGap, marginTop: topGap - 14 /* default = 0 (samma som container-gap) */ }}>
+      <SectionLabel right={right}>{label}</SectionLabel>
+      {children}
     </div>
   );
 }
