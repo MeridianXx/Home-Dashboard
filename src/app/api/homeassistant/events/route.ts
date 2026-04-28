@@ -12,6 +12,11 @@ type RawEntry = {
   attributes?: {
     brightness?: number;
     friendly_name?: string;
+    media_title?: string;
+    media_artist?: string;
+    source?: string;
+    temperature?: number;
+    hvac_mode?: string;
   };
 };
 
@@ -24,6 +29,12 @@ export type RawEvent = {
   brightness_pct: number | null;
   prev_state: string | null;
   prev_brightness_pct: number | null;
+  // Domain-specifika attribut för bättre beskrivningar
+  media_title?: string | null;
+  media_artist?: string | null;
+  source?: string | null;
+  target_temp?: number | null;
+  prev_target_temp?: number | null;
 };
 
 export async function GET(req: Request) {
@@ -68,12 +79,15 @@ export async function GET(req: Request) {
             ? Math.round((prev.attributes.brightness / 255) * 100)
             : null;
 
-        // Filtrera bort no-op-events: samma state och samma brightness som
-        // föregående.
+        const curTemp = cur.attributes?.temperature ?? null;
+        const prevTemp = prev?.attributes?.temperature ?? null;
+
+        // Filtrera bort no-op-events
         if (
           prev &&
           prev.state === cur.state &&
-          curBr === prevBr
+          curBr === prevBr &&
+          curTemp === prevTemp
         ) {
           continue;
         }
@@ -87,6 +101,11 @@ export async function GET(req: Request) {
           brightness_pct: curBr,
           prev_state: prev?.state ?? null,
           prev_brightness_pct: prevBr,
+          media_title: cur.attributes?.media_title ?? null,
+          media_artist: cur.attributes?.media_artist ?? null,
+          source: cur.attributes?.source ?? null,
+          target_temp: curTemp,
+          prev_target_temp: prevTemp,
         });
       }
     }

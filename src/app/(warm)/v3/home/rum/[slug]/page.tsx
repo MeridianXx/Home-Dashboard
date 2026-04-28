@@ -23,7 +23,11 @@ import WarmPress from "@/components/warm/WarmPress";
 import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { slugToName } from "@/lib/warm/rooms";
 import { formatTime, kelvinLabel, sceneLabel } from "@/lib/warm/format";
-import { formatEvents, type RawEvent } from "@/lib/warm/events";
+import {
+  formatEvents,
+  sceneEventsFromScenes,
+  type RawEvent,
+} from "@/lib/warm/events";
 
 type LightEntry = {
   entity_id: string;
@@ -599,40 +603,12 @@ type FormattedEvent = {
 function RecentEvents({
   t,
   events,
-  scene,
-  sceneSince,
 }: {
   t: WarmTheme;
   events: FormattedEvent[];
-  scene: string | null;
-  sceneSince: string | null;
 }) {
-  // Slå ihop scen-aktivering (om finns) med faktiska events. Scen-eventet
-  // läggs in på rätt plats i tidsordningen.
-  type Row = {
-    time: string;
-    description: string;
-    descriptionScene?: string;
-    source: string;
-    isScene?: boolean;
-  };
-  const rows: Row[] = events.map((e) => ({
-    time: e.time,
-    description: e.description,
-    source: e.source,
-  }));
-  if (scene && sceneSince) {
-    rows.push({
-      time: sceneSince,
-      description: `Scen ${sceneLabel(scene)} aktiverad`,
-      descriptionScene: sceneLabel(scene),
-      source: "auto",
-      isScene: true,
-    });
-  }
-  rows.sort((a, b) => b.time.localeCompare(a.time));
-  const top = rows.slice(0, 4);
-  if (top.length === 0) return null;
+  if (events.length === 0) return null;
+  const top = events.slice(0, 4);
 
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -733,11 +709,33 @@ export default function WarmRoomDetail() {
   });
 
   const area = lights?.areas.find((a) => a.name === roomName);
-  // Senaste händelser: bygg query-string av rummets lampor.
+
+  // Hämta alla relevanta entiteter för rummet (lampor + media + climate +
+  // motion-sensorer) via dedikerad endpoint så SENASTE-listan kan visa
+  // Sonos/Apple TV-events, värmepump-byten och rörelse-detektioner.
+  const { data: roomEntities } = useSWR<{
+    entities: string[];
+    lights: string[];
+    media: string[];
+    climate: string[];
+    motion: string[];
+  }>(
+    hydrated && roomName
+      ? `/api/homeassistant/room-entities?room=${encodeURIComponent(roomName)}`
+      : null,
+    fetcher,
+    { refreshInterval: 300_000 }
+  );
+
   const eventEntities = useMemo(() => {
+    if (roomEntities?.entities && roomEntities.entities.length > 0) {
+      return roomEntities.entities.join(",");
+    }
     if (!area) return null;
+    // Fallback till bara rummets lampor om room-entities inte är klar än.
     return area.lights.map((l) => l.entity_id).join(",");
-  }, [area]);
+  }, [roomEntities, area]);
+
   const { data: eventsData, mutate: mEvents } = useSWR<{ events: RawEvent[] }>(
     hydrated && eventEntities
       ? `/api/homeassistant/events?entities=${eventEntities}&hours=24`
@@ -745,10 +743,21 @@ export default function WarmRoomDetail() {
     fetcher,
     { refreshInterval: 60_000 }
   );
-  const recentEvents = useMemo(
-    () => formatEvents(eventsData?.events ?? [], 6),
-    [eventsData]
-  );
+  const recentEvents = useMemo(() => {
+    // Lampor / media / climate / motion-events från history (deduperade
+    // mot scen-aktiveringar inom ±3 s).
+    const fromHistory = formatEvents(
+      eventsData?.events ?? [],
+      scenesData?.scenes,
+      10
+    );
+    // Scen-aktiveringar inom 24 h som egna rader. Deras "tändes"-events
+    // är redan filtrerade bort av formatEvents-deduperingen.
+    const fromScenes = sceneEventsFromScenes(scenesData?.scenes);
+    const merged = [...fromHistory, ...fromScenes];
+    merged.sort((a, b) => b.time.localeCompare(a.time));
+    return merged;
+  }, [eventsData, scenesData]);
   // Kök har en felklassad sensor (60° konstant) — visa ingen sensor-data
   // för rummet förrän bug:en är fixad i sensors-route.
   const isKitchen = roomName?.toLowerCase() === "kök" || roomName?.toLowerCase() === "köket";
@@ -772,10 +781,16 @@ export default function WarmRoomDetail() {
     return bySlug ?? alData.instances[0] ?? null;
   };
 
-  const sceneActive = useMemo(
-    () => activeSceneByLastChanged(scenesData?.scenes),
-    [scenesData]
-  );
+  const sceneActive = useMemo(() => {
+    const snapshot = lights?.areas?.flatMap((a) =>
+      a.lights.map((l) => ({
+        entity_id: l.entity_id,
+        state: l.state,
+        brightness_pct: l.brightness_pct,
+      }))
+    );
+    return activeSceneByLastChanged(scenesData?.scenes, snapshot);
+  }, [scenesData, lights]);
   const activeScene = sceneActive?.key ?? null;
   const activeSince = sceneActive?.lastChanged ?? null;
 
@@ -937,12 +952,7 @@ export default function WarmRoomDetail() {
           </section>
         )}
 
-        <RecentEvents
-          t={t}
-          events={recentEvents}
-          scene={activeScene}
-          sceneSince={activeSince}
-        />
+        <RecentEvents t={t} events={recentEvents} />
       </div>
 
       <LightEditSheet

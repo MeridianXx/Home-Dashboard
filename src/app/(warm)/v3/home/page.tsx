@@ -23,7 +23,13 @@ import SunArc from "@/components/warm/SunArc";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { HUB_FAVORITE_ROOMS, SLUG_TO_NAME } from "@/lib/warm/rooms";
-import { formatTime, sceneLabel, spotLabel, svGreeting } from "@/lib/warm/format";
+import {
+  formatTime,
+  lastDarkenedAt,
+  sceneLabel,
+  spotLabel,
+  svGreeting,
+} from "@/lib/warm/format";
 
 type LightEntry = {
   entity_id: string;
@@ -32,6 +38,7 @@ type LightEntry = {
   brightness_pct: number | null;
   dimmable: boolean;
   color_temp_kelvin: number | null;
+  last_changed: string | null;
 };
 type LightArea = {
   area_id: string;
@@ -348,25 +355,28 @@ function WeatherTile({
   );
 }
 
-// ─── Scen-rad: 4 pills + "kvällsläge sedan HH:MM" till höger ────────────────
+// ─── Scen-rad: 4 pills + status till höger ──────────────────────────────────
 
 function ScenesSection({
   t,
   active,
   loading,
   activeSince,
+  darkSince,
   onActivate,
 }: {
   t: WarmTheme;
   active: string | null;
   loading: string | null;
   activeSince: string | null;
+  darkSince: string | null; // "släckt sedan HH:MM" — visas om ingen scen aktiv
   onActivate: (key: string) => void;
 }) {
-  const sinceLabel =
-    active && activeSince
-      ? `${sceneLabel(active)} sedan ${formatTime(activeSince)}`
-      : null;
+  const sinceLabel = active && activeSince
+    ? `${sceneLabel(active)} sedan ${formatTime(activeSince)}`
+    : darkSince
+    ? `släckt sedan ${formatTime(darkSince)}`
+    : null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div
@@ -818,10 +828,16 @@ export default function WarmHomeHub() {
     { refreshInterval: 60_000 }
   );
 
-  const sceneActive = useMemo(
-    () => activeSceneByLastChanged(scenesData?.scenes),
-    [scenesData]
-  );
+  const sceneActive = useMemo(() => {
+    const snapshot = lights?.areas?.flatMap((a) =>
+      a.lights.map((l) => ({
+        entity_id: l.entity_id,
+        state: l.state,
+        brightness_pct: l.brightness_pct,
+      }))
+    );
+    return activeSceneByLastChanged(scenesData?.scenes, snapshot);
+  }, [scenesData, lights]);
   const activeScene = sceneActive?.key ?? null;
   const activeSince = sceneActive?.lastChanged ?? null;
 
@@ -880,6 +896,11 @@ export default function WarmHomeHub() {
           active={activeScene}
           loading={sceneLoading}
           activeSince={activeSince}
+          darkSince={
+            !activeScene && lights && "areas" in lights
+              ? lastDarkenedAt(lights.areas.flatMap((a) => a.lights))
+              : null
+          }
           onActivate={handleScene}
         />
 

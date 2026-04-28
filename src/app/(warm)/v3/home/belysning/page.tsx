@@ -20,7 +20,7 @@ import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { RoomLightRow, type LightArea, type LightEntry } from "@/components/warm/RoomLights";
 import { NEDERVANING, OVERVANING, UTOMHUS } from "@/lib/warm/rooms";
-import { formatTime, sceneLabel } from "@/lib/warm/format";
+import { formatTime, lastDarkenedAt, sceneLabel } from "@/lib/warm/format";
 
 type LightsData = { areas: LightArea[] };
 
@@ -48,19 +48,22 @@ function SceneRow({
   t,
   active,
   activeSince,
+  darkSince,
   loading,
   onActivate,
 }: {
   t: WarmTheme;
   active: string | null;
   activeSince: string | null;
+  darkSince: string | null;
   loading: string | null;
   onActivate: (key: string) => void;
 }) {
-  const sinceLabel =
-    active && activeSince
-      ? `${sceneLabel(active)} sedan ${formatTime(activeSince)}`
-      : null;
+  const sinceLabel = active && activeSince
+    ? `${sceneLabel(active)} sedan ${formatTime(activeSince)}`
+    : darkSince
+    ? `släckt sedan ${formatTime(darkSince)}`
+    : null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div
@@ -240,10 +243,16 @@ export default function WarmLightingPage() {
   const [offLoading, setOffLoading] = useState<string | null>(null);
   const [sceneLoading, setSceneLoading] = useState<string | null>(null);
 
-  const sceneActive = useMemo(
-    () => activeSceneByLastChanged(scenesData?.scenes),
-    [scenesData]
-  );
+  const sceneActive = useMemo(() => {
+    const snapshot = lights?.areas?.flatMap((a) =>
+      a.lights.map((l) => ({
+        entity_id: l.entity_id,
+        state: l.state,
+        brightness_pct: l.brightness_pct,
+      }))
+    );
+    return activeSceneByLastChanged(scenesData?.scenes, snapshot);
+  }, [scenesData, lights]);
   const activeScene = sceneActive?.key ?? null;
   const activeSince = sceneActive?.lastChanged ?? null;
 
@@ -380,6 +389,11 @@ export default function WarmLightingPage() {
           t={t}
           active={activeScene}
           activeSince={activeSince}
+          darkSince={
+            !activeScene && areas.length > 0
+              ? lastDarkenedAt(areas.flatMap((a) => a.lights))
+              : null
+          }
           loading={sceneLoading}
           onActivate={handleScene}
         />
