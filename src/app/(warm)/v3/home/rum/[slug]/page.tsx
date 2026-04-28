@@ -625,7 +625,10 @@ export default function WarmRoomDetail() {
   });
 
   const area = lights?.areas.find((a) => a.name === roomName);
-  const sensor = sensors?.areas.find((a) => a.name === roomName);
+  // Kök har en felklassad sensor (60° konstant) — visa ingen sensor-data
+  // för rummet förrän bug:en är fixad i sensors-route.
+  const isKitchen = roomName?.toLowerCase() === "kök" || roomName?.toLowerCase() === "köket";
+  const sensor = isKitchen ? undefined : sensors?.areas.find((a) => a.name === roomName);
   const [liveBrightness, setLiveBrightness] = useState<Record<string, number>>({});
   const [masterLoading, setMasterLoading] = useState<"off" | "on" | "auto" | null>(null);
   const [editingLight, setEditingLight] = useState<LightEntry | null>(null);

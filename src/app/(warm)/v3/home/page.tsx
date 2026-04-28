@@ -484,7 +484,13 @@ function TibberTile({ t, energy }: { t: WarmTheme; energy: EnergyData | undefine
 
 function CarsTile({ t, cars }: { t: WarmTheme; cars: CarsData | undefined }) {
   const list = cars && "cars" in cars ? cars.cars : [];
-  const charging = list.find((c) => c.charging);
+  // Visa bara Enyaq på hubben — full översikt över alla bilar finns
+  // på /v3/home/energi. "Skoda Enyaq" visas som "Enyaq".
+  const enyaq = list.find((c) => c.id.toLowerCase().includes("enyaq"));
+  const car = enyaq ?? list[0] ?? null;
+  const displayName = car?.name?.replace(/^Skoda\s+/i, "") ?? "";
+  const SAGE_GREEN = "#5A7F4A"; // matchar lightT.ok men hårt fixerat så det
+  // är samma signal i både light/dark
   return (
     <Tile
       t={t}
@@ -500,52 +506,59 @@ function CarsTile({ t, cars }: { t: WarmTheme; cars: CarsData | undefined }) {
         <span style={{ ...lab(t), letterSpacing: "0.16em" }}>BILAR</span>
         <ChevronRight size={12} color={t.dim} />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {list.map((car) => (
-          <div
-            key={car.id}
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-            }}
-          >
-            <span
-              style={{
-                fontFamily: serif,
-                fontSize: 15,
-                fontWeight: 500,
-                color: t.ink,
-              }}
-            >
-              {car.name}
-            </span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 4,
+          minHeight: 24,
+        }}
+      >
+        {car && (
+          <>
             <span
               className="warm-tab-nums"
-              style={{ fontFamily: serif, fontSize: 16, color: t.ink }}
+              style={{ ...num(t, 22, 400), lineHeight: 1.1, color: car.charging ? t.ok : t.ink }}
             >
               {car.soc}
-              <span
-                style={{
-                  fontFamily: body,
-                  fontSize: 10,
-                  color: t.mute,
-                  marginLeft: 1,
-                }}
-              >
-                %
-              </span>
             </span>
-          </div>
-        ))}
+            <span
+              style={{
+                fontFamily: body,
+                fontSize: 11,
+                color: t.mute,
+                fontWeight: 500,
+              }}
+            >
+              %
+            </span>
+          </>
+        )}
       </div>
-      {charging ? (
-        <span style={{ ...ital(t, 12), color: ACC }}>laddar nu</span>
-      ) : list.some((c) => c.plugged_in) ? (
-        <span style={ital(t, 12, t.dim)}>inkopplad, ej aktiv</span>
-      ) : (
-        <span style={ital(t, 12, t.dim)}>ej inkopplade</span>
-      )}
+      <span
+        style={{
+          ...ital(t, 12, t.dim),
+          minHeight: 16,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
+        }}
+      >
+        {car?.plugged_in && (
+          <span
+            aria-label={car.charging ? "laddar" : "inkopplad"}
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: SAGE_GREEN,
+              display: "inline-block",
+              flexShrink: 0,
+            }}
+          />
+        )}
+        {displayName}
+      </span>
     </Tile>
   );
 }
@@ -582,7 +595,19 @@ function RoomList({
         }}
       >
         <span style={lab(t)}>RUM</span>
-        <span style={ital(t, 12, t.dim)}>tryck för att styra</span>
+        <Link
+          href="/v3/home/belysning"
+          style={{
+            ...ital(t, 12, t.dim),
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
+          }}
+        >
+          alla rum & belysning
+          <ChevronRight size={11} color={t.dim} />
+        </Link>
       </div>
       <div
         style={{
@@ -606,8 +631,11 @@ function RoomList({
             );
           })();
           const subtitleParts: string[] = [];
-          if (r.sensorArea) {
-            subtitleParts.push(`${r.sensorArea.temperature.toFixed(1)}°`);
+          // Köket har en felklassad sensor (60° konstant) — visa inte temp.
+          const showTemp =
+            r.sensorArea && r.name.toLowerCase() !== "kök" && r.name.toLowerCase() !== "köket";
+          if (showTemp) {
+            subtitleParts.push(`${r.sensorArea!.temperature.toFixed(1)}°`);
           }
           if (r.lightArea) {
             if (on) {
@@ -670,23 +698,6 @@ function RoomList({
           );
         })}
       </div>
-      <Link
-        href="/v3/home/belysning"
-        style={{
-          alignSelf: "flex-end",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-          fontFamily: body,
-          fontStyle: "italic",
-          fontSize: 13,
-          color: t.mute,
-          textDecoration: "none",
-        }}
-      >
-        Alla rum & belysning
-        <ChevronRight size={12} color={t.mute} />
-      </Link>
     </div>
   );
 }

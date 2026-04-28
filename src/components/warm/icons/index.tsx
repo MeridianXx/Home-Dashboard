@@ -85,15 +85,14 @@ export function SceneGlyph({
   const props = baseSvg(size, color);
   switch (scene) {
     case "morgon":
+      // Halvsol över horisontlinje. Förenklad för läsbarhet vid 14 px.
       return (
         <svg {...props} style={style}>
-          <circle cx="12" cy="13" r="3.5" />
-          <path d="M12 6v2" />
-          <path d="M5 13h2" />
-          <path d="M17 13h2" />
-          <path d="M7.2 8.2 8.6 9.6" />
-          <path d="M15.4 9.6l1.4-1.4" />
-          <path d="M5 18h14" />
+          <path d="M5 16h14" />
+          <path d="M7.5 16a4.5 4.5 0 0 1 9 0" />
+          <path d="M12 6v2.5" />
+          <path d="M5 11h2" />
+          <path d="M17 11h2" />
         </svg>
       );
     case "dag":
