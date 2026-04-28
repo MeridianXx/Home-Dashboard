@@ -21,6 +21,7 @@ import { ChevronLeft, DropletIcon, ThermoIcon } from "@/components/warm/icons/ex
 import { weatherGlyph } from "@/lib/warm/weather";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import TempGraph from "@/components/warm/TempGraph";
+import WarmPress from "@/components/warm/WarmPress";
 import { formatTime, periodLabel } from "@/lib/warm/format";
 
 type SensorArea = {
@@ -360,7 +361,9 @@ export default function WarmKlimatPage() {
                   className="warm-tab-nums"
                   style={{ ...num(t, 56, 400), lineHeight: 1 }}
                 >
-                  {Math.round(current.temperature)}
+                  {sensors?.outdoor_temp != null
+                    ? sensors.outdoor_temp.toFixed(1)
+                    : Math.round(current.temperature)}
                 </span>
                 <span
                   style={{
@@ -378,7 +381,7 @@ export default function WarmKlimatPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                 gap: 12,
                 marginTop: 14,
                 paddingTop: 12,
@@ -396,16 +399,6 @@ export default function WarmKlimatPage() {
                 label="VIND"
                 value={`${Math.round(current.wind_speed)}`}
                 unit="m/s"
-              />
-              <ClimateStat
-                t={t}
-                label="VILLA"
-                value={
-                  sensors?.outdoor_temp != null
-                    ? sensors.outdoor_temp.toFixed(1)
-                    : "—"
-                }
-                unit="°"
               />
             </div>
           </div>
@@ -536,90 +529,32 @@ export default function WarmKlimatPage() {
           </section>
         )}
 
-        {/* Inomhus per rum */}
+        {/* Inomhus + utomhus per rum (växthus separat) */}
         {sensors && "areas" in sensors && sensors.areas.length > 0 && (() => {
           // Kök filtreras bort — sensor.kok_jalusi är felklassad som
           // device_class: temperature i HA och rapporterar 60° konstant.
-          // Pre-existerande v2-data-bug, kandidat att fixa i sensors-route.
-          const filtered = sensors.areas.filter(
-            (a) => a.name.toLowerCase() !== "kök" && a.name.toLowerCase() !== "köket"
+          // Pre-existerande v2-data-bug.
+          const isKitchen = (n: string) => {
+            const l = n.toLowerCase();
+            return l === "kök" || l === "köket";
+          };
+          const isOutdoor = (n: string) => {
+            const l = n.toLowerCase();
+            return l.includes("växthus") || l.includes("vaxthus");
+          };
+          const indoor = sensors.areas.filter(
+            (a) => !isKitchen(a.name) && !isOutdoor(a.name)
           );
-          if (filtered.length === 0) return null;
+          const outdoor = sensors.areas.filter((a) => isOutdoor(a.name));
           return (
-          <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <span style={lab(t)}>INOMHUS</span>
-            <div
-              style={{
-                background: t.paper,
-                border: `1px solid ${t.line}`,
-                borderRadius: 14,
-                overflow: "hidden",
-              }}
-            >
-              {filtered.map((a, i) => (
-                <div
-                  key={a.area_id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto auto",
-                    alignItems: "center",
-                    gap: 14,
-                    padding: "12px 16px",
-                    borderTop: i === 0 ? "none" : `1px solid ${t.line}`,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: serif,
-                      fontSize: 16,
-                      fontWeight: 500,
-                      color: t.ink,
-                    }}
-                  >
-                    {a.name}
-                  </span>
-                  {a.humidity != null ? (
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontFamily: body,
-                        fontSize: 12,
-                        color: t.mute,
-                      }}
-                    >
-                      <DropletIcon size={12} color={t.mute} />
-                      <span className="warm-tab-nums">
-                        {Math.round(a.humidity)}%
-                      </span>
-                    </span>
-                  ) : (
-                    <span />
-                  )}
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <ThermoIcon size={14} color={t.mute} />
-                    <span
-                      className="warm-tab-nums"
-                      style={{
-                        fontFamily: serif,
-                        fontSize: 16,
-                        color: t.ink,
-                      }}
-                    >
-                      {a.temperature.toFixed(1)}°
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
+            <>
+              {indoor.length > 0 && (
+                <RoomTempList t={t} title="INOMHUS" rooms={indoor} />
+              )}
+              {outdoor.length > 0 && (
+                <RoomTempList t={t} title="UTOMHUS" rooms={outdoor} />
+              )}
+            </>
           );
         })()}
 
@@ -838,11 +773,11 @@ export default function WarmKlimatPage() {
                     };
                     const active = hvac.heat_pump.state === mode;
                     return (
-                      <button
+                      <WarmPress
                         key={mode}
-                        type="button"
                         onClick={() => handleHeroMode(mode, active)}
-                        aria-pressed={active}
+                        ariaPressed={active}
+                        spinnerColor={active ? "#FFFBF0" : ACC}
                         style={{
                           padding: "8px 6px",
                           borderRadius: 999,
@@ -852,12 +787,11 @@ export default function WarmKlimatPage() {
                           fontFamily: body,
                           fontSize: 12,
                           fontWeight: active ? 600 : 500,
-                          cursor: "pointer",
                           transition: "background 160ms",
                         }}
                       >
                         {labels[mode]}
-                      </button>
+                      </WarmPress>
                     );
                   })}
                 </div>
@@ -902,10 +836,11 @@ export default function WarmKlimatPage() {
                           const active = hvac.heat_pump.fan_mode === m;
                           const label = m === "auto" ? "Auto" : m;
                           return (
-                            <button
+                            <WarmPress
                               key={m}
-                              type="button"
                               onClick={() => handleHeroFan(m)}
+                              ariaPressed={active}
+                              spinnerColor={active ? "#FFFBF0" : ACC}
                               style={{
                                 padding: "6px 0",
                                 borderRadius: 999,
@@ -915,12 +850,11 @@ export default function WarmKlimatPage() {
                                 fontFamily: body,
                                 fontSize: 11,
                                 fontWeight: active ? 600 : 500,
-                                cursor: "pointer",
                                 transition: "background 160ms",
                               }}
                             >
                               {label}
-                            </button>
+                            </WarmPress>
                           );
                         })}
                       </div>
@@ -985,6 +919,95 @@ function ClimateStat({
   );
 }
 
+// ─── Delad rum-temp-lista (INOMHUS / UTOMHUS) ───────────────────────────────
+
+function RoomTempList({
+  t,
+  title,
+  rooms,
+}: {
+  t: WarmTheme;
+  title: string;
+  rooms: SensorArea[];
+}) {
+  return (
+    <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <span style={lab(t)}>{title}</span>
+      <div
+        style={{
+          background: t.paper,
+          border: `1px solid ${t.line}`,
+          borderRadius: 14,
+          overflow: "hidden",
+        }}
+      >
+        {rooms.map((a, i) => (
+          <div
+            key={a.area_id}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr auto auto",
+              alignItems: "center",
+              gap: 14,
+              padding: "12px 16px",
+              borderTop: i === 0 ? "none" : `1px solid ${t.line}`,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: serif,
+                fontSize: 16,
+                fontWeight: 500,
+                color: t.ink,
+              }}
+            >
+              {a.name}
+            </span>
+            {a.humidity != null ? (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontFamily: body,
+                  fontSize: 12,
+                  color: t.mute,
+                }}
+              >
+                <DropletIcon size={12} color={t.mute} />
+                <span className="warm-tab-nums">
+                  {Math.round(a.humidity)}%
+                </span>
+              </span>
+            ) : (
+              <span />
+            )}
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <ThermoIcon size={14} color={t.mute} />
+              <span
+                className="warm-tab-nums"
+                style={{
+                  fontFamily: serif,
+                  fontSize: 16,
+                  color: t.ink,
+                }}
+              >
+                {a.temperature.toFixed(1)}°
+              </span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ─── NibePill: kompakt knapp med ACC-fyllning vid active ────────────────────
 
 function NibePill({
@@ -997,14 +1020,14 @@ function NibePill({
   t: WarmTheme;
   label: string;
   active: boolean;
-  onClick: () => void;
+  onClick: () => void | Promise<void>;
   note?: string | null;
 }) {
   return (
-    <button
-      type="button"
+    <WarmPress
       onClick={onClick}
-      aria-pressed={active}
+      ariaPressed={active}
+      spinnerColor={active ? "#FFFBF0" : ACC}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -1017,7 +1040,6 @@ function NibePill({
         fontFamily: body,
         fontSize: 12,
         fontWeight: active ? 600 : 500,
-        cursor: "pointer",
         transition: "background 160ms",
       }}
     >
@@ -1034,7 +1056,7 @@ function NibePill({
           · {note}
         </span>
       )}
-    </button>
+    </WarmPress>
   );
 }
 
@@ -1248,7 +1270,8 @@ function VacuumCard({
   data: VacuumData;
   onAction: (domain: string, service: string, entity_id: string) => Promise<void>;
 }) {
-  const accent = data.cleaning ? ACC : data.charging ? SAGE : t.line;
+  // Använd samma neutrala border som övriga kort. Status (cleaning/charging)
+  // signaleras subtilt via ikon-tinten + ital "laddar"/"städar"-texten.
   const accentBg = data.cleaning
     ? t.tint
     : data.charging
@@ -1312,7 +1335,7 @@ function VacuumCard({
       <div
         style={{
           background: t.paper,
-          border: `1px solid ${accent}`,
+          border: `1px solid ${t.line}`,
           borderRadius: 14,
           padding: "14px 16px",
           display: "flex",
@@ -1410,10 +1433,10 @@ function VacuumCard({
           }}
         >
           {primaryActions.map(({ label, action }) => (
-            <button
+            <WarmPress
               key={label}
-              type="button"
               onClick={action}
+              spinnerColor={ACC}
               style={{
                 padding: "9px 0",
                 borderRadius: 999,
@@ -1423,35 +1446,42 @@ function VacuumCard({
                 fontFamily: body,
                 fontSize: 13,
                 fontWeight: 600,
-                cursor: "pointer",
               }}
             >
               {label}
-            </button>
+            </WarmPress>
           ))}
         </div>
 
-        {/* Programknappar */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {/* Programknappar — alla fyra på samma rad */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+            gap: 4,
+          }}
+        >
           {programActions.map(({ label, action }) => (
-            <button
+            <WarmPress
               key={label}
-              type="button"
               onClick={action}
+              spinnerColor={ACC}
               style={{
-                padding: "6px 12px",
+                padding: "6px 4px",
                 borderRadius: 999,
                 background: "transparent",
                 border: `1px solid ${t.line}`,
                 color: t.mute,
                 fontFamily: body,
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: 500,
-                cursor: "pointer",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}
             >
               {label}
-            </button>
+            </WarmPress>
           ))}
         </div>
       </div>
