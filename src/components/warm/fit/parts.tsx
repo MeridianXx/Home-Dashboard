@@ -65,6 +65,7 @@ export function DetailHero({
   title,
   italicTail,
   subtitle,
+  right,
 }: {
   backHref: string;
   backLabel: string;
@@ -72,26 +73,29 @@ export function DetailHero({
   title: string;
   italicTail?: string;
   subtitle?: string;
+  right?: ReactNode;
 }) {
   const { t } = useWarmTheme();
   return (
     <header style={{ padding: "16px 18px 8px" }}>
-      <Link
-        href={backHref}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-          fontFamily: body,
-          fontSize: 13,
-          color: t.mute,
-          textDecoration: "none",
-          marginBottom: 10,
-        }}
-      >
-        <ChevronLeft size={16} color={t.mute} />
-        {backLabel}
-      </Link>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <Link
+          href={backHref}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            fontFamily: body,
+            fontSize: 13,
+            color: t.mute,
+            textDecoration: "none",
+          }}
+        >
+          <ChevronLeft size={16} color={t.mute} />
+          {backLabel}
+        </Link>
+        {right ? <div style={{ display: "flex", gap: 8 }}>{right}</div> : null}
+      </div>
       <div style={{ ...lab(t, { color: ACC, marginBottom: 6 }) }}>{eyebrow}</div>
       <h1 style={{ ...num(t, 30, 400), lineHeight: 1.05, color: t.ink }}>
         {title}
