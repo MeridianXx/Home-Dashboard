@@ -1,30 +1,19 @@
 "use client";
 
 // ─── Warm Home · Trädgård · Projekt ─────────────────────────────────────────
-// Kanban-board över utomhusprojekt. dnd-kit för drag mellan kolumner. Status-
-// dropdown på kortet är mobil-fallback. Filter på tidsram/område/prioritet +
-// kompakt budget-summering högst upp.
+// Vertikalt grupperade projekt per status — utan kanban/DnD. Mobilvänlig.
+// Status ändras via inline-dropdown på kortet eller i redigera-modal.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import useSWR from "swr";
-import {
-  DndContext,
-  PointerSensor,
-  TouchSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  useDroppable,
-  useDraggable,
-  closestCenter,
-} from "@dnd-kit/core";
 import { fetcher } from "@/lib/fetcher";
 import { useWarmTheme } from "@/lib/warm/theme";
 import { ACC, body, ital, lab, num } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { DetailHero } from "@/components/warm/fit/parts";
 import { PlusIcon, EditIcon } from "@/components/warm/icons/garden";
+import { ChevronLeft } from "@/components/warm/icons/extra";
 import { WarmModal } from "@/components/warm/Modal";
 import {
   Field,
@@ -44,16 +33,18 @@ import type {
   ProjectsResponse,
 } from "@/lib/garden/types";
 
-const STATUS_COLUMNS = ["Ny", "Utreds", "Planerad", "Pågående", "Väntar", "Klart", "Skrotad"];
+const STATUS_ORDER = ["Pågående", "Väntar", "Planerad", "Utreds", "Ny", "Klart", "Skrotad"];
+const STATUS_OPTIONS = ["Ny", "Utreds", "Planerad", "Pågående", "Väntar", "Klart", "Skrotad"];
 const PRIORITY_OPTIONS = ["Hög", "Normal", "Låg"];
 const AREA_OPTIONS = ["Uppfart", "Finplanering", "Grovplanering", "Trädgård", "Bygg", "Altan"];
 const TIMEFRAME_OPTIONS = ["Oklart", "2026", "2027"];
-
 const ACTIVE_STATUSES = new Set(["Planerad", "Pågående", "Utreds", "Väntar"]);
+// These groups start collapsed by default
+const DEFAULT_COLLAPSED = new Set(["Klart", "Skrotad"]);
 
 type Draft = OutdoorProjectInput & { id?: string };
 
-// ── Filter chips ────────────────────────────────────────────────────────────
+// ── Filter pills ─────────────────────────────────────────────────────────────
 
 function FilterPills({
   label,
@@ -71,18 +62,18 @@ function FilterPills({
     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
       <span style={lab(t)}>{label}</span>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-        {options.map((opt) => {
-          const active = value === opt;
+        {["Alla", ...options].map((opt) => {
+          const active = value === opt || (opt === "Alla" && !options.includes(value));
           return (
             <button
               key={opt}
               type="button"
-              onClick={() => onChange(opt)}
+              onClick={() => onChange(opt === "Alla" ? "" : opt)}
               style={{
                 fontFamily: body,
                 fontSize: 11,
                 fontWeight: 600,
-                background: active ? ACC : t.tint,
+                background: active ? ACC : t.paper,
                 color: active ? "#FFFBF0" : t.ink,
                 border: `1px solid ${active ? ACC : t.line}`,
                 borderRadius: 999,
@@ -100,630 +91,601 @@ function FilterPills({
   );
 }
 
-// ── Stat-tile för budget-summering ─────────────────────────────────────────
+// ── Budget-summering ─────────────────────────────────────────────────────────
 
-function StatBox({
-  label,
-  value,
-  unit,
-  accent,
-}: {
-  label: string;
-  value: string | number;
-  unit?: string;
-  accent?: string;
-}) {
+function BudgetBar({ projects }: { projects: OutdoorProject[] }) {
   const { t } = useWarmTheme();
+  const active = projects.filter((p) => ACTIVE_STATUSES.has(p.status));
+  const budget = active.reduce((s, p) => s + (p.budget || 0), 0);
+  const spent = active.reduce((s, p) => s + (p.faktiskKostnad || 0), 0);
+  const remaining = budget - spent;
+  const stats = [
+    { label: "AKTIVA", value: active.length, unit: "projekt" },
+    { label: "BUDGET", value: budget ? formatSek(budget) : "–" },
+    { label: "UTFALL", value: spent ? formatSek(spent) : "–" },
+    { label: "KVAR", value: remaining ? formatSek(remaining) : "–" },
+  ];
   return (
     <div
       style={{
-        background: t.paper,
-        border: `1px solid ${t.line}`,
-        borderRadius: 12,
-        padding: "10px 12px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        minWidth: 0,
-      }}
-    >
-      <span style={lab(t)}>{label}</span>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-        <span
-          style={{ ...num(t, 20, 500), color: accent ?? t.ink, lineHeight: 1 }}
-          className="warm-tab-nums"
-        >
-          {value}
-        </span>
-        {unit ? (
-          <span style={{ fontFamily: body, fontSize: 10, color: t.mute }}>{unit}</span>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-// ── Kanban-kolumn + kort ───────────────────────────────────────────────────
-
-function Column({
-  status,
-  projects,
-  onPick,
-  onDropStatus,
-}: {
-  status: string;
-  projects: OutdoorProject[];
-  onPick: (p: OutdoorProject) => void;
-  onDropStatus: (id: string, next: string) => Promise<void>;
-}) {
-  const { t } = useWarmTheme();
-  const { setNodeRef, isOver } = useDroppable({ id: status });
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        background: t.paper,
-        border: `1px solid ${isOver ? ACC : t.line}`,
-        borderRadius: 14,
-        padding: 10,
-        minWidth: 220,
-        width: 220,
-        display: "flex",
-        flexDirection: "column",
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(80px, 1fr))",
         gap: 8,
-        transition: "border-color 160ms ease",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 2px" }}>
-        <span
-          style={{
-            width: 9,
-            height: 9,
-            borderRadius: 999,
-            background: PROJECT_STATUS_COLOR[status] ?? ACC,
-          }}
-        />
-        <span style={lab(t)}>{status}</span>
-        <span style={{ fontFamily: body, fontSize: 10, color: t.dim }}>· {projects.length}</span>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, minHeight: 32 }}>
-        {projects.map((p) => (
-          <ProjectCard key={p.id} project={p} onPick={onPick} onDropStatus={onDropStatus} />
-        ))}
-      </div>
+      {stats.map((s) => (
+        <Tile key={s.label} t={t} style={{ padding: "10px 12px" }}>
+          <div style={{ ...lab(t), marginBottom: 4 }}>{s.label}</div>
+          <div style={{ ...num(t, 18, 600), lineHeight: 1 }} className="warm-tab-nums">
+            {s.value}
+          </div>
+          {s.unit && (
+            <div style={{ ...lab(t), marginTop: 2, opacity: 0.7 }}>{s.unit}</div>
+          )}
+        </Tile>
+      ))}
     </div>
   );
 }
+
+// ── Projekt-kort ─────────────────────────────────────────────────────────────
 
 function ProjectCard({
   project,
-  onPick,
-  onDropStatus,
+  onEdit,
+  onStatusChange,
 }: {
   project: OutdoorProject;
-  onPick: (p: OutdoorProject) => void;
-  onDropStatus: (id: string, next: string) => Promise<void>;
+  onEdit: (p: OutdoorProject) => void;
+  onStatusChange: (id: string, next: string) => void;
 }) {
   const { t } = useWarmTheme();
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: project.id,
-  });
   const prio = PROJECT_PRIORITY_COLOR[project.prioritet] ?? t.dim;
 
-  const style: React.CSSProperties = {
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-    opacity: isDragging ? 0.5 : 1,
-    background: t.paperHi,
-    borderRadius: 10,
-    padding: 10,
-    border: `1px solid ${t.line}`,
-    cursor: "grab",
-    touchAction: "none",
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-  };
-
   return (
-    <div ref={setNodeRef} style={style}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }} {...attributes} {...listeners}>
-        <span
+    <Tile
+      t={t}
+      style={{
+        padding: "14px 16px",
+        borderLeft: `3px solid ${prio}`,
+        gap: 10,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 8,
+        }}
+      >
+        <div
           style={{
-            width: 4,
-            minWidth: 4,
-            alignSelf: "stretch",
-            borderRadius: 2,
-            background: prio,
+            fontFamily: body,
+            fontSize: 15,
+            fontWeight: 500,
+            color: t.ink,
+            flex: 1,
+            lineHeight: 1.3,
           }}
-          title={`Prioritet: ${project.prioritet || "—"}`}
-        />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              ...num(t, 13, 500),
-              lineHeight: 1.25,
-              color: t.ink,
-            }}
-          >
-            {project.namn || "Namnlöst projekt"}
-          </div>
-          <div
+        >
+          {project.namn || "Namnlöst projekt"}
+        </div>
+        <button
+          type="button"
+          onClick={() => onEdit(project)}
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 4,
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+        >
+          <EditIcon size={14} color={t.mute} />
+        </button>
+      </div>
+
+      {/* Tags */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
+        {project.omrade && (
+          <span
             style={{
               fontFamily: body,
               fontSize: 10,
-              color: t.mute,
-              marginTop: 4,
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 4,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase" as const,
+              background: `${ACC}18`,
+              color: ACC,
+              padding: "2px 8px",
+              borderRadius: 99,
             }}
           >
-            {project.omrade && <span>{project.omrade}</span>}
-            {project.tidsram && <span>· {project.tidsram}</span>}
-            {project.budget != null && project.budget > 0 && (
-              <span>· {formatSek(project.budget)} kr</span>
-            )}
-          </div>
-        </div>
+            {project.omrade}
+          </span>
+        )}
+        {project.tidsram && project.tidsram !== "Oklart" && (
+          <span
+            style={{
+              fontFamily: body,
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase" as const,
+              background: t.paper,
+              border: `1px solid ${t.line}`,
+              color: t.mute,
+              padding: "2px 8px",
+              borderRadius: 99,
+            }}
+          >
+            {project.tidsram}
+          </span>
+        )}
+        {project.budget ? (
+          <span style={{ fontFamily: body, fontSize: 11, color: t.dim }}>
+            {formatSek(project.budget)}
+          </span>
+        ) : null}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-        <select
-          value={project.status}
-          onChange={(e) => onDropStatus(project.id, e.target.value)}
-          onPointerDown={(e) => e.stopPropagation()}
-          aria-label="Byt status"
+      {project.kommentar && (
+        <p
           style={{
-            ...inputStyle(t),
-            padding: "3px 6px",
-            fontSize: 10,
-            width: "auto",
-            flex: 1,
+            fontFamily: body,
+            fontSize: 12,
+            color: t.mute,
+            lineHeight: 1.4,
+            margin: 0,
           }}
         >
-          {STATUS_COLUMNS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
+          {project.kommentar}
+        </p>
+      )}
+
+      {/* Inline status change */}
+      <select
+        value={project.status}
+        onChange={(e) => onStatusChange(project.id, e.target.value)}
+        onPointerDown={(e) => e.stopPropagation()}
+        style={{
+          ...inputStyle(t),
+          padding: "4px 8px",
+          fontSize: 12,
+          width: "auto",
+          alignSelf: "flex-start",
+        }}
+      >
+        {STATUS_OPTIONS.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+    </Tile>
+  );
+}
+
+// ── Status-grupp (kollapsbar) ─────────────────────────────────────────────────
+
+function StatusGroup({
+  status,
+  projects,
+  onEdit,
+  onStatusChange,
+}: {
+  status: string;
+  projects: OutdoorProject[];
+  onEdit: (p: OutdoorProject) => void;
+  onStatusChange: (id: string, next: string) => void;
+}) {
+  const { t } = useWarmTheme();
+  const [open, setOpen] = useState(!DEFAULT_COLLAPSED.has(status));
+  const dot = PROJECT_STATUS_COLOR[status] ?? t.dim;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "none",
+          border: "none",
+          padding: "8px 0",
+          cursor: "pointer",
+          textAlign: "left" as const,
+        }}
+      >
+        <span
+          style={{ width: 8, height: 8, borderRadius: 99, background: dot, flexShrink: 0 }}
+        />
+        <span style={{ ...lab(t), flex: 1 }}>{status}</span>
+        <span style={{ fontFamily: body, fontSize: 11, color: t.dim }}>{projects.length}</span>
+        <ChevronLeft
+          size={14}
+          color={t.dim}
+          style={{
+            transform: open ? "rotate(-90deg)" : "rotate(180deg)",
+            transition: "transform 200ms ease",
+          }}
+        />
+      </button>
+
+      {open && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingBottom: 16 }}>
+          {projects.map((p) => (
+            <ProjectCard
+              key={p.id}
+              project={p}
+              onEdit={onEdit}
+              onStatusChange={onStatusChange}
+            />
           ))}
-        </select>
-        <button
-          type="button"
-          onClick={() => onPick(project)}
-          onPointerDown={(e) => e.stopPropagation()}
-          aria-label="Redigera"
-          style={{
-            width: 26,
-            height: 26,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: 13,
-            background: t.paper,
-            border: `1px solid ${t.line}`,
-            cursor: "pointer",
-          }}
-        >
-          <EditIcon size={12} color={t.mute} />
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Modal ──────────────────────────────────────────────────────────────────
+// ── Redigera / skapa modal ────────────────────────────────────────────────────
 
 function ProjectModal({
   draft,
-  onClose,
+  onChange,
   onSave,
   onDelete,
+  onClose,
+  saving,
+  error,
 }: {
   draft: Draft;
+  onChange: (d: Draft) => void;
+  onSave: () => void;
+  onDelete?: () => void;
   onClose: () => void;
-  onSave: (d: Draft) => Promise<void>;
-  onDelete?: () => Promise<void>;
+  saving: boolean;
+  error: string;
 }) {
   const { t } = useWarmTheme();
-  const [form, setForm] = useState<Draft>({ ...draft });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const isEdit = Boolean(draft.id);
-
-  const upd = (patch: Partial<Draft>) => setForm((f) => ({ ...f, ...patch }));
-
-  const save = async () => {
-    if (saving) return;
-    setSaving(true);
-    setErr(null);
-    try {
-      await onSave(form);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
-  };
-  const del = async () => {
-    if (!onDelete || saving) return;
-    if (typeof window !== "undefined" && !window.confirm("Arkivera detta projekt?")) return;
-    setSaving(true);
-    setErr(null);
-    try {
-      await onDelete();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const numberInput = (val: number | null | undefined, set: (n: number | null) => void) => (
-    <input
-      type="number"
-      value={val == null ? "" : val}
-      onChange={(e) => {
-        const v = e.target.value;
-        set(v === "" ? null : Number(v));
-      }}
-      style={inputStyle(t)}
-      placeholder="kr"
-    />
-  );
+  const set = (k: keyof Draft, v: unknown) => onChange({ ...draft, [k]: v });
 
   return (
     <WarmModal
-      title={isEdit ? "Redigera projekt" : "Nytt projekt"}
+      title={draft.id ? "Redigera projekt" : "Nytt projekt"}
       onClose={onClose}
       footer={
         <ModalFooter
           onCancel={onClose}
-          onSave={save}
-          saveLabel={isEdit ? "Spara" : "Skapa"}
+          onSave={onSave}
           saving={saving}
-          canSave={!!form.namn}
-          destructiveLabel={isEdit ? "Arkivera" : undefined}
-          onDestructive={isEdit ? del : undefined}
+          destructiveLabel={draft.id ? "Arkivera" : undefined}
+          onDestructive={draft.id ? onDelete : undefined}
         />
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <Field label="Namn">
-          <input
-            type="text"
-            value={form.namn ?? ""}
-            onChange={(e) => upd({ namn: e.target.value })}
-            placeholder="t.ex. Mur under buskar baksida"
-            style={inputStyle(t)}
-          />
-        </Field>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
-          <Field label="Status">
-            <SelectBox
-              value={form.status ?? "Ny"}
-              options={STATUS_COLUMNS}
-              onChange={(v) => upd({ status: v })}
-            />
-          </Field>
-          <Field label="Prioritet">
-            <SelectBox
-              value={form.prioritet ?? "Normal"}
-              options={PRIORITY_OPTIONS}
-              onChange={(v) => upd({ prioritet: v })}
-            />
-          </Field>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
-          <Field label="Område">
-            <SelectBox
-              value={form.omrade ?? ""}
-              options={AREA_OPTIONS}
-              placeholder="Välj…"
-              onChange={(v) => upd({ omrade: v })}
-            />
-          </Field>
-          <Field label="Tidsram">
-            <SelectBox
-              value={form.tidsram ?? ""}
-              options={TIMEFRAME_OPTIONS}
-              placeholder="Välj…"
-              onChange={(v) => upd({ tidsram: v })}
-            />
-          </Field>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
-          <Field label="Budget (kr)">
-            {numberInput(form.budget, (n) => upd({ budget: n }))}
-          </Field>
-          <Field label="Faktisk kostnad (kr)">
-            {numberInput(form.faktiskKostnad, (n) => upd({ faktiskKostnad: n }))}
-          </Field>
-        </div>
-
-        <Field label="Kommentar">
-          <textarea
-            value={form.kommentar ?? ""}
-            onChange={(e) => upd({ kommentar: e.target.value })}
-            rows={3}
-            placeholder="Anteckningar, leverantörer, länkar"
-            style={{ ...inputStyle(t), resize: "vertical", fontFamily: body }}
-          />
-        </Field>
-      </div>
-
-      <ModalErrorRow message={err} />
+      <Field label="Projektnamn">
+        <input
+          style={inputStyle(t)}
+          value={draft.namn ?? ""}
+          onChange={(e) => set("namn", e.target.value)}
+          placeholder="Beskriv projektet"
+        />
+      </Field>
+      <Field label="Status">
+        <SelectBox
+          value={draft.status ?? "Ny"}
+          onChange={(v) => set("status", v)}
+          options={STATUS_OPTIONS}
+        />
+      </Field>
+      <Field label="Prioritet">
+        <SelectBox
+          value={draft.prioritet ?? "Normal"}
+          onChange={(v) => set("prioritet", v)}
+          options={PRIORITY_OPTIONS}
+        />
+      </Field>
+      <Field label="Område">
+        <SelectBox
+          value={draft.omrade ?? ""}
+          onChange={(v) => set("omrade", v)}
+          options={AREA_OPTIONS}
+        />
+      </Field>
+      <Field label="Tidsram">
+        <SelectBox
+          value={draft.tidsram ?? "Oklart"}
+          onChange={(v) => set("tidsram", v)}
+          options={TIMEFRAME_OPTIONS}
+        />
+      </Field>
+      <Field label="Budget (SEK)">
+        <input
+          type="number"
+          style={inputStyle(t)}
+          value={draft.budget ?? ""}
+          onChange={(e) =>
+            set("budget", e.target.value ? Number(e.target.value) : null)
+          }
+          placeholder="0"
+        />
+      </Field>
+      <Field label="Faktisk kostnad (SEK)">
+        <input
+          type="number"
+          style={inputStyle(t)}
+          value={draft.faktiskKostnad ?? ""}
+          onChange={(e) =>
+            set("faktiskKostnad", e.target.value ? Number(e.target.value) : null)
+          }
+          placeholder="0"
+        />
+      </Field>
+      <Field label="Kommentar">
+        <textarea
+          style={{ ...inputStyle(t), height: 72, resize: "vertical" }}
+          value={draft.kommentar ?? ""}
+          onChange={(e) => set("kommentar", e.target.value)}
+        />
+      </Field>
+      <ModalErrorRow message={error || null} />
     </WarmModal>
   );
 }
 
-// ── Sidkomponent ────────────────────────────────────────────────────────────
+// ── Huvud-komponent ───────────────────────────────────────────────────────────
 
-export default function GardenProjectsPage() {
+const EMPTY_DRAFT: Draft = {
+  namn: "",
+  status: "Ny",
+  prioritet: "Normal",
+  omrade: "",
+  tidsram: "Oklart",
+  budget: null,
+  faktiskKostnad: null,
+  kommentar: "",
+};
+
+export default function ProjektPage() {
   const { t } = useWarmTheme();
-  const [editing, setEditing] = useState<Draft | null>(null);
-  const [tidsramFilter, setTidsramFilter] = useState("Alla");
-  const [omradeFilter, setOmradeFilter] = useState("Alla");
-  const [prioritetFilter, setPrioritetFilter] = useState("Alla");
+  const { data, mutate } = useSWR<ProjectsResponse>("/api/garden/projects", fetcher);
+  const projects = data?.projects ?? [];
 
-  const swr = useSWR<ProjectsResponse>("/api/garden/projects", fetcher, {
-    refreshInterval: 10 * 60 * 1000,
-    revalidateOnFocus: false,
-  });
+  // Filter state
+  const [filterArea, setFilterArea] = useState("");
+  const [filterTime, setFilterTime] = useState("");
+  const [filterPrio, setFilterPrio] = useState("");
 
-  const projects = swr.data?.projects ?? [];
-  const errMsg = swr.error instanceof Error ? swr.error.message : "";
-  const notReady = errMsg.includes(": 501");
+  // Modal state
+  const [mounted, setMounted] = useState(false);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const filtered = useMemo(
-    () =>
-      projects.filter((p) => {
-        if (tidsramFilter !== "Alla" && (p.tidsram || "Oklart") !== tidsramFilter) return false;
-        if (omradeFilter !== "Alla" && p.omrade !== omradeFilter) return false;
-        if (prioritetFilter !== "Alla" && p.prioritet !== prioritetFilter) return false;
-        return true;
-      }),
-    [projects, tidsramFilter, omradeFilter, prioritetFilter],
-  );
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const summary = useMemo(() => {
-    let active = 0;
-    let totalBudget = 0;
-    let totalSpent = 0;
-    for (const p of filtered) {
-      if (!ACTIVE_STATUSES.has(p.status)) continue;
-      active++;
-      if (p.budget != null) totalBudget += p.budget;
-      if (p.faktiskKostnad != null) totalSpent += p.faktiskKostnad;
-    }
-    return { active, totalBudget, totalSpent, diff: totalBudget - totalSpent };
-  }, [filtered]);
+  // Filter projects
+  const filtered = useMemo(() => {
+    return projects.filter((p) => {
+      if (filterArea && p.omrade !== filterArea) return false;
+      if (filterTime && p.tidsram !== filterTime) return false;
+      if (filterPrio && p.prioritet !== filterPrio) return false;
+      return true;
+    });
+  }, [projects, filterArea, filterTime, filterPrio]);
 
+  // Group by status (only statuses that have projects)
   const grouped = useMemo(() => {
-    const out: Record<string, OutdoorProject[]> = {};
-    for (const s of STATUS_COLUMNS) out[s] = [];
+    const map = new Map<string, OutdoorProject[]>();
+    for (const s of STATUS_ORDER) map.set(s, []);
     for (const p of filtered) {
-      const col = STATUS_COLUMNS.includes(p.status) ? p.status : "Ny";
-      out[col]!.push(p);
+      const list = map.get(p.status);
+      if (list) list.push(p);
+      else {
+        // Unknown status → put in Ny
+        const ny = map.get("Ny")!;
+        ny.push(p);
+      }
     }
-    for (const s of STATUS_COLUMNS) {
-      out[s]!.sort((a, b) => {
-        const order = ["Hög", "Normal", "Låg"];
-        const pa = order.indexOf(a.prioritet);
-        const pb = order.indexOf(b.prioritet);
-        if (pa !== pb) return pa - pb;
-        return a.namn.localeCompare(b.namn, "sv");
-      });
-    }
-    return out;
+    return STATUS_ORDER.filter((s) => (map.get(s)?.length ?? 0) > 0).map(
+      (s) => ({ status: s, projects: map.get(s)! })
+    );
   }, [filtered]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
-    useSensor(KeyboardSensor),
-  );
+  const openCreate = () => {
+    setDraft({ ...EMPTY_DRAFT });
+    setError("");
+  };
 
-  const updateStatus = async (id: string, next: string) => {
-    const project = projects.find((p) => p.id === id);
-    if (!project || project.status === next) return;
-    if (swr.data) {
-      const nextProjects = swr.data.projects.map((p) =>
-        p.id === id ? { ...p, status: next } : p,
-      );
-      swr.mutate({ ...swr.data, projects: nextProjects }, { revalidate: false });
-    }
+  const openEdit = (p: OutdoorProject) => {
+    setDraft({
+      id: p.id,
+      namn: p.namn,
+      status: p.status,
+      prioritet: p.prioritet,
+      omrade: p.omrade,
+      tidsram: p.tidsram,
+      budget: p.budget,
+      faktiskKostnad: p.faktiskKostnad,
+      kommentar: p.kommentar,
+    });
+    setError("");
+  };
+
+  const handleStatusChange = async (id: string, next: string) => {
+    // Optimistic update
+    mutate(
+      (d) =>
+        d
+          ? { ...d, projects: d.projects.map((p) => (p.id === id ? { ...p, status: next } : p)) }
+          : d,
+      { revalidate: false }
+    );
     try {
-      const res = await fetch(`/api/garden/projects/${id}`, {
+      await fetch(`/api/garden/projects/${id}`, {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: next }),
       });
-      if (!res.ok) throw new Error(`${res.status}`);
+      mutate();
+    } catch {
+      mutate();
+    }
+  };
+
+  const handleSave = async () => {
+    if (!draft) return;
+    setSaving(true);
+    setError("");
+    try {
+      if (draft.id) {
+        const res = await fetch(`/api/garden/projects/${draft.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(draft),
+        });
+        if (!res.ok) throw new Error(await res.text());
+      } else {
+        const res = await fetch("/api/garden/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(draft),
+        });
+        if (!res.ok) throw new Error(await res.text());
+      }
+      await mutate();
+      setDraft(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Kunde inte spara.");
     } finally {
-      await swr.mutate();
+      setSaving(false);
     }
   };
 
-  const onDragEnd = (e: DragEndEvent) => {
-    if (!e.over) return;
-    const id = String(e.active.id);
-    const next = String(e.over.id);
-    void updateStatus(id, next);
-  };
-
-  const refresh = async () => {
-    await swr.mutate();
-  };
-
-  const handleSave = async (d: Draft) => {
-    const isEdit = !!d.id;
-    const url = isEdit ? `/api/garden/projects/${d.id}` : `/api/garden/projects`;
-    const method = isEdit ? "PATCH" : "POST";
-    const { id: _id, ...payload } = d;
-    void _id;
-    const res = await fetch(url, {
-      method,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || `${res.status}`);
+  const handleDelete = async () => {
+    if (!draft?.id) return;
+    setSaving(true);
+    try {
+      await fetch(`/api/garden/projects/${draft.id}`, { method: "DELETE" });
+      await mutate();
+      setDraft(null);
+    } catch {
+      setError("Kunde inte arkivera.");
+    } finally {
+      setSaving(false);
     }
-    setEditing(null);
-    await refresh();
-  };
-
-  const handleDelete = async (id: string) => {
-    const res = await fetch(`/api/garden/projects/${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || `${res.status}`);
-    }
-    setEditing(null);
-    await refresh();
   };
 
   return (
-    <div style={{ paddingBottom: 24 }}>
+    <div style={{ paddingBottom: 140 }}>
       <DetailHero
+        t={t}
+        eyebrow="PROJEKT"
+        title="Utomhusprojekt"
+        italicTail="budget och framåt."
         backHref="/v3/garden"
         backLabel="Trädgård"
-        eyebrow="PROJEKT"
-        title={`${filtered.length} av ${projects.length},`}
-        italicTail="planer i pipen."
       />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "0 18px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: "0 18px" }}>
         {/* Budget-summering */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-            gap: 8,
-          }}
-        >
-          <StatBox label="Aktiva" value={summary.active} unit="projekt" />
-          <StatBox label="Budget" value={formatSek(summary.totalBudget)} unit="kr" />
-          <StatBox label="Utfall" value={formatSek(summary.totalSpent)} unit="kr" />
-          <StatBox
-            label="Återstår"
-            value={formatSek(summary.diff)}
-            unit="kr"
-            accent={summary.diff < 0 ? t.bad : undefined}
-          />
-        </div>
-
-        {/* Verktygsrad */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ flex: 1 }} />
-          <button
-            type="button"
-            onClick={() => setEditing({ status: "Ny", prioritet: "Normal" })}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontFamily: body,
-              fontSize: 12,
-              fontWeight: 600,
-              background: ACC,
-              color: "#FFFBF0",
-              border: "none",
-              borderRadius: 999,
-              padding: "8px 14px",
-              cursor: "pointer",
-            }}
-          >
-            <PlusIcon size={14} color="#FFFBF0" />
-            Nytt projekt
-          </button>
-        </div>
+        <BudgetBar projects={projects} />
 
         {/* Filter */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <FilterPills
-            label="Tidsram"
-            options={["Alla", ...TIMEFRAME_OPTIONS]}
-            value={tidsramFilter}
-            onChange={setTidsramFilter}
+            label="TIDSRAM"
+            options={TIMEFRAME_OPTIONS}
+            value={filterTime}
+            onChange={setFilterTime}
           />
           <FilterPills
-            label="Område"
-            options={["Alla", ...AREA_OPTIONS]}
-            value={omradeFilter}
-            onChange={setOmradeFilter}
+            label="OMRÅDE"
+            options={AREA_OPTIONS}
+            value={filterArea}
+            onChange={setFilterArea}
           />
           <FilterPills
-            label="Prioritet"
-            options={["Alla", ...PRIORITY_OPTIONS]}
-            value={prioritetFilter}
-            onChange={setPrioritetFilter}
+            label="PRIORITET"
+            options={PRIORITY_OPTIONS}
+            value={filterPrio}
+            onChange={setFilterPrio}
           />
         </div>
 
-        {/* Kanban */}
-        {notReady ? (
-          <Tile t={t}>
-            <p style={{ fontFamily: body, fontSize: 13, color: t.mute, lineHeight: 1.55 }}>
-              Trädgårds-DB:erna är inte konfigurerade. Sätt <code>NOTION_GARDEN_PROJECTS_DB</code>{" "}
-              m.fl. i miljön.
-            </p>
-          </Tile>
-        ) : swr.isLoading ? (
-          <Tile t={t}>
-            <p style={ital(t, 13)}>Laddar projekt…</p>
-          </Tile>
-        ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <div
+        {/* Projekt per status */}
+        <div>
+          {grouped.map(({ status, projects: ps }) => (
+            <StatusGroup
+              key={status}
+              status={status}
+              projects={ps}
+              onEdit={openEdit}
+              onStatusChange={handleStatusChange}
+            />
+          ))}
+          {grouped.length === 0 && (
+            <p
               style={{
-                display: "flex",
-                gap: 10,
-                overflowX: "auto",
-                paddingBottom: 12,
-                scrollSnapType: "x proximity",
+                ...ital(t, 13),
+                textAlign: "center" as const,
+                padding: "40px 0",
               }}
-              onTouchStart={(e) => e.stopPropagation()}
             >
-              {STATUS_COLUMNS.map((status) => (
-                <div key={status} style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-                  <Column
-                    status={status}
-                    projects={grouped[status] ?? []}
-                    onPick={(p) =>
-                      setEditing({
-                        id: p.id,
-                        namn: p.namn,
-                        status: p.status,
-                        prioritet: p.prioritet,
-                        omrade: p.omrade,
-                        tidsram: p.tidsram,
-                        budget: p.budget,
-                        faktiskKostnad: p.faktiskKostnad,
-                        kommentar: p.kommentar,
-                      })
-                    }
-                    onDropStatus={updateStatus}
-                  />
-                </div>
-              ))}
-            </div>
-          </DndContext>
-        )}
+              Inga projekt matchar filtret.
+            </p>
+          )}
+        </div>
+
+        {/* Nytt projekt-knapp */}
+        <button
+          type="button"
+          onClick={openCreate}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            background: ACC,
+            color: "#FFFBF0",
+            border: "none",
+            borderRadius: 12,
+            padding: "12px 20px",
+            fontFamily: body,
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+            width: "100%",
+          }}
+        >
+          <PlusIcon size={16} color="#FFFBF0" />
+          Nytt projekt
+        </button>
       </div>
 
-      {editing && (
-        <ProjectModal
-          draft={editing}
-          onClose={() => setEditing(null)}
-          onSave={handleSave}
-          onDelete={editing.id ? () => handleDelete(editing.id!) : undefined}
-        />
-      )}
+      {/* Modal via portal */}
+      {mounted &&
+        draft &&
+        createPortal(
+          <ProjectModal
+            draft={draft}
+            onChange={setDraft}
+            onSave={handleSave}
+            onDelete={draft.id ? handleDelete : undefined}
+            onClose={() => setDraft(null)}
+            saving={saving}
+            error={error}
+          />,
+          document.body
+        )}
     </div>
   );
 }
