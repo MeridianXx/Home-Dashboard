@@ -163,92 +163,66 @@ Varje session är **en egen chatt**, en egen commit-cykel, eget acceptance-test.
 
 ---
 
-### Session W1 — Hem-spåret (hub + belysning + media + rum-detalj)
+### Session W1 + W1.5 — Hem-spåret (hub + klimat + energi + belysning + media + rum-detalj)
 **Mål:** Hela Hem-sektionen i Warm Home, mot riktig HA-data.
 
-**Levererar:**
-- [x] `(warm)/v3/home/page.tsx` — `HemHub` mot `/api/homeassistant/{weather,sensors,scenes,lights,energy,cars}`
-- [x] `(warm)/v3/home/rum/[slug]/page.tsx` — generisk rum-detalj (master-dimmer-tile, per-lampa-lista med slider, klimat-strip 3-stat). "Senaste aktivitet" droppad från W1 — kandidat för W6 polish.
-- [x] `(warm)/v3/home/belysning/page.tsx` — full våningsindelad lampgrid + scener + "släck allt" i Warm-stil
-- [x] `(warm)/v3/home/media/page.tsx` — Sonos per rum + Apple TV (albumart-proxy via befintlig `/api/homeassistant/image`)
+**Levererar (W1 + W1.5 komplett):**
+- [x] `(warm)/v3/home/page.tsx` — `HemHub` mot `/api/homeassistant/{weather,sensors,scenes,lights,energy,cars}`. Rum-rad med dot-toggle + Link-chevron. "all belysning →"-länk under listan. Sol-arc med `sun.sun`-data.
+- [x] `(warm)/v3/home/rum/[slug]/page.tsx` — rum-detalj med interaktiv ArcGauge (master-dimmer), per-lampa-lista med brightness-slider + K-pill, SENASTE-händelselista (lampor/media/klimat/rörelse deduperade mot scen-aktiveringar), klimat som individuella kort per mätvärde.
+- [x] `(warm)/v3/home/belysning/page.tsx` — full våningsindelad lampgrid + scener + "släck allt" + "släckt sedan HH:MM"-status.
+- [x] `(warm)/v3/home/media/page.tsx` — Sonos per rum + Apple TV (albumart-proxy via befintlig `/api/homeassistant/image`).
+- [x] `(warm)/v3/home/klimat/page.tsx` — väderkortets drill-down. Nibe S735 (BT1/BT50/varmvatten/kompressor/fläkt + Kaminläge/Ökad ventilation/Mer varmvatten/Nattsvalka/Solkyla-switchar), Hero luftvärmepump (target-temp-slider + Värme/Kyla/Från-lägen), temperaturgrafer (inomhus + utomhus, `TempGraph`-komponent med `useChartSize`), dammsugare (Chomper) kompakt strip.
+- [x] `(warm)/v3/home/energi/page.tsx` — Tibber drill-down (spotpris-spark 24h + prognos, månadskostnad, effekt) + bilar (Enyaq + Polestar 2 med SOC/räckvidd/laddstatus) + laddboxar (vänster/höger).
+- [x] `(warm)/v3/home/klimat/page.tsx` — chevron-destination från väderkortets tile.
 - [x] `WarmErrorBanner.tsx` — Warm-variant av ErrorBanner-mönstret från v2.
-- [x] Pull-to-refresh i Warm-stil i `(warm)/v3/layout.tsx` — pillar i `paperHi` med ACC-spinner under drag och SAGE-bock + "Uppdaterat" på release.
-- [x] Verifierat scen-aktiv-detektion (`detectActiveScene` från `src/lib/scenes.ts`) fungerar oförändrad — samma snapshot, samma logik som v2.
-- [x] Delade primitiver: `RoomLightRow`, `WarmSwitch`, ny ikon-set (`extra.tsx`), weather-glyph-mapper (`weather.tsx`), slug-mapper (`rooms.ts`).
+- [x] `WarmPress.tsx` — scale 0.97 + opacity vid press + spinner-overlay. Används på alla action-knappar (Nibe-switchar, Hero-lägen, Vacuum-knappar, master-dimmer på/av).
+- [x] `ArcGauge.tsx` — interaktiv 270°-arc med `setPointerCapture`, invers polärmatematik, `onChange`/`onCommit`-callbacks, thumb-cirkel vid fill-endpoint.
+- [x] `LightEditSheet.tsx` — bottom-sheet per lampa med K-slider (2200–6500 K) + Adaptiv belysning-toggle (binding mot `adaptive_lighting`-integration).
+- [x] `TempGraph.tsx` — SVG-baserad temperaturhistorik-graf med `useChartSize` (ResizeObserver), 15-min bucketing via `/api/homeassistant/history`.
+- [x] `src/lib/warm/events.ts` — `formatEvents()` (deduplication av lamp-events mot scen-aktiveringar ±3 s), `sceneEventsFromScenes()` (historiska scen-aktiveringar som events).
+- [x] `src/lib/scenes.ts` — `activeSceneByLastChanged()` ersätter `detectActiveScene()`: grace period 8 s (trust last_changed) + state-verifiering (≥50 % av on-targets fortfarande on). Hanterar att HA rampar upp brightness efter scen-aktivering.
+- [x] `src/app/api/homeassistant/events/route.ts` — HA history utan `minimal_response` (behöver attributes: brightness, friendly_name, media_title, target_temp). Filtrerar no-op events.
+- [x] `src/app/api/homeassistant/room-entities/route.ts` — HA-registry → kategoriserade entiteter per rum (lights, media, climate, motion).
+- [x] `src/app/api/homeassistant/weather/route.ts` — utökat med `sunrise`/`sunset`/`elevation` från `sun.sun`-entiteten.
+- [x] `src/app/api/homeassistant/lights/route.ts` — `LightEntry` utökat med `last_changed: string | null` + `color_temp_kelvin`.
+- [x] `src/app/api/homeassistant/scenes/route.ts` — `ScenePayload` utökat med `last_changed: string | null`.
+- [x] `WarmThemeProvider` React Context i `(warm)/v3/layout.tsx` — theme-toggle propagerar globalt, löser kritisk bug där varje hook hade lokalt state.
+- [x] Pull-to-refresh i Warm-stil — ACC-spinner under drag, SAGE-bock + "Uppdaterat" på release.
+- [x] Delade primitiver: `RoomLightRow`, `WarmSwitch`, ikoner (`extra.tsx`, `weather.tsx`), slug/rumsnamn-mappare (`rooms.ts`).
 
-**Acceptance:** Hem-tab klar i Warm Home med riktig data. Drill-down från rum-rad → rum-detalj → tillbaka funkar. Light/dark-toggle bevaras mellan navigationer. Verifierad mot live preview i mobile (375 px) viewport, både light + dark.
+**Acceptance:** Hem-tab komplett med riktig HA-data. Hub → rum-detalj → tillbaka, Hub → klimat → tillbaka, Hub → energi → tillbaka, Hub → belysning → tillbaka fungerar. Light/dark-toggle propagerar till alla lager. Verifierad mot live preview i 375 px viewport, both light + dark.
 
-**Observera (lessons learned):**
+**Observera (W1 — ursprungliga lessons learned):**
 - **`Spotpris × 100` är en fälla — `/api/homeassistant/energy` returnerar redan öre.** Endpointen multiplicerar `tibber_pulse_villa_bjorkdalen_elpris` (`SEK/kWh`) med 100 vid serialisering; UI ska visa värdet rakt av, inte mångfaldiga igen. Lärdom: läs alltid v2-route innan du tweakar enheter på UI-sidan.
 - **HA-scener är 4, design-prototypen visar 6.** `(scene.god_morgon, scene.hemma, scene.kvall, scene.natt)` är allt som finns. WARM_HOME.md princip 5 visar 6 pills (Morgon/Dag/Kväll/Natt/Film/Borta) men `Film`/`Borta` saknar HA-scener. Beslut: visa bara 4 pills, mappa `hemma → "Dag"` (UI-etiketten är fri, scen-key:n är HA-bunden). Att uppfinna pills som inte gör något hade brutit "korten är dörrar"-principen i p1.
-- **Köket har en sensor som rapporterar 60° i `/api/homeassistant/sensors`.** Pre-existerande v2-data-bug — sannolikt en jalusi/fläktbelysningsenhet som är felklassad som `device_class: temperature` i HA. Syns nu på Hem-hubbens rum-rad eftersom Köket är med i `HUB_FAVORITE_ROOMS`. Inte fixat i W1 (datafråga, inte UI). Kandidat: utöka `SYSTEM_PREFIXES` eller lägga en denylist per entity_id i `sensors/route.ts`.
-- **`(warm)`-route-grupp + `(warm)/v3/`-undergrupp = två lager layouts.** Pull-to-refresh + TabBar bor i `(warm)/v3/layout.tsx`, inte i `(warm)/layout.tsx`. Anledning: `(warm)`-roten lämnas öppen för framtida landningsskärmar utanför v3. Hade jag lagt TabBar i (warm)-roten hade alla framtida warm-sidor automatiskt fått pillen oavsett om de är "tab-pages". Mönster: lägg layout på det innersta omfånget som faktiskt motsvarar feature-omfattningen.
-- **Pull-to-refresh: globala `window`-touchlyssnare + `router.refresh()`.** Implementerat som `useEffect` på window — fångar även när användaren startar drag på ett scrollat barn. `router.refresh()` re-runs RSCs och invaliderar Next-cachen; SWR-hookarna upptäcker det via revalidation. Alternativet (selektiv `mutate()` per hub) hade tvingat varje sida att exponera sin mutate-funktion uppåt — onödig plumbing. Tröskel: 80 px (samma som v2). Spinner snurrar i ACC under drag, SAGE-bock + "Uppdaterat" på release.
-- **`Tile`-prop:en `style.border` override:as korrekt** eftersom `Tile`s baseStyle spreadar `...style` sist. För "aktivt rum/lampor"-state använder jag `border: 1px solid ${ACC}` som override; `t.tint` (bg-fyllning) testades men blev för subtilt mot `t.paper`. Border är skarpare visuell signal och behåller designens "papperskänsla". Mönster: använd border-color för aktiv-state, inte background-fyllning, i Warm.
-- **Albumart 60×60 (vs v2:s 68×68) ger plats åt transport-knappar utan trångbod på 375 px-mobil.** Tile-padding 14 (vs v2:s 16+) sparar ytterligare ~8 px horisontellt. Inte en besparingsövning — det är så designens "mer luft, mindre data tight"-känsla blir.
-- **`useParams<{ slug: string }>()`-typningen ljuger:** Next typar utdata som `string | string[]` även för `[slug]`-routes (singular). I praktiken får man alltid `string` för icke-catch-all dynamic segments, men TS klagar inte även om man feltypar. Vid byte till `[...slug]` (catch-all) i framtiden blir det `string[]`. Inget run-time problem nu; bara värt att veta vid refactor.
-- **Master-dimmer på rum-detaljen använder `key={\`master-${area_id}-${avgPct}\`}` på input-rangen** så slidern remountar när data ändras (annars håller React kvar slider-positionen även när server-state förändras genom andra triggers). Samma uncontrolled-mönster som v2:s TempSlider.
-- **HubHeader.right-slot är perfekt theme-toggle-plats.** Bekräftat efter implementation. Drop-in via primitiven, inga nya komponenter. På detaljskärmar gömmer vi den (DetailHeader.right tar andra actions, t.ex. "Släck allt" på belysning). Förslag: lås in detta mönster för alla 4 hubbar i W2–W4.
-- **`prefetch={true}` på `next/link` triggar för v3-routes** (Next 15 default). När man drillar ner från hub → rum hämtas detaljsidan i bakgrunden — snappy navigation gratis. För W1 är 5–6 rum-länkar OK; om listan växer (W4 trädgård t.ex.) kan det vara värt att sätta `prefetch={false}` på off-screen-länkar.
-- **Albumart-proxy:n (`/api/homeassistant/image`) lämnas orörd.** Mediasidan använder `player.media_image_url` som redan är proxy-URL:en. Att byta till `next/image` hade krävt remotePatterns-config för dynamiska proxy-URL:er — inte värt churn för W1.
-- **Köket-frågan visar gränsen för hub-favoriter.** `HUB_FAVORITE_ROOMS` är hårdkodad — inte data-driven. Ett rum som saknar både lampor OCH sensorer renderar bara "—". Inte fel men kandidat: filtrera bort rum där båda saknas innan vi lägger upp dem på hubben. Lämnar ändå Köket kvar tills sensor-buggen är fixad.
+- **Köket har en sensor som rapporterar 60° i `/api/homeassistant/sensors`.** Pre-existerande v2-data-bug — sannolikt en jalusi/fläktbelysningsenhet som är felklassad som `device_class: temperature` i HA. Syns nu på Hem-hubbens rum-rad. Workaround: `isKitchen`-guard i rum-detaljen gömmer sensor-datan; hubben visar "ljus av" utan temp. Kandidat för W6: utöka `SYSTEM_PREFIXES` eller lägg denylist per entity_id i `sensors/route.ts`.
+- **`(warm)`-route-grupp + `(warm)/v3/`-undergrupp = två lager layouts.** Pull-to-refresh + TabBar bor i `(warm)/v3/layout.tsx`, inte i `(warm)/layout.tsx`. Mönster: lägg layout på det innersta omfånget som faktiskt motsvarar feature-omfattningen.
+- **Pull-to-refresh: globala `window`-touchlyssnare + `router.refresh()`.** `router.refresh()` re-runs RSCs och invaliderar Next-cachen; SWR-hookarna revaliderar automatiskt. Tröskel: 80 px. Spinner i ACC under drag, SAGE-bock + "Uppdaterat" på release.
+- **`Tile`-prop:en `style.border` override:as korrekt** — `Tile`s baseStyle spreadar `...style` sist. Border-color för aktiv-state är skarpare än background-fyllning mot `t.paper`.
+- **Albumart 60×60 (vs v2:s 68×68) ger plats åt transport-knappar utan trångbod på 375 px-mobil.**
+- **`useParams<{ slug: string }>()`-typningen ljuger:** Next typar utdata som `string | string[]` även för singular `[slug]`-routes. Inget run-time-problem; värt att veta vid refactor.
+- **HubHeader.right-slot är perfekt theme-toggle-plats.** Lås in mönstret för alla 4 hubbar i W2–W4.
 
-**Öppna frågor / förslag (markerade enligt prompt — ej beslutade):**
-- **Theme-toggle-placering:** föreslag — behåll i `HubHeader.right`-slotten på alla 4 hubbar. Detaljskärmar har ingen toggle (ärver bevarat val via localStorage). Bekräftas i W2.
-- **Pull-to-refresh-färg:** föreslag — SAGE för bekräftelse, ACC för "släpp för att uppdatera"-spinner. Implementerat. Lättare att se i mörkt tema; SAGE-bock i `paperHi`-pill står ut tillräckligt.
-- **Expand/collapse-animation:** föreslag — AnimatePresence + height/opacity 0.2s ease-out (samma som v2) i Warm-färgskala (`t.paperHi`-bakgrund för expanderat innehåll). Implementerat i `RoomLightRow`. Lås in i Warm-stilguiden för alla framtida expandables.
-- **Scen-pills 4 vs 6:** föreslag — håll 4 (matchar HA). `Film` och `Borta` kräver att HA-scenerna skapas först. Glyferna finns redan i Warm-icon-set:et om/när det blir aktuellt.
-- **Köket i hub-favoriter:** föreslag — fixa sensor-källan istället för att gömma rummet. Insats: utöka `SYSTEM_PREFIXES` eller lägg en denylist på entity_id-nivå i `sensors/route.ts`. Inte W1-scope.
-- **"Senaste aktivitet" på rum-detalj:** föreslag — adda i W6 polish-passet via `/api/homeassistant/history?entities=<rum-lampor>` + tidsstämpel-rendering ("Senast tänd 14:32"). Skippad i W1 för att hålla scope tight.
+**Observera (W1.5 — polish-passet):**
+- **`WarmThemeProvider` React Context är enda pålitliga lösningen för global theme-toggle.** `localStorage` + `storage`-event sprider inte inom samma tab. Varje `useWarmTheme()`-anrop med lokalt `useState` skapar isolerade instanser. Lösningen: en enda Provider i `(warm)/v3/layout.tsx` med `useState` + `useEffect` (SSR-safe). Alla sidor under `/v3/` delar nu ett enda tema-objekt utan Zustand eller extra dependencies.
+- **HA rampar upp brightness EFTER scen-aktivering.** En rakt `detectActiveScene()`-matchning på state + brightness direkt efter aktivering ger false negative eftersom lamporna fortfarande håller ~1 % brightness. Fix: `activeSceneByLastChanged()` med grace period 8 s — inom grace period litar vi på `last_changed`; efter grace period verifierar vi ≥ 50 % av on-targets fortfarande on. Hybridansats: snabbhet på direkt-UI + korrekthet när användaren manuellt ändrar ljus.
+- **Scen förblir "aktiv" trots att alla lampor är släckta** om man bara tittar på `last_changed`. Fix: state-verifiering — om inga on-targets är on returneras `null` och UI visar "släckt sedan HH:MM" i stället. `lastDarkenedAt()` hittar senaste off-tidsstämpel ur lamporna.
+- **SENASTE-listan deduplicerar lamp-events mot scen-aktiveringar.** Lampor som tänds av en scen filtreras bort (±3 s window) — scen-raden dyker upp istället. `sceneEventsFromScenes()` läser `ScenePayload.last_changed` för historiska scen-aktiveringar oberoende av nuvarande aktiv-status.
+- **"auto" dyker upp som källa i SENASTE.** HA:s `context.user_id` är inte tillgänglig utan att hämta fullt history-record per event (stor payload). Teknisk begränsning — "auto" visas istället för "adaptiv belysning" tills ett bättre alternativ finns. Källan är inte fel, bara oinformativ.
+- **ArcGauge kräver `overflow: visible` på SVG** annars clippar thumb-cirkeln vid fill-endpoint när den hamnar nära viewBox-kanten. `setPointerCapture` + `pointermove` på SVG-elementet ger smooth drag utan att tappa capture vid snabb rörelse.
+- **Sol-arc-theta var inverterad.** `theta = Math.PI * (1 - progress)` ritade solen höger → vänster (solnedgång vid vänster = fel). Rätt: `theta = Math.PI * progress` ger p=0 vid vänster (soluppgång), p=0.5 vid topp (middag), p=1 vid höger (solnedgång).
+- **`flexShrink: 0` måste explicit sättas på ALLA SVG-ikoner i `baseSvg()`.** Flex-container-föräldrar (knappar med `display: inline-flex`) krymper SVG-element som standard. `getBoundingClientRect()` på Morgon-ikonen visade 5.7 px bred trots `size={16}`. Fix: spread `style={{ flexShrink: 0, ...style }}` i alla `baseSvg()`-instanser.
+- **Hub-rum-rad: dot = `<button onClick=toggleArea>`, chevron = `<Link href=rum/slug>`.** Skapar två separata touch-targets på en rad utan att kapsla interaktiva element i varandra. Ger haptic-klar toggle direkt på hubben utan drill-down.
+- **`LightEditSheet` bottom-sheet + `adaptive_lighting`-binding.** Sheet renderas via `createPortal` mot `document.body` för att komma ovanför TabBar (samma stacking-context-fälla som fitness-modalen). Adaptive-lighting-instansen matchas via `manual_control`-array (exakt entity_id) eller fallback på `configuration_id` som slug.
+- **`TempGraph` är SVG-baserad, inte Recharts.** Recharts + `ResponsiveContainer` ger -1 width/height inuti AnimatePresence och statiska flex-containers på klimatsidan. Alternativet: custom SVG med `useChartSize()` (ResizeObserver) + explicit `width/height`. Ger full kontroll över stroke, fill-gradient och gridlinjer utan Recharts-overhead.
+- **Klimat som individuella kort per mätvärde.** `ClimateCards` (tidigare `ClimateTriplet`) renderar TEMP / LUFTFUKT / UTE som separata `flex: 1`-tiles med `border-radius: 14`. Rum utan inomhussensor visar bara UTE-kortet. Varje kort har label (TEMP etc), stort seriff-värde (26 px) + enhet + kursiv sublabel ("inomhus"). Inget `grid` — `display: flex; gap: 10` delar ytan jämnt för 1–3 kort.
+- **Dammsugaren hör hemma på klimatsidan, inte en egen route.** Chomper är inte klimat men "hemstatus" passar bättre under klimat-drill-down (väderkort-destination) än som en separat tab-destination. Kompakt strip med statusbricka + städad yta + batteri + start/stop-knappar.
+- **Temperaturgrafer = klimatsidan, inte belysningssidan.** Konfirmat med användaren vid session-start. `/api/homeassistant/history` med `?entities=sensor.nibe_utomhustemperatur_bt1,sensor.nibe_inomhustemperatur_bt50,sensor.vardagsrum_temperatur,...` + `hours=24` ger 15-min-buckad data.
 
----
-
-### Session W1.5 — Hem-polish (todo för nästa session)
-
-> **Påminnelse:** allt ska följa Warm-designen slaviskt. Funktion får portas från v2; design **inte**. Inline-style. Inga `md:`-prefix.
->
-> Tag första 10 minuter på att läsa screenshots från W1-slutet (mobile 375 px, både light + dark) innan du börjar koda — designen är låst, inte kreativ.
-
-**🔥 KRITISK BUGG (fixa först):**
-- [ ] **Light/dark-mode-toggle uppdaterar inte alla sidor.** Varje `useWarmTheme()`-anrop har egen lokal `useState` → toggla i HubHeading uppdaterar bara hubbens state, inte TabBar:en (som lever i `(warm)/v3/layout.tsx`) eller en redan öppen detalj-sida i en annan tab. localStorage läses bara på mount.
-  - **Lösning:** gör temat globalt via React Context (`WarmThemeProvider` i `(warm)/v3/layout.tsx`) eller en Zustand-store. Alternativt: lägg till `window.addEventListener("storage", ...)` + en custom-event som broadcastar inom samma fönster (storage-event triggar inte i samma tab).
-  - **Verifiera efter fix:** öppna hubben i light, togga till dark, drilla ner till `/v3/home/rum/vardagsrum` → master-tilen, klimat-strippen och TabBar:en ska alla ha bytt tema. Repeat reverse. Då går testen.
-
-**Datakällor som behöver läggas till:**
-- [ ] **Sol-arc med riktig data**: `sun.sun`-entiteten i HA exponerar `next_rising`/`next_setting` + `elevation`. Utöka `/api/homeassistant/weather/route.ts` att inkludera `sunrise`/`sunset` (ISO) + `elevation` (deg). Hubbens väderkort visar nu hårdkodat `06:00 / 20:30` — ersätt med live-data och rita en faktisk sol-arc-graf (SVG, sol-position längs båge baserat på tid mellan rising och setting). Kolla `getState("sun.sun")` mönstret.
-- [ ] **Värmepumpar på klimatsidan**: Lägg till sektion på `/v3/home/klimat` med Nibe S735 + Mitsubishi Hero. Återanvänd `/api/homeassistant/hvac` orörd. Visa minimalt: NIBE BT1 utomhus-temp + BT50 inomhus + varmvatten + kompressor + fläktstyrka; Hero current/target temp. Inga lägesväxlare på klimatsidan — bara läsvärden. Lägesväxling kan gå på en framtida `/v3/home/varme`-route.
-- [ ] **Temperaturgrafer**: Användaren skriver "implementeras på belysningssidan (se v2 för inspiration)". V2 har grafer i `EnergyCard` (`SpotPriceChart`, `PowerChart`) + `IndoorTempChart`/`OutdoorTempChart` på hem-sidan. **Bekräfta vid sessionsstart om det är belysningssidan eller klimatsidan användaren menar — verkar vara klimatsidan eftersom temperatur ej hör belysning till.** Använd befintliga `/api/homeassistant/history`-endpoints + dynamic import av chart-komponenter (samma `useChartSize`-mönster).
-- [ ] **Dammsugare**: oklar plats. Klimat passar dåligt (Chomper är inte klimat). Förslag att diskutera vid start: egen `/v3/home/dammsugare` (drill-down från en ny "städ"-rad på hub) eller bara en kompakt strip på hubben (ovanför rum-listan). `/api/homeassistant/vacuum` ska användas oförändrad.
-
-**UI-fixar enligt feedback:**
-- [ ] **CO₂ borttaget från rum-detaljen** — `ClimateTriplet` använde redan `UTE` istället. Bekräfta att inget annat ställe nämner CO₂.
-- [ ] **Tomma värden visar inget istället för "—"**: gå igenom alla `value ?? "—"`-mönster i hub, klimat och rum-detalj. När data saknas: rendera `null` (gömd rad/cell), inte placeholder-bindestreck. Undantag: när raden måste finnas av layout-skäl, använd subtila `opacity: 0.4`-streck.
-- [ ] **K-värden ska vara editerbara per lampa**: stöd HA:s `light.turn_on`-service-data:
-  - `color_temp_kelvin` (numeric K)
-  - `rgb_color` / `hs_color` (för färg)
-  - "Följ solen / auto" → bind till HA:s `adaptive_lighting`-integration om installerad; annars en custom-automation. Bekräfta vid start om adaptive_lighting finns. UI-pattern: liten "K"-pill bredvid varje lamp-rads brightness-bar → klick öppnar en bottom-sheet med slider (2200–6500 K) + 4-5 färgvariationer + "Följ solen"-toggle.
-- [ ] **Rum-kortens font för stor**: `serif 18` → `serif 16` (eller mindre). Subtitle ska bara visas om sensor-data finns ELLER lampor är på — inte rendera tomma "—"-rader.
-- [ ] **Hub-rum-favoriter**: byt ordning till **Vardagsrum, Kök, Allrum, Sovrum, Adrian, Elvira** (lägg till Adrian; ta bort eventuella andra). Resten av rummen (Hall, Entré, Stora badrummet osv) flyttar till `/v3/home/belysning`-sidan. Uppdatera `HUB_FAVORITE_ROOMS` i `src/lib/warm/rooms.ts`.
-- [ ] **Navigering till belysningssidan saknas på hubben**: lägg en "BELYSNING"-länk under rum-listan eller en ekstra rad "Alla rum" längst ner i listan, eller en pill ovanför listan. Förslag: en italic länk under rumslistan i samma stil som "tryck för att styra"-hint, men som faktisk Link.
-- [ ] **Tibber + Bilar saknar navigering**: skapa `/v3/home/energi`-sida som drill-down. Båda korten blir Links dit. Energi-sidan visar: Tibber-pris + spark över 24h, månadsförbrukning, bilar med detaljer (SOC, range, target, nästa schemalagda laddning), laddboxar (vänster/höger). Återanvänd `/api/homeassistant/{energy,cars}`.
-
-**Generella regler för fortsatta polish-passet:**
-- Ingen `md:`-prefix, allt inline-style.
-- Verifiera mot screenshot för varje skärm innan commit.
-- Skippa `—`-placeholders. Tomma värden = gömda fält.
-- Animationer: fortsätt 0.2s ease-out-mönstret (samma som expand/collapse i RoomLightRow).
-- Prepend `RUM ·`/`HEM ·`/`KLIMAT ·`/`ENERGI ·`-caps på alla sidors-headers + `formatTime(new Date())` för aktuellt klockslag.
-
-**Föreslagen ordning vid uppstart:**
-1. Fråga användaren om temperaturgrafer = klimat eller belysning
-2. Fråga om dammsugaren ska ha egen route eller strip
-3. Fråga om adaptive_lighting-integrationen finns i HA
-4. Fixa enkla UI-polish först (rum-fonten, "—" → null, hub-favoriter, navigering till belysning)
-5. Sol-arc + sun.sun-data
-6. Energi-undersida (Tibber + Bilar drill-down)
-7. K-redigering bottom-sheet
-8. Värmepumpar på klimatsidan
-9. Temperaturgrafer
+**Öppna frågor / vidare till W2+:**
+- **Köket sensor-bug:** workaround finns (`isKitchen`-guard) men root cause (felklassad `device_class: temperature` i HA) är oåtgärdad. Lägg till i HA-konfigurationen: `customize: sensor.XXX: device_class: null`. Entity-ID behöver identifieras via HA-debugger.
+- **Theme-toggle på detaljskärmar:** gömmer vi den avsiktligt (detaljsidorna har ingen header-right). Om användaren vill kunna toggla från rum-detalj — lägg till i `RumHeading`-headern som en liten moon/sun-pill längst upp till höger.
+- **SENASTE-källan "auto":** kan förbättras om HA-historyendpointen utökas med `context.user_id → entity_id`-mappning via HA:s logbook-endpoint (separat request per tidsfönster). Inte prioriterat — "auto" är acceptabelt.
 
 ---
 
