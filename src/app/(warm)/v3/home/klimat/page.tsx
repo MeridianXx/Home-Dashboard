@@ -6,6 +6,8 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useHydrated, useWarmTheme } from "@/lib/warm/theme";
 import {
+  ACC,
+  SAGE,
   body,
   ital,
   lab,
@@ -16,6 +18,7 @@ import {
 import { ChevronLeft, DropletIcon, ThermoIcon } from "@/components/warm/icons/extra";
 import { weatherGlyph } from "@/lib/warm/weather";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
+import TempGraph from "@/components/warm/TempGraph";
 import { formatTime, periodLabel } from "@/lib/warm/format";
 
 type SensorArea = {
@@ -47,6 +50,35 @@ type WeatherData = {
     temperature: number;
     templow: number;
   }>;
+};
+
+type HvacData = {
+  heat_pump: {
+    entity_id: string;
+    state: string;
+    current_temp: number | null;
+    target_temp: number | null;
+    fan_mode: string | null;
+  };
+  nibe: {
+    outdoor_temp: number | null;
+    hot_water_temp: number | null;
+    fan_speed_pct: number | null;
+    alarm: boolean;
+    system_power_kw: number | null;
+    compressor_hz: number | null;
+    indoor_setpoint: number | null;
+  };
+};
+
+type VacuumData = {
+  state: string;
+  battery_pct: number | null;
+  status: string | null;
+  current_room: string | null;
+  cleaned_area: number | null;
+  charging: boolean;
+  cleaning: boolean;
 };
 
 const DAY_NAMES_SV = ["sön", "mån", "tis", "ons", "tor", "fre", "lör"];
@@ -132,6 +164,16 @@ export default function WarmKlimatPage() {
     hydrated ? "/api/homeassistant/weather" : null,
     fetcher,
     { refreshInterval: 300_000 }
+  );
+  const { data: hvac } = useSWR<HvacData>(
+    hydrated ? "/api/homeassistant/hvac" : null,
+    fetcher,
+    { refreshInterval: 15_000 }
+  );
+  const { data: vacuum } = useSWR<VacuumData>(
+    hydrated ? "/api/homeassistant/vacuum" : null,
+    fetcher,
+    { refreshInterval: 10_000 }
   );
 
   const conditionSv = (state: string | undefined) => {
@@ -454,6 +496,280 @@ export default function WarmKlimatPage() {
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {/* Temp-graf 24h */}
+        <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <span style={lab(t)}>SENASTE 24 TIMMAR</span>
+          <TempGraph t={t} hours={24} height={140} />
+        </section>
+
+        {/* Värmepumpar */}
+        {hvac && "heat_pump" in hvac && (
+          <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <span style={lab(t)}>VÄRMEPUMPAR</span>
+            <div
+              style={{
+                background: t.paper,
+                border: `1px solid ${t.line}`,
+                borderRadius: 14,
+                overflow: "hidden",
+              }}
+            >
+              {/* NIBE S735 */}
+              <div
+                style={{
+                  padding: "14px 16px",
+                  borderBottom: `1px solid ${t.line}`,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    justifyContent: "space-between",
+                    gap: 8,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: serif,
+                      fontSize: 16,
+                      fontWeight: 500,
+                      color: t.ink,
+                    }}
+                  >
+                    Nibe S735
+                  </span>
+                  <span style={ital(t, 12, hvac.nibe.alarm ? "#B0452E" : t.mute)}>
+                    {hvac.nibe.alarm
+                      ? "larm"
+                      : hvac.nibe.compressor_hz != null && hvac.nibe.compressor_hz > 0
+                      ? "kompressor aktiv"
+                      : "i viloläge"}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                    gap: 12,
+                    marginTop: 10,
+                  }}
+                >
+                  {hvac.nibe.indoor_setpoint != null && (
+                    <ClimateStat
+                      t={t}
+                      label="BÖRVÄRDE"
+                      value={`${hvac.nibe.indoor_setpoint}`}
+                      unit="°"
+                    />
+                  )}
+                  {hvac.nibe.hot_water_temp != null && (
+                    <ClimateStat
+                      t={t}
+                      label="VARMVATTEN"
+                      value={`${hvac.nibe.hot_water_temp}`}
+                      unit="°"
+                    />
+                  )}
+                  {hvac.nibe.fan_speed_pct != null && (
+                    <ClimateStat
+                      t={t}
+                      label="FLÄKT"
+                      value={`${hvac.nibe.fan_speed_pct}`}
+                      unit="%"
+                    />
+                  )}
+                  {hvac.nibe.compressor_hz != null && (
+                    <ClimateStat
+                      t={t}
+                      label="KOMPR."
+                      value={`${hvac.nibe.compressor_hz}`}
+                      unit="Hz"
+                    />
+                  )}
+                  {hvac.nibe.system_power_kw != null && (
+                    <ClimateStat
+                      t={t}
+                      label="EFFEKT"
+                      value={hvac.nibe.system_power_kw.toFixed(1)}
+                      unit="kW"
+                    />
+                  )}
+                </div>
+              </div>
+              {/* Hero / luftvärmepump */}
+              <div style={{ padding: "14px 16px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    justifyContent: "space-between",
+                    gap: 8,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: serif,
+                      fontSize: 16,
+                      fontWeight: 500,
+                      color: t.ink,
+                    }}
+                  >
+                    Mitsubishi Hero
+                  </span>
+                  <span style={ital(t, 12, t.mute)}>
+                    {hvac.heat_pump.state === "off"
+                      ? "av"
+                      : hvac.heat_pump.state === "cool"
+                      ? "kyler"
+                      : hvac.heat_pump.state === "heat"
+                      ? "värmer"
+                      : hvac.heat_pump.state}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                    gap: 12,
+                    marginTop: 10,
+                  }}
+                >
+                  {hvac.heat_pump.current_temp != null && (
+                    <ClimateStat
+                      t={t}
+                      label="RUMSTEMP"
+                      value={hvac.heat_pump.current_temp.toFixed(1)}
+                      unit="°"
+                    />
+                  )}
+                  {hvac.heat_pump.target_temp != null && (
+                    <ClimateStat
+                      t={t}
+                      label="MÅL"
+                      value={`${hvac.heat_pump.target_temp}`}
+                      unit="°"
+                    />
+                  )}
+                  {hvac.heat_pump.fan_mode && (
+                    <ClimateStat
+                      t={t}
+                      label="FLÄKT"
+                      value={hvac.heat_pump.fan_mode}
+                      unit=""
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Dammsugare-strip */}
+        {vacuum && "state" in vacuum && (
+          <section
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 16px",
+              borderRadius: 14,
+              background: t.paper,
+              border: `1px solid ${
+                vacuum.cleaning ? ACC : vacuum.charging ? SAGE : t.line
+              }`,
+            }}
+          >
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: "50%",
+                background: vacuum.cleaning
+                  ? t.tint
+                  : vacuum.charging
+                  ? t.tintSage
+                  : t.tintSky,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="8"
+                  stroke={
+                    vacuum.cleaning ? ACC : vacuum.charging ? SAGE : t.mute
+                  }
+                  strokeWidth={1.6}
+                />
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="3.5"
+                  fill={vacuum.cleaning ? ACC : vacuum.charging ? SAGE : t.mute}
+                />
+              </svg>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p
+                style={{
+                  fontFamily: serif,
+                  fontSize: 15,
+                  fontWeight: 500,
+                  color: t.ink,
+                  letterSpacing: "-0.01em",
+                  lineHeight: 1.1,
+                }}
+              >
+                Dammsugare
+              </p>
+              <p style={ital(t, 12, t.mute)}>
+                {vacuum.cleaning
+                  ? vacuum.current_room
+                    ? `städar · ${vacuum.current_room}`
+                    : "städar"
+                  : vacuum.charging
+                  ? "laddar"
+                  : vacuum.state === "docked"
+                  ? "dockad"
+                  : vacuum.state === "idle"
+                  ? "vilar"
+                  : vacuum.state}
+                {vacuum.cleaned_area != null && vacuum.cleaning
+                  ? ` · ${vacuum.cleaned_area.toFixed(0)} m²`
+                  : ""}
+              </p>
+            </div>
+            {vacuum.battery_pct != null && (
+              <span
+                className="warm-tab-nums"
+                style={{
+                  fontFamily: serif,
+                  fontSize: 17,
+                  color: vacuum.battery_pct < 25 ? "#B0452E" : t.ink,
+                }}
+              >
+                {vacuum.battery_pct}
+                <span
+                  style={{
+                    fontFamily: body,
+                    fontSize: 11,
+                    color: t.mute,
+                    marginLeft: 1,
+                    fontWeight: 500,
+                  }}
+                >
+                  %
+                </span>
+              </span>
+            )}
           </section>
         )}
       </div>
