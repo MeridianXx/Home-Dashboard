@@ -35,6 +35,12 @@ export const GARDEN_COACH_FORMAT_RULES =
     "Använd användarens faktiska växtregister, säsongsplan och projekt som utgångspunkt. Referera till specifika växter när det är relevant.",
     "Skriv svenska, vänlig och kunnig ton. Inga onödiga disclaimers.",
     "När du visar datum, skriv ISO YYYY-MM-DD följt av veckodag (t.ex. '2026-05-15 fre') så användaren slipper räkna själv.",
+    // Format: dashboarden renderar plain text, INTE Markdown.
+    "Skriv ren prosa utan Markdown-syntax: inga ## rubriker, inga **fetstilar**, inga _kursiveringar_, inga | tabeller |, inga --- avdelare, inga emoji-rubriker.",
+    "Använd korta punktlistor med bindestreck (`- punkt`) bara när du listar 3+ konkreta saker. Annars skriv flytande stycken.",
+    // Längd: håll svaren tighta. Användaren vill ha svar, inte uppslagsverk.
+    "Var koncis. Standardsvar är 2–4 korta stycken. Lista max 4–5 punkter när du listar. Skriv aldrig långa expositions-svar om användaren inte uttryckligen ber om \"djupgående\" eller \"utförlig\" beskrivning.",
+    "Hoppa inledande artigheter (\"Här är allt du behöver veta…\") och avslutande sammanfattningar — kom direkt till saken.",
   ].join(" ");
 
 /** Defaultpersona om ingen Notion-sida är konfigurerad. Innehåller bara den
