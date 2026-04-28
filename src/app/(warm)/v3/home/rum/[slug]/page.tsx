@@ -19,6 +19,7 @@ import { ChevronLeft } from "@/components/warm/icons/extra";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import ArcGauge from "@/components/warm/ArcGauge";
 import LightEditSheet from "@/components/warm/LightEditSheet";
+import WarmPress from "@/components/warm/WarmPress";
 import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
 import { slugToName } from "@/lib/warm/rooms";
 import { formatTime, kelvinLabel, sceneLabel } from "@/lib/warm/format";
@@ -139,15 +140,15 @@ function MasterTile({
   area,
   onAllOff,
   onAllOn,
-  onAuto,
+  onSetAll,
   loadingKey,
 }: {
   t: WarmTheme;
   area: LightArea;
   onAllOff: () => void;
   onAllOn: () => void;
-  onAuto: () => void;
-  loadingKey: "off" | "on" | "auto" | null;
+  onSetAll: (pct: number) => void;
+  loadingKey: "off" | "on" | null;
 }) {
   const onLights = area.lights.filter((l) => l.state === "on");
   const avgPct =
@@ -168,7 +169,7 @@ function MasterTile({
   })();
   const allOn = area.on_count > 0;
 
-  type Mode = "off" | "on" | "auto";
+  type Mode = "off" | "on";
   const activeMode: Mode = allOn ? "on" : "off";
 
   const PillBtn = ({
@@ -178,15 +179,16 @@ function MasterTile({
   }: {
     mode: Mode;
     label: string;
-    onClick: () => void;
+    onClick: () => void | Promise<void>;
   }) => {
     const isActive = activeMode === mode;
     const isLoading = loadingKey === mode;
     return (
-      <button
-        type="button"
+      <WarmPress
         onClick={onClick}
-        aria-pressed={isActive}
+        loading={isLoading}
+        ariaPressed={isActive}
+        spinnerColor={isActive ? t.ink : "#FFFBF0"}
         style={{
           padding: "6px 16px",
           borderRadius: 999,
@@ -196,13 +198,11 @@ function MasterTile({
           fontFamily: body,
           fontSize: 13,
           fontWeight: isActive ? 600 : 500,
-          opacity: isLoading ? 0.5 : 1,
-          cursor: "pointer",
           transition: "background 160ms",
         }}
       >
         {label}
-      </button>
+      </WarmPress>
     );
   };
 
@@ -228,6 +228,13 @@ function MasterTile({
           stroke={9}
           trackColor="rgba(255,251,240,0.18)"
           color="#FFFBF0"
+          thumbColor="#FFFBF0"
+          onChange={(v) => {
+            // Live preview — uppdaterar bara visningen i ArcGauge,
+            // skickar inte action förrän release.
+            void v;
+          }}
+          onCommit={(v) => onSetAll(v)}
         />
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
           <span
@@ -289,8 +296,19 @@ function MasterTile({
         }}
       >
         <PillBtn mode="on" label="på" onClick={onAllOn} />
-        <PillBtn mode="auto" label="auto" onClick={onAuto} />
         <PillBtn mode="off" label="av" onClick={onAllOff} />
+        <span
+          style={{
+            marginLeft: "auto",
+            alignSelf: "center",
+            fontFamily: "var(--font-fraunces), Georgia, serif",
+            fontStyle: "italic",
+            fontSize: 12,
+            color: "rgba(255,251,240,0.65)",
+          }}
+        >
+          dra på cirkeln för att dimra
+        </span>
       </div>
     </div>
   );
@@ -342,9 +360,8 @@ function LampRow({
             flex: 1,
             minWidth: 0,
             display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            alignItems: "flex-start",
+            alignItems: "center",
+            gap: 8,
           }}
         >
           <button
@@ -352,21 +369,44 @@ function LampRow({
             onClick={() => onToggle(light)}
             aria-label={`Slå ${lon ? "av" : "på"} ${light.name}`}
             style={{
+              flex: 1,
+              minWidth: 0,
               textAlign: "left",
               color: t.ink,
               cursor: "pointer",
-              maxWidth: "100%",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
               fontFamily: serif,
               fontSize: 17,
               fontWeight: 500,
               letterSpacing: "-0.01em",
               lineHeight: 1.1,
               overflow: "hidden",
-              textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}
           >
-            {light.name}
+            <span
+              aria-hidden="true"
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: lon ? ACC : "transparent",
+                border: `1.5px solid ${lon ? ACC : t.dim}`,
+                flexShrink: 0,
+                transition: "background-color 160ms, border-color 160ms",
+              }}
+            />
+            <span
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                minWidth: 0,
+              }}
+            >
+              {light.name}
+            </span>
           </button>
           {lon && light.color_temp_kelvin != null && (
             <button
@@ -386,6 +426,7 @@ function LampRow({
                 fontSize: 11,
                 fontWeight: 500,
                 cursor: "pointer",
+                flexShrink: 0,
               }}
               className="warm-tab-nums"
             >
@@ -630,7 +671,7 @@ export default function WarmRoomDetail() {
   const isKitchen = roomName?.toLowerCase() === "kök" || roomName?.toLowerCase() === "köket";
   const sensor = isKitchen ? undefined : sensors?.areas.find((a) => a.name === roomName);
   const [liveBrightness, setLiveBrightness] = useState<Record<string, number>>({});
-  const [masterLoading, setMasterLoading] = useState<"off" | "on" | "auto" | null>(null);
+  const [masterLoading, setMasterLoading] = useState<"off" | "on" | null>(null);
   const [editingLight, setEditingLight] = useState<LightEntry | null>(null);
 
   // AL-instans för denna lampa: matcha på manual_control eller via konfig-id
@@ -692,18 +733,12 @@ export default function WarmRoomDetail() {
       setMasterLoading(null);
     }
   }
-  async function handleAuto() {
-    // Auto = aktivera lämplig scen för rummet (i detta läge: aktivera senast
-    // detekterade scen). I praktiken är detta en stub som vi kan utöka i W6.
-    if (!activeScene) return;
-    setMasterLoading("auto");
-    try {
-      await callAction("scene", "turn_on", `scene.${activeScene}`);
-      await new Promise((r) => setTimeout(r, 600));
-      await mutate();
-    } finally {
-      setMasterLoading(null);
-    }
+  async function handleSetAll(pct: number) {
+    if (!area) return;
+    const dimmable = area.lights.filter((l) => l.dimmable).map((l) => l.entity_id);
+    if (dimmable.length === 0) return;
+    await callAction("light", "turn_on", dimmable, { brightness_pct: pct });
+    mutate();
   }
   async function handleToggleLight(light: LightEntry) {
     await callAction(
@@ -783,7 +818,7 @@ export default function WarmRoomDetail() {
               area={area}
               onAllOff={handleAllOff}
               onAllOn={handleAllOn}
-              onAuto={handleAuto}
+              onSetAll={handleSetAll}
               loadingKey={masterLoading}
             />
 

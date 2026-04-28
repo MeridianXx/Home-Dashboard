@@ -43,3 +43,68 @@
 .warm-tab-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* Warm-slider — generisk stil som ärver fyllning + track-färg via CSS-vars
+   så samma `<input type="range">` kan stylas i både ljusa kort (default
+   ACC + line) och på master-tilens terracotta-bakgrund (vit + opaque). */
+.warm-root input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.warm-root input[type="range"]:disabled {
+  cursor: not-allowed;
+}
+.warm-root input[type="range"]::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--warm-fill-color, #C96F4A) var(--fill, 0%),
+    var(--warm-track-color, rgba(229, 218, 192, 1)) var(--fill, 0%)
+  );
+  height: 4px;
+  border-radius: 2px;
+}
+.warm-root input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #FFFBF0;
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  margin-top: -7px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.warm-root input[type="range"]:disabled::-webkit-slider-thumb {
+  background: rgba(200, 200, 196, 0.6);
+  border-color: transparent;
+  box-shadow: none;
+}
+.warm-root input[type="range"]::-moz-range-track {
+  background: var(--warm-track-color, rgba(229, 218, 192, 1));
+  height: 4px;
+  border-radius: 2px;
+}
+.warm-root input[type="range"]::-moz-range-progress {
+  background: var(--warm-fill-color, #C96F4A);
+  height: 4px;
+  border-radius: 2px;
+}
+.warm-root input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #FFFBF0;
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Master-tilens slider — vit fyllning på terracotta-bakgrund. Pricken
+   bibehåller default light-färg så den syns. */
+.warm-root input[type="range"].warm-master {
+  --warm-fill-color: #FFFBF0;
+  --warm-track-color: rgba(255, 251, 240, 0.25);
+}
