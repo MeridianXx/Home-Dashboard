@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { TabBar, type TabKey } from "@/components/warm/primitives";
 import { FitIcon, GardIcon, HemIcon, LabIcon } from "@/components/warm/icons";
-import { useWarmTheme } from "@/lib/warm/theme";
+import { useWarmTheme, WarmThemeProvider } from "@/lib/warm/theme";
 import { ACC, SAGE, body } from "@/lib/warm/tokens";
 import { CheckIcon } from "@/components/warm/icons/extra";
 
@@ -40,6 +40,14 @@ function tabIcon(key: TabKey, color: string) {
 const PULL_THRESHOLD = 80;
 
 export default function WarmV3Layout({ children }: { children: ReactNode }) {
+  return (
+    <WarmThemeProvider>
+      <WarmV3Chrome>{children}</WarmV3Chrome>
+    </WarmThemeProvider>
+  );
+}
+
+function WarmV3Chrome({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname() ?? "/v3/home";
   const { t } = useWarmTheme();
