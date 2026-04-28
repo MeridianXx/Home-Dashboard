@@ -18,6 +18,7 @@ import {
 import { ChevronLeft } from "@/components/warm/icons/extra";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import ArcGauge from "@/components/warm/ArcGauge";
+import LightEditSheet from "@/components/warm/LightEditSheet";
 import { detectActiveScene, type ScenePayload } from "@/lib/scenes";
 import { slugToName } from "@/lib/warm/rooms";
 import { formatTime, kelvinLabel, sceneLabel } from "@/lib/warm/format";
@@ -304,6 +305,7 @@ function LampRow({
   onLiveBrightness,
   onToggle,
   onCommit,
+  onOpenEdit,
   isLast,
 }: {
   t: WarmTheme;
@@ -312,6 +314,7 @@ function LampRow({
   onLiveBrightness: (id: string, v: number) => void;
   onToggle: (l: LightEntry) => void;
   onCommit: (id: string, pct: number) => void;
+  onOpenEdit: (l: LightEntry) => void;
   isLast: boolean;
 }) {
   const lon = light.state === "on";
@@ -334,27 +337,28 @@ function LampRow({
           gap: 8,
         }}
       >
-        <button
-          type="button"
-          onClick={() => onToggle(light)}
-          aria-label={`Slå ${lon ? "av" : "på"} ${light.name}`}
+        <div
           style={{
             flex: 1,
             minWidth: 0,
-            textAlign: "left",
-            color: t.ink,
-            cursor: "pointer",
             display: "flex",
             flexDirection: "column",
             gap: 2,
+            alignItems: "flex-start",
           }}
         >
-          <span
+          <button
+            type="button"
+            onClick={() => onToggle(light)}
+            aria-label={`Slå ${lon ? "av" : "på"} ${light.name}`}
             style={{
+              textAlign: "left",
+              color: t.ink,
+              cursor: "pointer",
+              maxWidth: "100%",
               fontFamily: serif,
               fontSize: 17,
               fontWeight: 500,
-              color: t.ink,
               letterSpacing: "-0.01em",
               lineHeight: 1.1,
               overflow: "hidden",
@@ -363,20 +367,32 @@ function LampRow({
             }}
           >
             {light.name}
-          </span>
+          </button>
           {lon && light.color_temp_kelvin != null && (
-            <span
+            <button
+              type="button"
+              onClick={() => onOpenEdit(light)}
+              aria-label={`Redigera färgtemperatur för ${light.name}`}
               style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                borderRadius: 999,
+                background: t.tint,
+                border: `1px solid ${t.line}`,
+                color: t.mute,
                 fontFamily: body,
-                fontSize: 12,
-                color: t.dim,
+                fontSize: 11,
+                fontWeight: 500,
+                cursor: "pointer",
               }}
               className="warm-tab-nums"
             >
               {light.color_temp_kelvin} K
-            </span>
+            </button>
           )}
-        </button>
+        </div>
         <span
           style={{
             display: "inline-flex",
@@ -597,11 +613,37 @@ export default function WarmRoomDetail() {
     fetcher,
     { refreshInterval: 60_000 }
   );
+  const { data: alData, mutate: mAdaptive } = useSWR<{
+    instances: Array<{
+      entity_id: string;
+      configuration_id: string;
+      enabled: boolean;
+      manual_control: string[];
+    }>;
+  }>(hydrated ? "/api/homeassistant/adaptive-lighting" : null, fetcher, {
+    refreshInterval: 60_000,
+  });
 
   const area = lights?.areas.find((a) => a.name === roomName);
   const sensor = sensors?.areas.find((a) => a.name === roomName);
   const [liveBrightness, setLiveBrightness] = useState<Record<string, number>>({});
   const [masterLoading, setMasterLoading] = useState<"off" | "on" | "auto" | null>(null);
+  const [editingLight, setEditingLight] = useState<LightEntry | null>(null);
+
+  // AL-instans för denna lampa: matcha på manual_control eller via konfig-id
+  // som råkar matcha rummets slug. Notion-AL har vanligtvis en instans per
+  // rum som heter samma som rummet.
+  const adaptiveForLight = (l: LightEntry) => {
+    if (!alData?.instances) return null;
+    const direct = alData.instances.find((i) =>
+      i.manual_control.includes(l.entity_id)
+    );
+    if (direct) return direct;
+    const bySlug = alData.instances.find(
+      (i) => i.configuration_id.toLowerCase() === slug.toLowerCase()
+    );
+    return bySlug ?? alData.instances[0] ?? null;
+  };
 
   const activeScene = useMemo(() => {
     if (!lights || !("areas" in lights) || !scenesData?.scenes) return null;
@@ -671,6 +713,23 @@ export default function WarmRoomDetail() {
   async function handleBrightness(entity_id: string, pct: number) {
     await callAction("light", "turn_on", entity_id, { brightness_pct: pct });
     mutate();
+  }
+  async function handleSetKelvin(entity_id: string, kelvin: number) {
+    await callAction("light", "turn_on", entity_id, {
+      color_temp_kelvin: kelvin,
+    });
+    mutate();
+  }
+  async function handleToggleAdaptive(instance: {
+    entity_id: string;
+    enabled: boolean;
+  }) {
+    await callAction(
+      "switch",
+      instance.enabled ? "turn_off" : "turn_on",
+      instance.entity_id
+    );
+    mAdaptive();
   }
 
   const subtitle = (() => {
@@ -746,6 +805,7 @@ export default function WarmRoomDetail() {
                     }
                     onToggle={handleToggleLight}
                     onCommit={handleBrightness}
+                    onOpenEdit={(l) => setEditingLight(l)}
                     isLast={i === area.lights.length - 1}
                   />
                 ))}
@@ -767,6 +827,16 @@ export default function WarmRoomDetail() {
 
         <ActivityStrip t={t} activeScene={activeScene} activeSince={activeSince} />
       </div>
+
+      <LightEditSheet
+        t={t}
+        light={editingLight}
+        open={editingLight != null}
+        onClose={() => setEditingLight(null)}
+        adaptive={editingLight ? adaptiveForLight(editingLight) : null}
+        onSetKelvin={handleSetKelvin}
+        onToggleAdaptive={handleToggleAdaptive}
+      />
     </>
   );
 }
