@@ -232,6 +232,15 @@ export function ImageIcon({ size = 18, color = "currentColor", style }: IconProp
   );
 }
 
+export function CameraIcon({ size = 18, color = "currentColor", style }: IconProps) {
+  return (
+    <svg {...baseSvg(size, color)} style={{ flexShrink: 0, ...style }}>
+      <path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </svg>
+  );
+}
+
 export function CloseIcon({ size = 16, color = "currentColor", style }: IconProps) {
   return (
     <svg {...baseSvg(size, color)} style={{ flexShrink: 0, ...style }}>

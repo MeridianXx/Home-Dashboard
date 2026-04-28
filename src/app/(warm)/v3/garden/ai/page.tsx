@@ -17,6 +17,7 @@ import {
   SparkleIcon,
   SendIcon,
   ImageIcon,
+  CameraIcon,
   CloseIcon,
   RefreshIcon,
   CheckIcon,
@@ -258,6 +259,7 @@ export default function GardenAIPage() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const sentInitialRef = useRef(false);
 
   const ctxSwr = useSWR<ContextSummary>("/api/garden/chat", fetcher, { revalidateOnFocus: false, refreshInterval: 0 });
@@ -275,13 +277,8 @@ export default function GardenAIPage() {
     }
   }, [initialPrompt]);
 
-  // Auto-resize textarea
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = "auto";
-    ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
-  }, [input]);
+  // Composern är låst till en rad — textarea-höjden kommer från style.height,
+  // inget auto-grow. Långa texter scrollar horisontellt i fältet.
 
   const send = async (text: string, images: UIImage[]) => {
     const trimmed = text.trim();
@@ -347,6 +344,7 @@ export default function GardenAIPage() {
   };
 
   const handlePickFile = () => fileInputRef.current?.click();
+  const handlePickCamera = () => cameraInputRef.current?.click();
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -458,11 +456,15 @@ export default function GardenAIPage() {
             </div>
           )}
 
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-            <button type="button" onClick={handlePickFile} disabled={busy} aria-label="Lägg till bild" style={{ width: 34, height: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 17, background: t.paper, border: `1px solid ${t.line}`, cursor: busy ? "wait" : "pointer", flexShrink: 0 }}>
-              <ImageIcon size={16} color={t.mute} />
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
+            <button type="button" onClick={handlePickCamera} disabled={busy} aria-label="Ta foto" title="Ta foto" style={{ width: 34, height: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 17, background: "transparent", border: "none", cursor: busy ? "wait" : "pointer", flexShrink: 0, padding: 0 }}>
+              <CameraIcon size={18} color={t.mute} />
+            </button>
+            <button type="button" onClick={handlePickFile} disabled={busy} aria-label="Lägg till bild" title="Lägg till bild" style={{ width: 34, height: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 17, background: "transparent", border: "none", cursor: busy ? "wait" : "pointer", flexShrink: 0, padding: 0 }}>
+              <ImageIcon size={18} color={t.mute} />
             </button>
             <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleFileChange} style={{ display: "none" }} />
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} style={{ display: "none" }} />
 
             <textarea
               ref={textareaRef}
@@ -474,23 +476,24 @@ export default function GardenAIPage() {
                   send(input, pendingImages);
                 }
               }}
-              placeholder="Fråga om dina växter, planera in uppgifter, ladda upp bild…"
+              placeholder=""
+              rows={1}
               style={{
                 flex: 1,
                 minWidth: 0,
                 resize: "none",
                 fontFamily: body,
-                fontSize: 13,
-                background: t.paper,
+                fontSize: 14,
+                background: "transparent",
                 color: t.ink,
-                border: `1px solid ${t.line}`,
-                borderRadius: 10,
-                padding: "8px 12px",
+                border: "none",
+                borderRadius: 0,
+                padding: "8px 6px",
                 outline: "none",
                 lineHeight: 1.4,
-                minHeight: 40,
-                maxHeight: 120,
+                height: 34,
                 overflowY: "auto",
+                whiteSpace: "nowrap",
               }}
             />
 
