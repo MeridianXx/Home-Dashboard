@@ -6,10 +6,10 @@ import { ACC } from "@/lib/warm/tokens";
 /**
  * WarmPress — delad knapp-wrapper med taktil feedback.
  *
- * - Vid klick: liten scale-down + opacity-puls (~180 ms) som direkt visuell
- *   bekräftelse, även om handlern är synkron eller HA hinner inte svara.
- * - Vid loading=true (eller medan onClick:s promise är pending): visar en
- *   liten spinner överlagrad i hörnet av barnen + dämpat innehåll.
+ * - Vid klick: liten scale-down + opacity-puls (~180 ms).
+ * - När loading=true (eller medan onClick:s promise är pending):
+ *   barnen dämpas till 25 % opacity och en spinner visas centrerat
+ *   i mitten av knappen — INTE i hörnet.
  * - Disabled när loading pågår.
  */
 export default function WarmPress({
@@ -63,26 +63,40 @@ export default function WarmPress({
         position: "relative",
         cursor: isDisabled ? "default" : "pointer",
         transform: pressed ? "scale(0.97)" : "scale(1)",
-        opacity: isDisabled && !isLoading ? 0.45 : isLoading ? 0.8 : pressed ? 0.85 : 1,
+        opacity: isDisabled && !isLoading ? 0.45 : pressed ? 0.85 : 1,
         transition: "transform 120ms, opacity 120ms",
         ...style,
       }}
     >
-      {children}
+      {/* Barnen dämpas när loading — spinnern syns ovanpå */}
+      <span
+        style={{
+          opacity: isLoading ? 0.25 : 1,
+          transition: "opacity 120ms",
+          // display:contents gör spannen osynlig i layouten —
+          // barnen hänger kvar i knappens eget flex/inline-context
+          display: "contents",
+        }}
+      >
+        {children}
+      </span>
+
       {isLoading && (
         <span
           aria-hidden="true"
           style={{
             position: "absolute",
-            top: 4,
-            right: 4,
-            display: "inline-flex",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "inherit",
             pointerEvents: "none",
           }}
         >
           <svg
-            width={12}
-            height={12}
+            width={15}
+            height={15}
             viewBox="0 0 24 24"
             style={{ animation: "spin-anim 0.8s linear infinite" }}
           >
