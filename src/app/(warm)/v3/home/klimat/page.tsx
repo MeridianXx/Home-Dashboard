@@ -570,7 +570,7 @@ export default function WarmKlimatPage() {
           // INOMHUS: BT50 överst, sedan rum i specificerad ordning
           const indoorRows: SensorRow[] = [
             ...(sensors.nibe_indoor_temp != null
-              ? [{ key: "nibe-bt50", label: "Inomhustemperatur", temperature: sensors.nibe_indoor_temp, humidity: null }]
+              ? [{ key: "nibe-bt50", label: "Inomhus", temperature: sensors.nibe_indoor_temp, humidity: null }]
               : []),
             ...indoorAreas.map((a) => ({
               key: a.area_id,
@@ -584,7 +584,7 @@ export default function WarmKlimatPage() {
           // sedan Växthus
           const outdoorRows: SensorRow[] = [
             ...(sensors.outdoor_temp != null
-              ? [{ key: "nibe-bt1", label: "Utomhustemperatur", temperature: sensors.outdoor_temp, humidity: null }]
+              ? [{ key: "nibe-bt1", label: "Utomhus", temperature: sensors.outdoor_temp, humidity: null }]
               : []),
             ...greens.map((a) => ({
               key: a.area_id,
