@@ -6,25 +6,21 @@
 // "Vattnad nu"-snabbknapp.
 
 import Link from "next/link";
-import { use, useState, useEffect, useCallback } from "react";
+import { use, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useWarmTheme } from "@/lib/warm/theme";
-import { ACC, SAGE, AMBER, SKY, body, ital, lab, num } from "@/lib/warm/tokens";
+import { ACC, SAGE, body, ital, lab, num } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { DetailHero, Section } from "@/components/warm/fit/parts";
 import { WarmModal } from "@/components/warm/Modal";
 import { inputStyle, Field, SelectBox, MultiSelectChips } from "@/components/warm/garden/forms";
 import {
   plantGlyph,
-  CalendarIcon,
   SparkleIcon,
   ExternalLinkIcon,
   EditIcon,
-  CheckIcon,
-  CloseIcon,
-  DropletIcon,
 } from "@/components/warm/icons/garden";
 import { ChevronRight } from "@/components/warm/icons/extra";
 import { plantTypeColor, shortDateSv, TASK_STATUS_COLOR } from "@/lib/warm/garden";
@@ -50,7 +46,6 @@ function formatSowDate(iso: string): string {
 // ── Livscykel-tracker ─────────────────────────────────────────────────────────
 
 const LIFECYCLE_PHASES = ["Sådd", "Plantskola", "Härdning", "Utplantering", "Skörd"] as const;
-const LIFECYCLE_PERENNIAL = ["Etablerad", "Vilande"] as const;
 
 function LifecycleTracker({
   fas,
@@ -60,7 +55,7 @@ function LifecycleTracker({
   note?: string | null;
 }) {
   const { t } = useWarmTheme();
-  const phases = fas === "Etablerad" || fas === "Vilande" ? LIFECYCLE_PERENNIAL : LIFECYCLE_PHASES;
+  const phases = LIFECYCLE_PHASES;
   const currentIdx = phases.findIndex((p) => p === fas);
 
   return (
@@ -128,84 +123,6 @@ function LifecycleTracker({
   );
 }
 
-// ── Skötsel idag — 2×2-grid ───────────────────────────────────────────────────
-
-function CareGrid({ plant }: { plant: Plant }) {
-  const { t } = useWarmTheme();
-  const today = new Date().toISOString().slice(0, 10);
-  const wateredToday = plant.senastVattnad === today;
-  const wateredYesterday =
-    plant.senastVattnad === new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-
-  const wateredLabel = wateredToday
-    ? "Vattnad idag"
-    : wateredYesterday
-    ? "Vattnad igår"
-    : plant.senastVattnad
-    ? `Senast ${shortDateSv(plant.senastVattnad)}`
-    : "Ej registrerad";
-
-  const cards: Array<{ label: string; value: string | null; sub?: string | null; color?: string }> = [
-    {
-      label: "VATTNING",
-      value: plant.vattningsintervall,
-      sub: plant.vattningsnotering,
-      color: wateredToday ? SAGE : plant.senastVattnad ? undefined : t.bad,
-    },
-    { label: "NÄRING", value: plant.naring, sub: null },
-    { label: "LJUS", value: plant.ljusbehov, sub: null },
-    { label: "TEMP", value: plant.temperaturintervall, sub: null },
-  ];
-
-  const hasAny = cards.some((c) => c.value);
-
-  if (!hasAny) return null;
-
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-      {cards.map(({ label, value, sub, color }) => (
-        <Tile key={label} t={t} hi style={{ padding: "10px 12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
-            <span style={lab(t, { color: color ?? ACC, letterSpacing: "0.06em" })}>{label}</span>
-          </div>
-          {value ? (
-            <>
-              <div
-                style={{
-                  fontFamily: body,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: color ?? t.ink,
-                  lineHeight: 1.3,
-                }}
-              >
-                {label === "VATTNING" ? wateredLabel : value}
-              </div>
-              {label === "VATTNING" && (
-                <div style={{ fontFamily: body, fontSize: 11, color: t.mute, marginTop: 2 }}>
-                  {value}
-                </div>
-              )}
-              {sub && label !== "VATTNING" && (
-                <div style={{ fontFamily: body, fontSize: 11, color: t.mute, marginTop: 2 }}>
-                  {sub}
-                </div>
-              )}
-              {label === "VATTNING" && plant.vattningsnotering && (
-                <div style={{ fontFamily: body, fontSize: 11, color: t.mute, marginTop: 2 }}>
-                  {plant.vattningsnotering}
-                </div>
-              )}
-            </>
-          ) : (
-            <span style={{ fontFamily: body, fontSize: 12, color: t.dim }}>–</span>
-          )}
-        </Tile>
-      ))}
-    </div>
-  );
-}
-
 // ── Metadata-rad (Höjd / Sort / Skörd) ─────────────────────────────────────
 
 function MetaRow({ plant }: { plant: Plant }) {
@@ -246,8 +163,6 @@ const PLANT_LOCATIONS = ["Inomhus", "Växthus", "Altan", "Baksida", "Framsida"];
 const PRUNING_SEASONS = ["Höst", "Efter blomning", "Ingen", "JAS", "Vår", "Vårvinter", "Löpande"];
 const FERTILIZE_SEASONS = ["Ingen", "Höst", "Sommar", "Försommar", "Vår"];
 const PHASES = ["Sådd", "Plantskola", "Härdning", "Utplantering", "Skörd", "Etablerad", "Vilande"];
-const WATERING_INTERVALS = ["Dagligen", "Varannan dag", "Veckovis", "Vid behov", "Inte nu"];
-
 interface EditForm {
   vaxt: string;
   sorttnamn: string;
@@ -257,12 +172,6 @@ interface EditForm {
   sadddatum: string;
   antalPlantor: string;
   sasongslangd: string;
-  senastVattnad: string;
-  vattningsintervall: string;
-  vattningsnotering: string;
-  naring: string;
-  ljusbehov: string;
-  temperaturintervall: string;
   hojd: string;
   skordeperiod: string;
   skotselguide: string;
@@ -280,12 +189,6 @@ function plantToForm(p: Plant): EditForm {
     sadddatum: p.sadddatum ?? "",
     antalPlantor: p.antalPlantor != null ? String(p.antalPlantor) : "",
     sasongslangd: p.sasongslangd != null ? String(p.sasongslangd) : "",
-    senastVattnad: p.senastVattnad ?? "",
-    vattningsintervall: p.vattningsintervall ?? "",
-    vattningsnotering: p.vattningsnotering ?? "",
-    naring: p.naring ?? "",
-    ljusbehov: p.ljusbehov ?? "",
-    temperaturintervall: p.temperaturintervall ?? "",
     hojd: p.hojd ?? "",
     skordeperiod: p.skordeperiod ?? "",
     skotselguide: p.skotselguide ?? p.skotselrad ?? "",
@@ -304,18 +207,11 @@ function formToInput(f: EditForm): PlantInput {
     sadddatum: f.sadddatum || null,
     antalPlantor: f.antalPlantor ? Number(f.antalPlantor) : null,
     sasongslangd: f.sasongslangd ? Number(f.sasongslangd) : null,
-    senastVattnad: f.senastVattnad || null,
-    vattningsintervall: f.vattningsintervall || null,
-    vattningsnotering: f.vattningsnotering || null,
-    naring: f.naring || null,
-    ljusbehov: f.ljusbehov || null,
-    temperaturintervall: f.temperaturintervall || null,
     hojd: f.hojd || null,
     skordeperiod: f.skordeperiod || null,
     skotselguide: f.skotselguide || null,
     beskarning: f.beskarning,
     godsling: f.godsling,
-    skotselrad: f.skotselguide || null,
   };
 }
 
@@ -347,7 +243,10 @@ function EditModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formToInput(form)),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error || `HTTP ${res.status}`);
+      }
       onSaved();
       onClose();
     } catch (e) {
@@ -431,29 +330,6 @@ function EditModal({
         <input type="number" style={iStyle} value={form.sasongslangd} onChange={(e) => set("sasongslangd", e.target.value)} placeholder="t.ex. 120" min="0" />
       </Field>
 
-      {/* Daglig skötsel */}
-      <div style={{ fontFamily: body, fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: ACC, marginBottom: 8 }}>
-        Daglig skötsel
-      </div>
-      <Field label="Senast vattnad" style={{ marginBottom: 10 }}>
-        <input type="date" style={iStyle} value={form.senastVattnad} onChange={(e) => set("senastVattnad", e.target.value)} />
-      </Field>
-      <Field label="Vattningsintervall" style={{ marginBottom: 10 }}>
-        <SelectBox value={form.vattningsintervall} onChange={(v) => set("vattningsintervall", v)} options={WATERING_INTERVALS} placeholder="Välj frekvens" />
-      </Field>
-      <Field label="Vattningsnotering" style={{ marginBottom: 10 }}>
-        <input style={iStyle} value={form.vattningsnotering} onChange={(e) => set("vattningsnotering", e.target.value)} placeholder="t.ex. jord torr ca 2 cm ner" />
-      </Field>
-      <Field label="Näring" style={{ marginBottom: 10 }}>
-        <input style={iStyle} value={form.naring} onChange={(e) => set("naring", e.target.value)} placeholder="t.ex. Söndag, halv dos kvävebaserat" />
-      </Field>
-      <Field label="Ljusbehov" style={{ marginBottom: 10 }}>
-        <input style={iStyle} value={form.ljusbehov} onChange={(e) => set("ljusbehov", e.target.value)} placeholder="t.ex. 14 t/dag" />
-      </Field>
-      <Field label="Temperaturintervall" style={{ marginBottom: 16 }}>
-        <input style={iStyle} value={form.temperaturintervall} onChange={(e) => set("temperaturintervall", e.target.value)} placeholder="t.ex. 20–22 °C, undvik drag" />
-      </Field>
-
       {/* Om växten */}
       <div style={{ fontFamily: body, fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: ACC, marginBottom: 8 }}>
         Om växten
@@ -489,7 +365,6 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
   const { t } = useWarmTheme();
   const [editOpen, setEditOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [wateringNow, setWateringNow] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -507,22 +382,6 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
   const plant = data?.plant;
   const relatedTasks = (tasksData?.tasks ?? []).filter((tk) => tk.plantIds.includes(id));
   const errMsg = error instanceof Error ? error.message : "";
-
-  const handleWateredNow = useCallback(async () => {
-    if (!plant) return;
-    setWateringNow(true);
-    const today = new Date().toISOString().slice(0, 10);
-    try {
-      await fetch(`/api/garden/plants/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senastVattnad: today }),
-      });
-      await mutate();
-    } finally {
-      setWateringNow(false);
-    }
-  }, [plant, id, mutate]);
 
   if (isLoading || (!plant && !errMsg)) {
     return (
@@ -548,8 +407,6 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
 
   const color = plantTypeColor(plant.typ);
   const days = daysSince(plant.sadddatum);
-  const today = new Date().toISOString().slice(0, 10);
-  const wateredToday = plant.senastVattnad === today;
 
   // Bygg eyebrow och titel
   const eyebrowParts = [(plant.typ || "VÄXT").toUpperCase()];
@@ -560,18 +417,22 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
 
   const italicTail = plant.sorttnamn ? `'${plant.sorttnamn}'.` : undefined;
 
-  // Subtitle under titeln
+  // Subtitle under titeln. Plats visas på raden under — undvik dubblett här.
   const subtitleParts: string[] = [];
   if (plant.fas) subtitleParts.push(plant.fas);
-  if (plant.antalPlantor) subtitleParts.push(`${plant.antalPlantor} plantor`);
+  if (plant.antalPlantor) {
+    subtitleParts.push(`${plant.antalPlantor} ${plant.antalPlantor === 1 ? "planta" : "plantor"}`);
+  }
   if (plant.sadddatum) subtitleParts.push(`sådd ${formatSowDate(plant.sadddatum)}`);
-  else if (plant.platser.length > 0) subtitleParts.push((plant.platser[0] as string).toLowerCase());
 
   const aiPrompt = `Berätta om ${plant.vaxt}${plant.sorttnamn ? ` '${plant.sorttnamn}'` : ""}: skötsel, beskärning och vanliga problem. Vad bör jag tänka på just nu?`;
 
-  const hasCareGrid =
-    plant.vattningsintervall || plant.naring || plant.ljusbehov || plant.temperaturintervall;
-  const hasLifecycle = plant.fas && LIFECYCLE_PHASES.includes(plant.fas as (typeof LIFECYCLE_PHASES)[number]) || plant.fas === "Etablerad" || plant.fas === "Vilande";
+  // Livscykel-tracker visas bara för säsongs-faser (Sådd → Skörd).
+  // Etablerad/Vilande är slutlägen — växten progresserar inte vidare, så
+  // tracker-staplarna är vilseledande. Fas-info visas redan i subtitle-raden.
+  const hasLifecycle = plant.fas
+    ? LIFECYCLE_PHASES.includes(plant.fas as (typeof LIFECYCLE_PHASES)[number])
+    : false;
 
   return (
     <div style={{ paddingBottom: 24 }}>
@@ -634,31 +495,6 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
               {plant.platser.length > 0 ? plant.platser.join(" · ") : "Plats ej angiven"}
             </div>
           </div>
-          {/* Vattnad nu-knapp */}
-          <button
-            type="button"
-            onClick={handleWateredNow}
-            disabled={wateringNow || wateredToday}
-            title={wateredToday ? "Redan vattnad idag" : "Registrera vattning nu"}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              background: wateredToday ? `${SAGE}20` : t.paperHi,
-              border: `1px solid ${wateredToday ? SAGE : t.line}`,
-              cursor: wateredToday ? "default" : "pointer",
-              flexShrink: 0,
-            }}
-          >
-            {wateredToday ? (
-              <CheckIcon size={16} color={SAGE} />
-            ) : (
-              <DropletIcon size={16} color={wateringNow ? t.dim : SKY} />
-            )}
-          </button>
         </Tile>
 
         {/* Livscykel-tracker */}
@@ -667,14 +503,6 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
             <div style={{ ...lab(t), marginBottom: 12 }}>LIVSCYKEL</div>
             <LifecycleTracker fas={plant.fas} />
           </Tile>
-        )}
-
-        {/* Skötsel idag */}
-        {hasCareGrid && (
-          <div>
-            <div style={{ ...lab(t), marginBottom: 8 }}>SKÖTSEL IDAG</div>
-            <CareGrid plant={plant} />
-          </div>
         )}
 
         {/* Skötselguide */}
@@ -709,8 +537,8 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
           </Tile>
         )}
 
-        {/* Äldre fält (beskärning/gödsling) om inga livscykelfält är satta */}
-        {!hasLifecycle && !hasCareGrid && (plant.beskarning.length > 0 || plant.godsling.length > 0) && (
+        {/* Beskärning + gödsling */}
+        {(plant.beskarning.length > 0 || plant.godsling.length > 0) && (
           <Tile t={t} style={{ padding: "4px 14px" }}>
             {plant.beskarning.length > 0 && (
               <div style={{ padding: "10px 0", borderBottom: `1px solid ${t.line}`, display: "flex", gap: 10 }}>
