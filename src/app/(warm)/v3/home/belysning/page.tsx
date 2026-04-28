@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { callAction } from "@/lib/actions";
-import { useWarmTheme } from "@/lib/warm/theme";
+import { useHydrated, useWarmTheme } from "@/lib/warm/theme";
 import {
   ACC,
   body,
@@ -197,13 +197,14 @@ function FloorSection({
 export default function WarmLightingPage() {
   const router = useRouter();
   const { t } = useWarmTheme();
+  const hydrated = useHydrated();
   const { data: lights, error, mutate } = useSWR<LightsData>(
-    "/api/homeassistant/lights",
+    hydrated ? "/api/homeassistant/lights" : null,
     fetcher,
     { refreshInterval: 3_000 }
   );
   const { data: scenesData } = useSWR<{ scenes: ScenePayload[] }>(
-    "/api/homeassistant/scenes",
+    hydrated ? "/api/homeassistant/scenes" : null,
     fetcher,
     { refreshInterval: 60_000 }
   );

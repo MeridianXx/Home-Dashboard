@@ -5,7 +5,7 @@ import { useParams, useRouter, notFound } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { callAction } from "@/lib/actions";
-import { useWarmTheme } from "@/lib/warm/theme";
+import { useHydrated, useWarmTheme } from "@/lib/warm/theme";
 import {
   ACC,
   body,
@@ -364,18 +364,18 @@ function LampRow({
           >
             {light.name}
           </span>
-          <span
-            style={{
-              fontFamily: body,
-              fontSize: 12,
-              color: t.dim,
-            }}
-            className="warm-tab-nums"
-          >
-            {lon && light.color_temp_kelvin
-              ? `${light.color_temp_kelvin} K`
-              : "—"}
-          </span>
+          {lon && light.color_temp_kelvin != null && (
+            <span
+              style={{
+                fontFamily: body,
+                fontSize: 12,
+                color: t.dim,
+              }}
+              className="warm-tab-nums"
+            >
+              {light.color_temp_kelvin} K
+            </span>
+          )}
         </button>
         <span
           style={{
@@ -459,6 +459,21 @@ function ClimateTriplet({
   sensor: SensorArea | undefined;
   outdoorTemp: number | null;
 }) {
+  const cells: Array<{ label: string; value: string; unit: string }> = [];
+  if (sensor) {
+    cells.push({ label: "TEMP", value: sensor.temperature.toFixed(1), unit: "°C" });
+    if (sensor.humidity != null) {
+      cells.push({
+        label: "LUFTFUKT",
+        value: `${Math.round(sensor.humidity)}`,
+        unit: "%",
+      });
+    }
+  }
+  if (outdoorTemp != null) {
+    cells.push({ label: "UTE", value: outdoorTemp.toFixed(1), unit: "°" });
+  }
+  if (cells.length === 0) return null;
   return (
     <div
       style={{
@@ -467,28 +482,13 @@ function ClimateTriplet({
         borderRadius: 14,
         padding: 16,
         display: "grid",
-        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))`,
         gap: 12,
       }}
     >
-      <Stat
-        t={t}
-        label="TEMP"
-        value={sensor ? sensor.temperature.toFixed(1) : "—"}
-        unit="°C"
-      />
-      <Stat
-        t={t}
-        label="LUFTFUKT"
-        value={sensor?.humidity != null ? `${Math.round(sensor.humidity)}` : "—"}
-        unit="%"
-      />
-      <Stat
-        t={t}
-        label="UTE"
-        value={outdoorTemp != null ? outdoorTemp.toFixed(1) : "—"}
-        unit="°"
-      />
+      {cells.map((c) => (
+        <Stat key={c.label} t={t} label={c.label} value={c.value} unit={c.unit} />
+      ))}
     </div>
   );
 }
@@ -576,23 +576,24 @@ function ActivityStrip({
 export default function WarmRoomDetail() {
   const router = useRouter();
   const { t } = useWarmTheme();
+  const hydrated = useHydrated();
   const params = useParams<{ slug: string }>();
   const slug = params.slug;
   const roomName = slugToName(slug);
   if (!roomName) notFound();
 
   const { data: lights, mutate, error } = useSWR<LightsData>(
-    "/api/homeassistant/lights",
+    hydrated ? "/api/homeassistant/lights" : null,
     fetcher,
     { refreshInterval: 3_000 }
   );
   const { data: sensors } = useSWR<SensorsData>(
-    "/api/homeassistant/sensors",
+    hydrated ? "/api/homeassistant/sensors" : null,
     fetcher,
     { refreshInterval: 30_000 }
   );
   const { data: scenesData } = useSWR<{ scenes: ScenePayload[] }>(
-    "/api/homeassistant/scenes",
+    hydrated ? "/api/homeassistant/scenes" : null,
     fetcher,
     { refreshInterval: 60_000 }
   );
@@ -753,14 +754,16 @@ export default function WarmRoomDetail() {
           </>
         )}
 
-        <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <span style={lab(t)}>KLIMAT</span>
-          <ClimateTriplet
-            t={t}
-            sensor={sensor}
-            outdoorTemp={sensors?.outdoor_temp ?? null}
-          />
-        </section>
+        {(sensor || sensors?.outdoor_temp != null) && (
+          <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <span style={lab(t)}>KLIMAT</span>
+            <ClimateTriplet
+              t={t}
+              sensor={sensor}
+              outdoorTemp={sensors?.outdoor_temp ?? null}
+            />
+          </section>
+        )}
 
         <ActivityStrip t={t} activeScene={activeScene} activeSince={activeSince} />
       </div>

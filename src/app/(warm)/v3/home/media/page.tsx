@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { callAction } from "@/lib/actions";
-import { useWarmTheme } from "@/lib/warm/theme";
+import { useHydrated, useWarmTheme } from "@/lib/warm/theme";
 import { ACC, body, ital, lab, num, type WarmTheme } from "@/lib/warm/tokens";
 import { DetailHeader, Tile } from "@/components/warm/primitives";
 import {
@@ -532,8 +532,9 @@ function AppleTvTile({
 export default function WarmMediaPage() {
   const router = useRouter();
   const { t } = useWarmTheme();
+  const hydrated = useHydrated();
   const { data, error, mutate } = useSWR<MediaData>(
-    "/api/homeassistant/media",
+    hydrated ? "/api/homeassistant/media" : null,
     fetcher,
     { refreshInterval: 3_000 }
   );

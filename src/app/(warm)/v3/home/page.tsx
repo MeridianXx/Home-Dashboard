@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { callAction } from "@/lib/actions";
-import { useWarmTheme } from "@/lib/warm/theme";
+import { useHydrated, useWarmTheme } from "@/lib/warm/theme";
 import {
   ACC,
   body,
@@ -422,25 +422,38 @@ function TibberTile({ t, energy }: { t: WarmTheme; energy: EnergyData | undefine
         <span style={{ ...lab(t), letterSpacing: "0.16em" }}>TIBBER · NU</span>
         <ChevronRight size={12} color={t.dim} />
       </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-        <span
-          className="warm-tab-nums"
-          style={{ ...num(t, 22, 400), lineHeight: 1.1 }}
-        >
-          {krPerKwh != null ? krPerKwh.toFixed(2).replace(".", ",") : "–"}
-        </span>
-        <span
-          style={{
-            fontFamily: body,
-            fontSize: 11,
-            color: t.mute,
-            fontWeight: 500,
-          }}
-        >
-          kr/kWh
-        </span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 4,
+          minHeight: 24,
+        }}
+      >
+        {krPerKwh != null && (
+          <>
+            <span
+              className="warm-tab-nums"
+              style={{ ...num(t, 22, 400), lineHeight: 1.1 }}
+            >
+              {krPerKwh.toFixed(2).replace(".", ",")}
+            </span>
+            <span
+              style={{
+                fontFamily: body,
+                fontSize: 11,
+                color: t.mute,
+                fontWeight: 500,
+              }}
+            >
+              kr/kWh
+            </span>
+          </>
+        )}
       </div>
-      <span style={ital(t, 12, t.dim)}>{spotLabel(energy?.spot_level)}</span>
+      <span style={{ ...ital(t, 12, t.dim), minHeight: 16 }}>
+        {energy?.spot_level ? spotLabel(energy.spot_level) : ""}
+      </span>
     </Tile>
   );
 }
@@ -464,17 +477,6 @@ function CarsTile({ t, cars }: { t: WarmTheme; cars: CarsData | undefined }) {
         <ChevronRight size={12} color={t.dim} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {list.length === 0 && (
-          <span
-            style={{
-              fontFamily: body,
-              fontSize: 12,
-              color: t.mute,
-            }}
-          >
-            —
-          </span>
-        )}
         {list.map((car) => (
           <div
             key={car.id}
@@ -579,16 +581,18 @@ function RoomList({
                 onLights.length
             );
           })();
-          const tempStr = r.sensorArea
-            ? `${r.sensorArea.temperature.toFixed(1)}°`
-            : "—";
-          const lightLabel = r.lightArea
-            ? on
-              ? avgPct != null
-                ? `ljus ${avgPct}%`
-                : "ljus på"
-              : "ljus av"
-            : "ljus —";
+          const subtitleParts: string[] = [];
+          if (r.sensorArea) {
+            subtitleParts.push(`${r.sensorArea.temperature.toFixed(1)}°`);
+          }
+          if (r.lightArea) {
+            if (on) {
+              subtitleParts.push(avgPct != null ? `ljus ${avgPct}%` : "ljus på");
+            } else {
+              subtitleParts.push("ljus av");
+            }
+          }
+          const subtitle = subtitleParts.join(" · ");
           return (
             <Link
               key={r.slug}
@@ -597,7 +601,7 @@ function RoomList({
                 display: "flex",
                 alignItems: "center",
                 gap: 14,
-                padding: "14px 16px",
+                padding: "12px 16px",
                 color: t.ink,
                 borderTop: i === 0 ? "none" : `1px solid ${t.line}`,
                 textDecoration: "none",
@@ -617,29 +621,48 @@ function RoomList({
                 <p
                   style={{
                     fontFamily: serif,
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: 500,
                     color: t.ink,
                     letterSpacing: "-0.01em",
-                    lineHeight: 1.1,
+                    lineHeight: 1.15,
                   }}
                 >
                   {r.name}
                 </p>
-                <p
-                  style={{
-                    ...ital(t, 13, t.mute),
-                    marginTop: 2,
-                  }}
-                >
-                  {tempStr} · {lightLabel}
-                </p>
+                {subtitle && (
+                  <p
+                    style={{
+                      ...ital(t, 12, t.mute),
+                      marginTop: 2,
+                    }}
+                  >
+                    {subtitle}
+                  </p>
+                )}
               </div>
               <ChevronRight size={16} color={t.dim} />
             </Link>
           );
         })}
       </div>
+      <Link
+        href="/v3/home/belysning"
+        style={{
+          alignSelf: "flex-end",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          fontFamily: body,
+          fontStyle: "italic",
+          fontSize: 13,
+          color: t.mute,
+          textDecoration: "none",
+        }}
+      >
+        Alla rum & belysning
+        <ChevronRight size={12} color={t.mute} />
+      </Link>
     </div>
   );
 }
@@ -658,38 +681,45 @@ function useActiveSceneSince(
 
 export default function WarmHomeHub() {
   const { t, dark, toggle } = useWarmTheme();
+  const hydrated = useHydrated();
   const [sceneLoading, setSceneLoading] = useState<string | null>(null);
 
+  // Skjut upp SWR tills hydration är klar — server och client första-pass
+  // får då samma DOM (alla `data` är undefined). Annars klagar React på
+  // hydration-mismatch eftersom in-memory SWR-cachen kan ha värden vid
+  // client-mount.
   const {
     data: lights,
     error: lightsError,
     mutate: mLights,
-  } = useSWR<LightsData>("/api/homeassistant/lights", fetcher, {
+  } = useSWR<LightsData>(hydrated ? "/api/homeassistant/lights" : null, fetcher, {
     refreshInterval: 5_000,
   });
   const { data: scenesData } = useSWR<{ scenes: ScenePayload[] }>(
-    "/api/homeassistant/scenes",
+    hydrated ? "/api/homeassistant/scenes" : null,
     fetcher,
     { refreshInterval: 60_000 }
   );
   const { data: sensors } = useSWR<SensorsData>(
-    "/api/homeassistant/sensors",
+    hydrated ? "/api/homeassistant/sensors" : null,
     fetcher,
     { refreshInterval: 30_000 }
   );
   const { data: weather, error: weatherError } = useSWR<WeatherData>(
-    "/api/homeassistant/weather",
+    hydrated ? "/api/homeassistant/weather" : null,
     fetcher,
     { refreshInterval: 300_000 }
   );
   const { data: energy } = useSWR<EnergyData>(
-    "/api/homeassistant/energy",
+    hydrated ? "/api/homeassistant/energy" : null,
     fetcher,
     { refreshInterval: 5_000 }
   );
-  const { data: cars } = useSWR<CarsData>("/api/homeassistant/cars", fetcher, {
-    refreshInterval: 60_000,
-  });
+  const { data: cars } = useSWR<CarsData>(
+    hydrated ? "/api/homeassistant/cars" : null,
+    fetcher,
+    { refreshInterval: 60_000 }
+  );
 
   const activeScene = useMemo(() => {
     if (!lights || !("areas" in lights) || !scenesData?.scenes) return null;

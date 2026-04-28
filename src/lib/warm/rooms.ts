@@ -48,11 +48,13 @@ export function slugToName(slug: string): string | null {
 
 // Rum vi visar som "favoriter" på hubben i fallande relevansordning.
 // Träffar mot Sensors-API + Lights-API; saknat rum hoppas över tyst.
+// Resten av rummen (Hall, Entré, badrum, etc.) ligger på /v3/home/belysning.
 export const HUB_FAVORITE_ROOMS: RoomSlug[] = [
   "vardagsrum",
   "kok",
   "allrum",
   "sovrum",
+  "adrian",
   "elvira",
 ];
 

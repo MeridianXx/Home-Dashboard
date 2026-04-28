@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { useWarmTheme } from "@/lib/warm/theme";
+import { useHydrated, useWarmTheme } from "@/lib/warm/theme";
 import {
   body,
   ital,
@@ -122,13 +122,14 @@ function PageHeading({
 export default function WarmKlimatPage() {
   const router = useRouter();
   const { t } = useWarmTheme();
+  const hydrated = useHydrated();
   const { data: sensors, error: sensorsError, mutate: mSensors } = useSWR<SensorsData>(
-    "/api/homeassistant/sensors",
+    hydrated ? "/api/homeassistant/sensors" : null,
     fetcher,
     { refreshInterval: 30_000 }
   );
   const { data: weather, error: weatherError } = useSWR<WeatherData>(
-    "/api/homeassistant/weather",
+    hydrated ? "/api/homeassistant/weather" : null,
     fetcher,
     { refreshInterval: 300_000 }
   );
