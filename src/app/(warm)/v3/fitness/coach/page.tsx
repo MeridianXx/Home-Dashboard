@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -95,6 +95,15 @@ type Draft = Partial<PlannedWorkout> & { datum: string };
 type View = "week" | "month";
 
 export default function WarmFitnessCoachPage() {
+  // useSearchParams() kräver Suspense-boundary vid prerendering (Next 16).
+  return (
+    <Suspense fallback={null}>
+      <WarmFitnessCoachInner />
+    </Suspense>
+  );
+}
+
+function WarmFitnessCoachInner() {
   const { t } = useWarmTheme();
   const router = useRouter();
   const searchParams = useSearchParams();

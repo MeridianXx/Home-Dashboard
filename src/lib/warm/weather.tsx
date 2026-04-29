@@ -1,5 +1,6 @@
 // Mappar HA weather-condition → en Warm-glyph + svensk etikett.
 
+import type { ReactElement } from "react";
 import {
   CloudIcon,
   CloudRainIcon,
@@ -12,7 +13,7 @@ import {
   WindIcon,
 } from "@/components/warm/icons/extra";
 
-export type WeatherGlyph = (props: { size?: number; color?: string }) => JSX.Element;
+export type WeatherGlyph = (props: { size?: number; color?: string }) => ReactElement;
 
 const MAP: Record<string, WeatherGlyph> = {
   sunny: SunIcon,

@@ -5,7 +5,7 @@
 // Tom konversation = kompakt empty-state + 2×2-grid med snabbprompts.
 // Konversation = full-height scroll-yta.
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -246,6 +246,15 @@ function ContextPanel({ ctx, onRefresh, loading }: { ctx: ContextSummary | undef
 // ── Huvudkomponent ────────────────────────────────────────────────────────────
 
 export default function GardenAIPage() {
+  // useSearchParams() kräver Suspense-boundary vid prerendering (Next 16).
+  return (
+    <Suspense fallback={null}>
+      <GardenAIInner />
+    </Suspense>
+  );
+}
+
+function GardenAIInner() {
   const { t } = useWarmTheme();
   const search = useSearchParams();
   const initialPrompt = search.get("prompt") ?? "";

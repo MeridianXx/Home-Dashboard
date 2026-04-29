@@ -774,7 +774,6 @@ export default function GardenSeasonPage() {
   return (
     <div style={{ paddingBottom: 140 }}>
       <DetailHero
-        t={t}
         backHref="/v3/garden"
         backLabel="Trädgård"
         eyebrow="SÄSONG"

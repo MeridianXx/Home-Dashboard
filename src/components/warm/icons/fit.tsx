@@ -1,7 +1,7 @@
 // Warm Home — Fitness-glyfer (sport-typer, sparkle, plus, refresh, send, error)
 // 1.6 px stroke, outline. Passar 13–22 px.
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactElement } from "react";
 
 const STROKE = 1.6;
 
@@ -259,7 +259,7 @@ export function sportIcon(
   size: number,
   color: string,
   style?: CSSProperties,
-): JSX.Element {
+): ReactElement {
   const t = (type ?? "").toLowerCase();
   if (t.includes("löp") || t.includes("run") || t.includes("jogg") || t.includes("intervall") || t.includes("tempo") || t.includes("tröskel") || t.includes("långpass") || t.includes("återhämtning") || t.includes("distans")) {
     return <RunIcon size={size} color={color} style={style} />;

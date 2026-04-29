@@ -587,7 +587,6 @@ export default function ProjektPage() {
   return (
     <div style={{ paddingBottom: 140 }}>
       <DetailHero
-        t={t}
         eyebrow="PROJEKT"
         title="Utomhusprojekt"
         italicTail="budget och framåt."
