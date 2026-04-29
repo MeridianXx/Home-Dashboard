@@ -52,11 +52,13 @@ export async function GET() {
     const nodes = await pveGet("/nodes") as Array<{
       node: string; status: string; cpu: number; maxcpu: number;
       mem: number; maxmem: number; uptime: number;
+      // Disk = root-fs på själva noden (systemdisken). Kan saknas på äldre PVE.
+      disk?: number; maxdisk?: number;
     }>;
 
     const perNode = await Promise.all(
       nodes.map(async (n) => {
-        const [qemu, lxc, rrd] = await Promise.all([
+        const [qemu, lxc, rrd, status] = await Promise.all([
           pveGet(`/nodes/${n.node}/qemu`) as Promise<Array<{
             vmid: number; name: string; status: string;
             cpu: number; mem: number; maxmem: number; uptime: number;
@@ -68,10 +70,21 @@ export async function GET() {
           pveGet(`/nodes/${n.node}/rrddata?timeframe=hour&cf=AVERAGE`) as Promise<Array<{
             netin?: number; netout?: number;
           }>>,
+          // status-endpointen ger garanterad rootfs.used/total — disk på
+          // /nodes är ibland 0 eller saknas. Hämtas alltid som fallback.
+          pveGet(`/nodes/${n.node}/status`) as Promise<{
+            rootfs?: { used?: number; total?: number };
+          }>,
         ]);
 
         // last non-null RRD point
         const netPoint = [...rrd].reverse().find(p => p.netin != null) ?? {};
+
+        // Systemdisk: föredra status.rootfs (alltid färska bytes), fallback
+        // till nodes-listans disk/maxdisk.
+        const diskUsed = status?.rootfs?.used ?? n.disk ?? 0;
+        const diskTotal = status?.rootfs?.total ?? n.maxdisk ?? 0;
+        const diskPct = diskTotal > 0 ? Math.round((diskUsed / diskTotal) * 100) : 0;
 
         return {
           node: n.node,
@@ -81,6 +94,9 @@ export async function GET() {
           mem_used_gb: +(n.mem / 1073741824).toFixed(1),
           mem_total_gb: +(n.maxmem / 1073741824).toFixed(1),
           mem_pct: Math.round((n.mem / n.maxmem) * 100),
+          disk_used_gb: +(diskUsed / 1073741824).toFixed(1),
+          disk_total_gb: +(diskTotal / 1073741824).toFixed(0),
+          disk_pct: diskPct,
           uptime: fmtUptime(n.uptime),
           net_in: netPoint.netin ? fmtBytes(netPoint.netin) : null,
           net_out: netPoint.netout ? fmtBytes(netPoint.netout) : null,

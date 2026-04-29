@@ -40,6 +40,9 @@ type PveNode = {
   mem_used_gb: number;
   mem_total_gb: number;
   mem_pct: number;
+  disk_used_gb: number;
+  disk_total_gb: number;
+  disk_pct: number;
   uptime: string;
   net_in: string | null;
   net_out: string | null;
@@ -173,12 +176,16 @@ function RingTrio({
   ram,
   ramLabel,
   cores,
+  disk,
+  diskLabel,
 }: {
   t: WarmTheme;
   cpu: number;
   ram: number;
   ramLabel: string;
   cores: number;
+  disk: number;
+  diskLabel: string;
 }) {
   return (
     <div
@@ -192,8 +199,8 @@ function RingTrio({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap: 12,
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 8,
           alignItems: "center",
         }}
       >
@@ -210,6 +217,13 @@ function RingTrio({
           value={`${ram}%`}
           pct={ram}
           tagline={ramLabel}
+        />
+        <RingBlock
+          t={t}
+          label="SSD"
+          value={`${disk}%`}
+          pct={disk}
+          tagline={diskLabel}
         />
       </div>
     </div>
@@ -238,11 +252,12 @@ function RingBlock({
         alignItems: "center",
         gap: 8,
         padding: "4px 0",
+        minWidth: 0,
       }}
     >
       <Ring
         value={pct}
-        size={84}
+        size={76}
         stroke={6}
         trackColor={t.line}
         color={color}
@@ -251,7 +266,7 @@ function RingBlock({
           className="warm-tab-nums"
           style={{
             fontFamily: serif,
-            fontSize: 18,
+            fontSize: 17,
             fontWeight: 500,
             color: t.ink,
             letterSpacing: "-0.02em",
@@ -260,9 +275,19 @@ function RingBlock({
           {value}
         </span>
       </Ring>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, maxWidth: "100%" }}>
         <span style={lab(t)}>{label}</span>
-        <span style={ital(t, 11, t.mute)}>{tagline}</span>
+        <span
+          style={{
+            ...ital(t, 11, t.mute),
+            maxWidth: "100%",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {tagline}
+        </span>
       </div>
     </div>
   );
@@ -663,6 +688,8 @@ export default function WarmProxmoxDetail() {
               ram={node.mem_pct}
               ramLabel={`${node.mem_used_gb.toFixed(1)}/${node.mem_total_gb.toFixed(0)} GB`}
               cores={node.cpu_cores}
+              disk={node.disk_pct}
+              diskLabel={`${node.disk_used_gb.toFixed(1)}/${node.disk_total_gb.toFixed(0)} GB`}
             />
 
             <FootRow

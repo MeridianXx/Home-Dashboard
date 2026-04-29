@@ -7,7 +7,7 @@ import { ACC, body, lab, serif, type WarmTheme } from "@/lib/warm/tokens";
 
 type HistoryResp = { entities: Record<string, Array<{ t: string; v: number }>> };
 
-type Series = {
+export type Series = {
   entity: string;
   label: string;
   color: string;
@@ -77,17 +77,23 @@ export default function TempGraph({
   t,
   hours = 24,
   height = 140,
+  series: seriesProp,
+  showLegend = true,
 }: {
   t: WarmTheme;
   hours?: number;
   height?: number;
+  /** Egna serier — default = NIBE inne + ute (klimatsidans default-vy). */
+  series?: Series[];
+  showLegend?: boolean;
 }) {
   const series: Series[] = useMemo(
-    () => [
-      { entity: "sensor.nibe_inomhustemperatur_bt50", label: "Inne", color: ACC },
-      { entity: "sensor.nibe_utomhustemperatur_bt1", label: "Ute", color: t.mute },
-    ],
-    [t.mute]
+    () =>
+      seriesProp ?? [
+        { entity: "sensor.nibe_inomhustemperatur_bt50", label: "Inne", color: ACC },
+        { entity: "sensor.nibe_utomhustemperatur_bt1", label: "Ute", color: t.mute },
+      ],
+    [seriesProp, t.mute]
   );
   const entities = series.map((s) => s.entity).join(",");
   const { data, isLoading } = useSWR<HistoryResp>(
@@ -142,7 +148,9 @@ export default function TempGraph({
   // Layout-konstanter
   const padX = 14;
   const padTopForLabel = 18;
-  const padBottomForAxis = 22;
+  // Ökad bottenpadding så yMin-label (vänster) inte clippar med första
+  // tids-tick ("14:00") som börjar nära samma x-koordinat.
+  const padBottomForAxis = 32;
   const innerW = width - padX * 2;
   const innerH = height - padTopForLabel - padBottomForAxis;
 
@@ -239,7 +247,7 @@ export default function TempGraph({
         </text>
         <text
           x={padX}
-          y={height - padBottomForAxis + 12}
+          y={height - padBottomForAxis + 11}
           fill={t.dim}
           fontSize={9}
           fontFamily={body}
@@ -424,35 +432,37 @@ export default function TempGraph({
       })()}
 
       {/* Legend */}
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          marginTop: 4,
-          paddingLeft: padX,
-          paddingRight: padX,
-        }}
-      >
-        {series.map((s) => (
-          <div
-            key={s.entity}
-            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
-            <span
-              style={{
-                width: 10,
-                height: 2,
-                background: s.color,
-                borderRadius: 1,
-                display: "inline-block",
-              }}
-            />
-            <span style={{ ...lab(t, { fontSize: 9 }), color: t.dim }}>
-              {s.label}
-            </span>
-          </div>
-        ))}
-      </div>
+      {showLegend ? (
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            marginTop: 4,
+            paddingLeft: padX,
+            paddingRight: padX,
+          }}
+        >
+          {series.map((s) => (
+            <div
+              key={s.entity}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+            >
+              <span
+                style={{
+                  width: 10,
+                  height: 2,
+                  background: s.color,
+                  borderRadius: 1,
+                  display: "inline-block",
+                }}
+              />
+              <span style={{ ...lab(t, { fontSize: 9 }), color: t.dim }}>
+                {s.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

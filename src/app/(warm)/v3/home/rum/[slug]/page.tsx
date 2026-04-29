@@ -15,7 +15,15 @@ import {
   serif,
   type WarmTheme,
 } from "@/lib/warm/tokens";
-import { ChevronLeft } from "@/components/warm/icons/extra";
+import {
+  ChevronLeft,
+  PauseIcon,
+  PlayIcon,
+  SkipNextIcon,
+  SkipPrevIcon,
+  SpeakerIcon,
+  TvIcon,
+} from "@/components/warm/icons/extra";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import ArcGauge from "@/components/warm/ArcGauge";
 import LightEditSheet from "@/components/warm/LightEditSheet";
@@ -616,6 +624,176 @@ function ClimateCards({
   );
 }
 
+// ─── Mediaspelare i rummet ───────────────────────────────────────────────────
+
+type RoomMediaPlayer = {
+  entity_id: string;
+  name: string;
+  room: string;
+  type: "sonos" | "appletv" | "tv";
+  state: string;
+  volume_level: number | null;
+  is_volume_muted: boolean;
+  media_title: string | null;
+  media_artist: string | null;
+  media_image_url: string | null;
+  source: string | null;
+  power_state: "on" | "off" | null;
+};
+
+function MediaPlayerRow({
+  t,
+  player,
+  onAction,
+  isFirst,
+}: {
+  t: WarmTheme;
+  player: RoomMediaPlayer;
+  onAction: () => void;
+  isFirst: boolean;
+}) {
+  const playing = player.state === "playing";
+  const idle = player.state === "off" || player.state === "idle" || player.state === "standby" || player.state === "unavailable";
+  const subtitle = (() => {
+    if (player.media_title && player.media_artist) return `${player.media_artist} · ${player.name}`;
+    if (player.media_title) return player.source ?? player.name;
+    if (player.source) return player.source;
+    return idle ? "tyst" : player.name;
+  })();
+
+  const TypeIcon = player.type === "appletv" || player.type === "tv" ? TvIcon : SpeakerIcon;
+
+  async function call(service: string, data?: Record<string, unknown>) {
+    await callAction("media_player", service, player.entity_id, data);
+    onAction();
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 14px",
+        borderTop: isFirst ? "none" : `1px solid ${t.line}`,
+      }}
+    >
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 10,
+          overflow: "hidden",
+          flexShrink: 0,
+          background: t.tintAmber,
+          border: `1px solid ${t.line}`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {player.media_image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={player.media_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <TypeIcon size={22} color={playing ? ACC : t.mute} />
+        )}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p
+          style={{
+            fontFamily: serif,
+            fontSize: 15,
+            fontWeight: 500,
+            color: t.ink,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            lineHeight: 1.3,
+          }}
+        >
+          {player.media_title ?? player.name}
+        </p>
+        <p
+          style={{
+            fontFamily: body,
+            fontSize: 11,
+            color: t.mute,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            marginTop: 2,
+          }}
+        >
+          {subtitle}
+        </p>
+      </div>
+      {!idle && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <button
+            type="button"
+            aria-label="Föregående"
+            onClick={() => call("media_previous_track")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 30,
+              height: 30,
+              borderRadius: 999,
+              background: t.paperHi,
+              border: `1px solid ${t.line}`,
+              cursor: "pointer",
+            }}
+          >
+            <SkipPrevIcon size={12} color={t.ink} />
+          </button>
+          <button
+            type="button"
+            aria-label={playing ? "Pausa" : "Spela"}
+            onClick={() => call(playing ? "media_pause" : "media_play")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 34,
+              height: 34,
+              borderRadius: 999,
+              background: playing ? ACC : t.paperHi,
+              border: `1px solid ${playing ? ACC : t.line}`,
+              cursor: "pointer",
+            }}
+          >
+            {playing ? (
+              <PauseIcon size={14} color="#FFFBF0" fill="#FFFBF0" />
+            ) : (
+              <PlayIcon size={14} color={t.ink} fill={t.ink} />
+            )}
+          </button>
+          <button
+            type="button"
+            aria-label="Nästa"
+            onClick={() => call("media_next_track")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 30,
+              height: 30,
+              borderRadius: 999,
+              background: t.paperHi,
+              border: `1px solid ${t.line}`,
+              cursor: "pointer",
+            }}
+          >
+            <SkipNextIcon size={12} color={t.ink} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Senaste-händelser-lista ─────────────────────────────────────────────────
 
 type FormattedEvent = {
@@ -721,6 +899,11 @@ export default function WarmRoomDetail() {
     hydrated ? "/api/homeassistant/scenes" : null,
     fetcher,
     { refreshInterval: 60_000 }
+  );
+  const { data: mediaData, mutate: mMedia } = useSWR<{ players: RoomMediaPlayer[] }>(
+    hydrated ? "/api/homeassistant/media" : null,
+    fetcher,
+    { refreshInterval: 5_000 }
   );
   const { data: alData, mutate: mAdaptive } = useSWR<{
     instances: Array<{
@@ -976,6 +1159,36 @@ export default function WarmRoomDetail() {
             />
           </section>
         )}
+
+        {(() => {
+          const players = (mediaData?.players ?? []).filter(
+            (p) => p.room === roomName && p.state !== "unavailable"
+          );
+          if (players.length === 0) return null;
+          return (
+            <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <span style={lab(t)}>MEDIA</span>
+              <div
+                style={{
+                  background: t.paper,
+                  border: `1px solid ${t.line}`,
+                  borderRadius: 14,
+                  overflow: "hidden",
+                }}
+              >
+                {players.map((p, i) => (
+                  <MediaPlayerRow
+                    key={p.entity_id}
+                    t={t}
+                    player={p}
+                    onAction={() => mMedia()}
+                    isFirst={i === 0}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })()}
 
         <RecentEvents t={t} events={recentEvents} />
       </div>

@@ -90,11 +90,21 @@ export function RoomLightRow({
                 fontWeight: 600,
                 color: t.ink,
                 display: "block",
+                // lineHeight 1.4 ger plats åt descenders (g/y/p) — utan det
+                // klipps de av default-lineHeight + button-overflow.
+                lineHeight: 1.4,
               }}
             >
               {area.name}
             </span>
-            <span style={{ fontFamily: body, fontSize: 11, color: t.mute }}>
+            <span
+              style={{
+                fontFamily: body,
+                fontSize: 11,
+                color: t.mute,
+                lineHeight: 1.4,
+              }}
+            >
               {area.total_count > 1
                 ? `${area.on_count}/${area.total_count} på`
                 : on
@@ -169,6 +179,9 @@ export function RoomLightRow({
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
+                          // lineHeight 1.5 ger plats åt descenders (g/y/p)
+                          // som annars klipps av overflow:hidden + nowrap.
+                          lineHeight: 1.5,
                         }}
                       >
                         {light.name}

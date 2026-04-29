@@ -20,6 +20,7 @@ import { Tile } from "@/components/warm/primitives";
 import { HubDisplay, HubThemeToggle, Section, SectionLabel } from "@/components/warm/fit/parts";
 import { ChevronRight } from "@/components/warm/icons/extra";
 import { sportIcon, SparkleIcon } from "@/components/warm/icons/fit";
+import { formatHubEyebrow } from "@/lib/warm/format";
 import {
   sportColor,
   sportLabel,
@@ -70,8 +71,6 @@ function calcStreak(workouts: Workout[]): number {
   }
   return streak;
 }
-
-const WEEKDAY_SE = ["söndag", "måndag", "tisdag", "onsdag", "torsdag", "fredag", "lördag"];
 
 /** Tagline-par {title, italicTail} härlett från dagsform. Display-rubriken
  *  ska kännas vass och konkret — alla buckets beskriver kroppstillstånd
@@ -133,7 +132,6 @@ export default function WarmFitnessHubPage() {
   const analysedKeys = useMemo(() => new Set(analysedData?.keys ?? []), [analysedData]);
 
   const today = isoDate(new Date());
-  const weekday = WEEKDAY_SE[new Date().getDay()];
   const monday = useMemo(() => mondayOf(new Date()), []);
 
   const workouts = workoutsData?.workouts ?? [];
@@ -195,7 +193,7 @@ export default function WarmFitnessHubPage() {
   return (
     <div style={{ paddingBottom: 8 }}>
       <HubDisplay
-        eyebrow={`Fitness · ${weekday}`.toUpperCase()}
+        eyebrow={formatHubEyebrow("FITNESS")}
         title={tagline.title}
         italicTail={tagline.tail}
         right={<HubThemeToggle dark={dark} onToggle={toggle} isDesktop={isDesktop} />}

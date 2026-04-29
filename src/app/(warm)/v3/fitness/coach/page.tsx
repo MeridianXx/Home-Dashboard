@@ -1395,7 +1395,7 @@ function AIPlanSection({ onApplied }: { onApplied: () => Promise<void> }) {
               onChange={(e) => setPrompt(e.target.value)}
               rows={3}
               placeholder="t.ex. Planera 2 veckor med ett långpass per vecka och ett intervallpass. Ingen träning på onsdagar."
-              style={{ ...inputStyle(t), resize: "vertical", fontFamily: "inherit", fontSize: 13 }}
+              style={{ ...inputStyle(t), resize: "vertical", fontFamily: "inherit", fontSize: 16 }}
             />
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
               <button
@@ -1581,7 +1581,7 @@ function DraftPanel({
           rows={3}
           disabled={revising || regenIndex !== null || saving}
           placeholder="t.ex. Byt tisdagspasset till en lugn promenad istället, och gör långpasset lite kortare."
-          style={{ ...inputStyle(t), resize: "vertical", fontFamily: "inherit", fontSize: 13 }}
+          style={{ ...inputStyle(t), resize: "vertical", fontFamily: "inherit", fontSize: 16 }}
         />
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
           <button

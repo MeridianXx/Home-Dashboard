@@ -12,7 +12,8 @@ export function inputStyle(t: WarmTheme): CSSProperties {
   return {
     width: "100%",
     fontFamily: body,
-    fontSize: 13,
+    // 16px = minst för iOS Safari (mindre triggar autozoom vid focus).
+    fontSize: 16,
     background: t.paper,
     border: `1px solid ${t.line}`,
     borderRadius: 8,

@@ -17,7 +17,8 @@ import { ACC, SAGE, body, ital, lab, num } from "@/lib/warm/tokens";
 import type { WarmTheme } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { HubDisplay, HubThemeToggle, Section } from "@/components/warm/fit/parts";
-import { ChevronRight } from "@/components/warm/icons/extra";
+import TempGraph from "@/components/warm/TempGraph";
+import { ChevronRight, DropletIcon } from "@/components/warm/icons/extra";
 import { SparkleIcon } from "@/components/warm/icons/garden";
 import {
   isoToday,
@@ -25,6 +26,7 @@ import {
   shortDateSv,
   TASK_STATUS_COLOR,
 } from "@/lib/warm/garden";
+import { formatHubEyebrow } from "@/lib/warm/format";
 import type {
   GardenOverviewResponse,
   PlantsResponse,
@@ -35,12 +37,70 @@ import type {
 
 // ── Hjälpare ────────────────────────────────────────────────────────────────
 
-const WEEKDAYS = ["söndag", "måndag", "tisdag", "onsdag", "torsdag", "fredag", "lördag"];
 const MONTH_INITIALS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 
-function formatTodayHeader(): string {
-  const d = new Date();
-  return WEEKDAYS[d.getDay()] ?? "";
+// ── GreenhouseSection — temp + 24h-graf för växthuset ────────────────────────
+
+type SensorAreaResp = {
+  area_id: string;
+  name: string;
+  temperature: number;
+  humidity: number | null;
+};
+type SensorsResp = {
+  areas: SensorAreaResp[];
+  outdoor_temp: number | null;
+};
+
+function GreenhouseSection() {
+  const { t } = useWarmTheme();
+  const { data } = useSWR<SensorsResp>("/api/homeassistant/sensors", fetcher, {
+    refreshInterval: 60_000,
+  });
+  // Hitta växthus-arean — case-insensitive matchning så ev. casing-ändring
+  // i HA inte stryper sektionen.
+  const greenhouse = data?.areas?.find(
+    (a) => a.name.toLowerCase() === "växthus"
+  );
+
+  const headerRight =
+    greenhouse != null ? (
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <span
+          className="warm-tab-nums"
+          style={{ color: t.ink, fontFamily: num(t, 14).fontFamily, fontSize: 14 }}
+        >
+          {greenhouse.temperature.toFixed(1)}°
+        </span>
+        {greenhouse.humidity != null && (
+          <span
+            className="warm-tab-nums"
+            style={{ display: "inline-flex", alignItems: "center", gap: 3, color: t.mute, fontSize: 12 }}
+          >
+            <DropletIcon size={11} color={t.mute} />
+            {Math.round(greenhouse.humidity)}%
+          </span>
+        )}
+      </div>
+    ) : null;
+
+  return (
+    <Section label="Växthuset" right={headerRight}>
+      <TempGraph
+        t={t}
+        hours={24}
+        height={140}
+        showLegend={false}
+        series={[
+          {
+            entity: "sensor.vaxthus_temperatur",
+            label: "Växthus",
+            color: SAGE,
+          },
+        ]}
+      />
+    </Section>
+  );
 }
 
 // ── SeasonCard — sage-tinted "JUST NU"-kort ─────────────────────────────────
@@ -450,7 +510,6 @@ export default function GardenHubPage() {
   const now = new Date();
   const monthIdx = now.getMonth();
   const phase = seasonPhase(monthIdx);
-  const dayLabel = formatTodayHeader();
 
   const overviewSwr = useSWR<GardenOverviewResponse>("/api/garden/overview", fetcher, {
     refreshInterval: 10 * 60 * 1000,
@@ -477,7 +536,7 @@ export default function GardenHubPage() {
   return (
     <div style={{ paddingBottom: 24 }}>
       <HubDisplay
-        eyebrow={`TRÄDGÅRD · ${dayLabel.toUpperCase()}`}
+        eyebrow={formatHubEyebrow("TRÄDGÅRD")}
         title={phase.label}
         italicTail={phase.italicTail}
         right={<HubThemeToggle dark={dark} onToggle={() => setDark(!dark)} isDesktop={isDesktop} />}
@@ -495,6 +554,9 @@ export default function GardenHubPage() {
           <>
             {/* Säsongs-card med JUST NU + nästa aktivitet + månadsbar */}
             <SeasonCard tasks={tasks} plants={plants} monthIdx={monthIdx} />
+
+            {/* Växthuset — aktuell temperatur + svepbar 24h-graf */}
+            <GreenhouseSection />
 
             {/* Att göra nu — primärt content */}
             <Section

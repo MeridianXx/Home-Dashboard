@@ -9,6 +9,35 @@ export function formatTime(d: Date | string | number): string {
   });
 }
 
+const WEEKDAY_LONG = [
+  "söndag",
+  "måndag",
+  "tisdag",
+  "onsdag",
+  "torsdag",
+  "fredag",
+  "lördag",
+];
+
+/** ISO-veckonummer enligt ISO 8601 (måndag = veckans första dag). */
+export function isoWeek(d: Date = new Date()): number {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+/**
+ * Eyebrow-format för alla 4 hub-skärmar i Warm Home:
+ * `<SEKTION> · <VECKODAG> · V.<NN>` — t.ex. "HEM · ONSDAG · V.18".
+ * Single source of truth så Hem/Lab/Fitness/Trädgård linjerar identiskt.
+ */
+export function formatHubEyebrow(section: string, now: Date = new Date()): string {
+  const weekday = WEEKDAY_LONG[now.getDay()] ?? "";
+  return `${section.toUpperCase()} · ${weekday.toUpperCase()} · V.${isoWeek(now)}`;
+}
+
 export function kelvinLabel(kelvin: number | null): string {
   if (kelvin == null) return "—";
   if (kelvin < 2500) return "varmvitt";

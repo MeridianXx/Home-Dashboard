@@ -492,12 +492,14 @@ function GardenAIInner() {
                 minWidth: 0,
                 resize: "none",
                 fontFamily: body,
-                fontSize: 14,
+                // 16px = lägstanivå för att iOS Safari inte ska autozooma
+                // när textfältet får fokus.
+                fontSize: 16,
                 background: "transparent",
                 color: t.ink,
                 border: "none",
                 borderRadius: 0,
-                padding: "8px 6px",
+                padding: "6px 6px",
                 outline: "none",
                 lineHeight: 1.4,
                 height: 34,

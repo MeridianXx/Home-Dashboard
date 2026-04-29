@@ -106,6 +106,7 @@ export function DetailHero({
   eyebrow,
   title,
   italicTail,
+  italicColor,
   subtitle,
   right,
 }: {
@@ -114,6 +115,9 @@ export function DetailHero({
   eyebrow: string;
   title: string;
   italicTail?: string;
+  /** Färg på italic-svansen. Default `t.dim`. Sätt t.ex. ACC när svansen
+   *  är ett semantiskt skilt fragment (sortnamn, status) som ska sticka ut. */
+  italicColor?: string;
   subtitle?: string;
   right?: ReactNode;
 }) {
@@ -144,7 +148,7 @@ export function DetailHero({
         {italicTail ? (
           <>
             {" "}
-            <span style={{ fontStyle: "italic", color: t.dim }}>{italicTail}</span>
+            <span style={{ fontStyle: "italic", color: italicColor ?? t.dim }}>{italicTail}</span>
           </>
         ) : null}
       </h1>

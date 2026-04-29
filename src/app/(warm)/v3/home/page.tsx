@@ -25,6 +25,7 @@ import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { HUB_FAVORITE_ROOMS, SLUG_TO_NAME } from "@/lib/warm/rooms";
 import {
+  formatHubEyebrow,
   formatTime,
   lastDarkenedAt,
   sceneLabel,
@@ -129,12 +130,13 @@ function HubHeading({
   const [, setTick] = useState(0);
   const isDesktop = useDesktop();
   useEffect(() => {
-    const id = window.setInterval(() => setTick((x) => x + 1), 30_000);
+    // Tick var 30 min — eyebrow visar dag/vecka, inga minuter att uppdatera.
+    const id = window.setInterval(() => setTick((x) => x + 1), 30 * 60_000);
     return () => window.clearInterval(id);
   }, []);
   return (
     <HubDisplay
-      eyebrow={`HEM · ${formatTime(new Date())}`}
+      eyebrow={formatHubEyebrow("HEM")}
       title={`${svGreeting()},`}
       italicTail="Adam."
       right={<HubThemeToggle dark={dark} onToggle={onToggle} isDesktop={isDesktop} />}
@@ -347,13 +349,13 @@ function ScenesSection({
           </span>
         )}
       </div>
-      {/* Pillar på en rad — varje pill får sin innehållsbredd, fördelas
-          jämnt över hela bredden via space-between. */}
+      {/* Pillar fyller bredden jämnt — flex:1 per pill ger bred rad utan
+          stora luckor (tidigare space-between gav för mycket dödutrymme).
+          Mindre ikon + tightare gap så "Morgon" får andas på 375 px-mobil. */}
       <div
         style={{
           display: "flex",
           flexWrap: "nowrap",
-          justifyContent: "space-between",
           gap: 6,
           overflow: "hidden",
         }}
@@ -372,7 +374,7 @@ function ScenesSection({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 5,
-                padding: "8px 11px",
+                padding: "10px 4px",
                 borderRadius: 999,
                 background: isActive ? ACC : t.paper,
                 border: `1px solid ${isActive ? ACC : t.line}`,
@@ -380,12 +382,13 @@ function ScenesSection({
                 cursor: "pointer",
                 opacity: isLoading ? 0.6 : 1,
                 transition: "background 160ms, border-color 160ms",
-                flex: "0 0 auto",
+                flex: "1 1 0",
+                minWidth: 0,
               }}
             >
               <SceneGlyph
                 scene={s.glyph}
-                size={15}
+                size={13}
                 color={isActive ? "#FFFBF0" : t.mute}
               />
               <span
@@ -410,8 +413,12 @@ function ScenesSection({
 // ─── Tibber + Bilar — två chevron-tiles bredvid varandra ────────────────────
 
 function TibberTile({ t, energy }: { t: WarmTheme; energy: EnergyData | undefined }) {
-  const krPerKwh =
-    energy?.spot_price_ore != null ? energy.spot_price_ore / 100 : null;
+  const watts = energy?.current_power_w ?? null;
+  // > 1 kW: visa kW med en decimal, annars W heltal. Mer naturligt än
+  // alltid W (ex 4521 W) eller alltid kW (ex 0.3 kW).
+  const big = watts != null && watts >= 1000;
+  const value = watts == null ? null : big ? (watts / 1000).toFixed(1).replace(".", ",") : `${Math.round(watts)}`;
+  const unit = big ? "kW" : "W";
   return (
     <Tile
       t={t}
@@ -424,7 +431,7 @@ function TibberTile({ t, energy }: { t: WarmTheme; energy: EnergyData | undefine
           justifyContent: "space-between",
         }}
       >
-        <span style={{ ...lab(t), letterSpacing: "0.16em" }}>TIBBER · NU</span>
+        <span style={{ ...lab(t), letterSpacing: "0.16em" }}>ENERGI</span>
         <ChevronRight size={12} color={t.dim} />
       </div>
       <div
@@ -435,13 +442,13 @@ function TibberTile({ t, energy }: { t: WarmTheme; energy: EnergyData | undefine
           minHeight: 24,
         }}
       >
-        {krPerKwh != null && (
+        {value != null && (
           <>
             <span
               className="warm-tab-nums"
               style={{ ...num(t, 22, 400), lineHeight: 1.1 }}
             >
-              {krPerKwh.toFixed(2).replace(".", ",")}
+              {value}
             </span>
             <span
               style={{
@@ -451,13 +458,13 @@ function TibberTile({ t, energy }: { t: WarmTheme; energy: EnergyData | undefine
                 fontWeight: 500,
               }}
             >
-              kr/kWh
+              {unit}
             </span>
           </>
         )}
       </div>
       <span style={{ ...ital(t, 12, t.dim), minHeight: 16 }}>
-        {energy?.spot_level ? spotLabel(energy.spot_level) : ""}
+        {energy?.spot_level ? `spot ${spotLabel(energy.spot_level)}` : ""}
       </span>
     </Tile>
   );
@@ -630,18 +637,20 @@ function RoomList({
             );
           })();
           const subtitleParts: string[] = [];
-          // Köket har en felklassad sensor (60° konstant) — visa inte temp.
-          const showTemp =
-            r.sensorArea && r.name.toLowerCase() !== "kök" && r.name.toLowerCase() !== "köket";
-          if (showTemp) {
-            subtitleParts.push(`${r.sensorArea!.temperature.toFixed(1)}°`);
-          }
+          // Ordning: ljus-status först, temperatur sist (visar primär kontroll
+          // före kontextuellt mätvärde).
           if (r.lightArea) {
             if (on) {
               subtitleParts.push(avgPct != null ? `ljus ${avgPct}%` : "ljus på");
             } else {
               subtitleParts.push("ljus av");
             }
+          }
+          // Köket har en felklassad sensor (60° konstant) — visa inte temp.
+          const showTemp =
+            r.sensorArea && r.name.toLowerCase() !== "kök" && r.name.toLowerCase() !== "köket";
+          if (showTemp) {
+            subtitleParts.push(`${r.sensorArea!.temperature.toFixed(1)}°`);
           }
           const subtitle = subtitleParts.join(" · ");
           return (

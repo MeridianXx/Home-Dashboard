@@ -80,7 +80,6 @@ function SceneRow({
         style={{
           display: "flex",
           flexWrap: "nowrap",
-          justifyContent: "space-between",
           gap: 6,
           overflow: "hidden",
         }}
@@ -99,7 +98,7 @@ function SceneRow({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 5,
-                padding: "8px 11px",
+                padding: "10px 4px",
                 borderRadius: 999,
                 background: isActive ? ACC : t.paper,
                 border: `1px solid ${isActive ? ACC : t.line}`,
@@ -107,12 +106,13 @@ function SceneRow({
                 cursor: "pointer",
                 opacity: isLoading ? 0.6 : 1,
                 transition: "background 160ms, border-color 160ms",
-                flex: "0 0 auto",
+                flex: "1 1 0",
+                minWidth: 0,
               }}
             >
               <SceneGlyph
                 scene={s.glyph}
-                size={15}
+                size={13}
                 color={isActive ? "#FFFBF0" : t.mute}
               />
               <span

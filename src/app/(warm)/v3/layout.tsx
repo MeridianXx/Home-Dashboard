@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { mutate as swrMutate } from "swr";
 import {
   Sidebar,
   SIDEBAR_WIDTH,
@@ -67,8 +68,41 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
   // Pull-to-refresh — bara på mobil. Desktop använder ingen pull-gesture.
   const [pull, setPull] = useState(0);
   const [confirming, setConfirming] = useState(false);
+  // Indikator-text persisterar under fade-out så vi inte blinkar tillbaka
+  // till "Dra för att uppdatera" under 220ms-opacity-transition efter
+  // "Uppdaterat". Sätts av text-deriveringen nedan.
+  const [labelMode, setLabelMode] = useState<"pull" | "release" | "confirmed">("pull");
   const startY = useRef<number | null>(null);
   const armed = useRef(false);
+  // Aktuell pathname tillgänglig i timeout-callbacken utan stale closure.
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+
+  // Cache-bypass + SWR-revalidate för fitness-routes — bara där HealthFit-
+  // Drive-cachen (5 min in-memory i drive.ts) skiljer sig från SWR-cachen.
+  // Andra sektioner (HA, Notion-trädgård) har inget att tjäna på det.
+  async function bypassFitnessCacheIfRelevant() {
+    if (!pathnameRef.current.startsWith("/v3/fitness")) return;
+    try {
+      await Promise.all([
+        fetch("/api/fitness/workouts?limit=10&refresh=1"),
+        fetch("/api/fitness/workouts?limit=60&refresh=1"),
+        fetch("/api/fitness/readiness?refresh=1"),
+        fetch("/api/fitness/metrics?refresh=1"),
+      ]);
+    } catch {
+      // Best-effort — om bypass-fetch failar, router.refresh() täcker
+      // fortfarande RSC-data.
+    }
+    // SWR re-fetch utan refresh=1 — servern har nu färska Drive-data i
+    // sin in-memory-cache så detta tjänar UI:t.
+    swrMutate("/api/fitness/workouts?limit=10");
+    swrMutate("/api/fitness/workouts?limit=60");
+    swrMutate("/api/fitness/readiness");
+    swrMutate("/api/fitness/metrics");
+    swrMutate("/api/fitness/plans");
+    swrMutate("/api/fitness/analysed");
+  }
 
   useEffect(() => {
     if (isDesktop) return;
@@ -97,8 +131,10 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
       startY.current = null;
       if (pull >= PULL_THRESHOLD) {
         setConfirming(true);
+        setLabelMode("confirmed");
         setPull(0);
         setTimeout(() => {
+          void bypassFitnessCacheIfRelevant();
           router.refresh();
         }, 80);
         setTimeout(() => setConfirming(false), 900);
@@ -116,7 +152,22 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
       window.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("touchcancel", onTouchEnd);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pull, router, isDesktop]);
+
+  // Uppdatera label-mode bara när vi har en aktiv interaktion. Under
+  // fade-out (pull=0 + !confirming + !armed) lämnar vi state orört så
+  // den senaste texten ("Uppdaterat" / "Släpp …") fortsätter renderas
+  // tills opacity nått 0.
+  useEffect(() => {
+    if (confirming) {
+      setLabelMode("confirmed");
+    } else if (pull >= PULL_THRESHOLD) {
+      setLabelMode("release");
+    } else if (pull > 0) {
+      setLabelMode("pull");
+    }
+  }, [pull, confirming]);
 
   const showSpinner = !isDesktop && (pull > 16 || confirming);
 
@@ -154,14 +205,14 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
             borderRadius: 999,
             background: t.paperHi,
             border: `1px solid ${t.line}`,
-            color: confirming ? SAGE : t.mute,
+            color: labelMode === "confirmed" ? SAGE : t.mute,
             fontFamily: body,
             fontSize: 12,
             fontWeight: 500,
             boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
           }}
         >
-          {confirming ? (
+          {labelMode === "confirmed" ? (
             <>
               <CheckIcon size={14} color={SAGE} />
               Uppdaterat
@@ -174,20 +225,20 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
                 viewBox="0 0 24 24"
                 fill="none"
                 style={{
-                  animation: pull >= PULL_THRESHOLD ? "spin-anim 0.8s linear infinite" : "none",
+                  animation: labelMode === "release" ? "spin-anim 0.8s linear infinite" : "none",
                   transform: `rotate(${pull * 2}deg)`,
-                  transition: pull >= PULL_THRESHOLD ? "none" : "transform 80ms",
+                  transition: labelMode === "release" ? "none" : "transform 80ms",
                 }}
               >
                 <path
                   d="M4 12a8 8 0 1 1 2 5.5"
                   fill="none"
-                  stroke={pull >= PULL_THRESHOLD ? ACC : t.mute}
+                  stroke={labelMode === "release" ? ACC : t.mute}
                   strokeWidth={2}
                   strokeLinecap="round"
                 />
               </svg>
-              {pull >= PULL_THRESHOLD ? "Släpp för att uppdatera" : "Dra för att uppdatera"}
+              {labelMode === "release" ? "Släpp för att uppdatera" : "Dra för att uppdatera"}
             </>
           )}
         </div>

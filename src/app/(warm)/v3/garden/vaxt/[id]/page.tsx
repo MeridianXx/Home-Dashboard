@@ -37,6 +37,10 @@ function daysSince(isoDate: string | null): number | null {
   return Math.max(0, Math.floor(ms / 86400000));
 }
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function formatSowDate(iso: string): string {
   const d = new Date(iso);
   const months = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
@@ -417,6 +421,16 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
 
   const italicTail = plant.sorttnamn ? `'${plant.sorttnamn}'.` : undefined;
 
+  // Strippa sortnamnet ur titeln om det redan står där (t.ex.
+  // "Stäppsalvia 'Caradonna'") — annars visas det två gånger eftersom
+  // italicTail också renderar 'Caradonna'.
+  const baseTitle = (() => {
+    const raw = plant.vaxt || "Namnlös växt";
+    if (!plant.sorttnamn) return raw;
+    const sortRe = new RegExp(`\\s*['‘’"]${escapeRegex(plant.sorttnamn)}['‘’"]\\s*$`, "i");
+    return raw.replace(sortRe, "").trim() || raw;
+  })();
+
   // Subtitle under titeln. Plats visas på raden under — undvik dubblett här.
   const subtitleParts: string[] = [];
   if (plant.fas) subtitleParts.push(plant.fas);
@@ -440,8 +454,9 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
         backHref="/v3/garden/vaxter"
         backLabel="Växter"
         eyebrow={eyebrow}
-        title={plant.vaxt || "Namnlös växt"}
+        title={baseTitle}
         italicTail={italicTail}
+        italicColor={SAGE}
         right={
           <button
             type="button"

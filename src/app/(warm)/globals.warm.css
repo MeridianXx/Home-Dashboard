@@ -44,6 +44,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* iOS Safari zoomar in på inputs när computed font-size < 16px. !important
+   krävs för att överstyra inline `style={{ fontSize }}` på enskilda fält.
+   Visuell skalning av små text-inputs får hanteras via container-storlek
+   eller transform: scale, inte via font-size. */
+.warm-root :is(input, textarea, select) {
+  font-size: max(16px, 1em) !important;
+}
+
 /* Warm-slider — generisk stil som ärver fyllning + track-färg via CSS-vars
    så samma `<input type="range">` kan stylas i både ljusa kort (default
    ACC + line) och på master-tilens terracotta-bakgrund (vit + opaque). */

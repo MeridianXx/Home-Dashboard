@@ -20,7 +20,7 @@ import { HubDisplay, HubThemeToggle } from "@/components/warm/fit/parts";
 import { ChevronRight } from "@/components/warm/icons/extra";
 import { ServerIcon, StorageIcon, StatusDot } from "@/components/warm/icons/lab";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
-import { formatTime } from "@/lib/warm/format";
+import { formatHubEyebrow } from "@/lib/warm/format";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -124,12 +124,13 @@ function HubHeading({
   const [, setTick] = useState(0);
   const isDesktop = useDesktop();
   useEffect(() => {
-    const id = window.setInterval(() => setTick((x) => x + 1), 30_000);
+    // Tick var 30 min — eyebrow visar dag/vecka, inga minuter att uppdatera.
+    const id = window.setInterval(() => setTick((x) => x + 1), 30 * 60_000);
     return () => window.clearInterval(id);
   }, []);
   return (
     <HubDisplay
-      eyebrow={`LAB · ${formatTime(new Date())}`}
+      eyebrow={formatHubEyebrow("LAB")}
       title="Homelab,"
       italicTail="allt rullar."
       right={<HubThemeToggle dark={dark} onToggle={onToggle} isDesktop={isDesktop} />}
