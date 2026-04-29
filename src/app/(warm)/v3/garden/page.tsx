@@ -129,9 +129,19 @@ function SeasonCard({
     ? plants.filter((p) => nextTask.plantIds.includes(p.id))
     : [];
   const titleText = nextTask?.uppgift?.trim() || "Inga aktiviteter inplanerade";
+  // Subtitle = beskrivning av aktiviteten (kommentar i Notion). Faller
+  // tillbaka på växt-metadata om kommentar saknas så raden inte blir tom.
   const subtitle = (() => {
+    const comment = nextTask?.kommentar?.trim();
+    if (comment) return comment;
     if (involvedPlants.length === 1) {
-      return `${(involvedPlants[0]!.vaxt ?? "").toLowerCase()}.`;
+      const p = involvedPlants[0]!;
+      const parts: string[] = [];
+      if (p.vaxt) parts.push(p.vaxt.toLowerCase());
+      if (p.typ) parts.push(String(p.typ).toLowerCase());
+      const places = (p.platser ?? []).filter((s) => Boolean(s)).map((s) => String(s).toLowerCase());
+      if (places.length > 0) parts.push(places.join("/"));
+      return parts.length > 0 ? parts.join(" · ") + "." : "";
     }
     if (involvedPlants.length > 1) {
       const types = Array.from(
@@ -139,7 +149,7 @@ function SeasonCard({
       );
       return types.length > 0 ? types.join(" · ") + "." : "";
     }
-    return nextTask?.kommentar?.trim() || nextTask?.typ?.toLowerCase() || "";
+    return nextTask?.typ?.toLowerCase() || "";
   })();
 
   return (
