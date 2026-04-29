@@ -820,14 +820,9 @@ export default function GardenSeasonPage() {
           </Tile>
         ) : (
           <>
-            {/* Kalender alltid synlig */}
-            <CalendarStrip
-              tasks={tasks}
-              onPickDate={(iso) => setEditing({ datum: iso, status: "Planerad" })}
-              onPickTask={(tk) => setEditing(draftFromTask(tk))}
-            />
-
-            {/* Uppgiftslista grupperad per tidsperiod */}
+            {/* Uppgiftslista grupperad per tidsperiod. Kalender-vyn togs
+                bort (kunde inte rymma något meningsfullt utöver prickar
+                på 375 px-mobil). Lista ger samma info i läsbar form. */}
             <TaskList
               tasks={tasks}
               onEdit={(tk) => setEditing(draftFromTask(tk))}
