@@ -75,8 +75,8 @@ export default function LightEditSheet({
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-end",
-        background: "rgba(0,0,0,0.45)",
-        backdropFilter: "blur(2px)",
+        background: "rgba(20,14,8,0.55)",
+        backdropFilter: "blur(6px)",
       }}
       onClick={onClose}
     >
