@@ -23,6 +23,31 @@ export function useHydrated(): boolean {
   return hydrated;
 }
 
+/** Breakpoint där bottom-pillen ersätts av sidebar + 2-col-layout aktiveras. */
+export const DESKTOP_BREAKPOINT = 1024;
+
+/**
+ * `useDesktop()` — true när viewport ≥ 1024px. Returnerar `false` vid SSR
+ * och under första render för att hålla SSR/CSR-strukturen identisk (mobil
+ * är default). Lyssnar på `resize` och `matchMedia`-change.
+ */
+export function useDesktop(): boolean {
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia(`(min-width: ${DESKTOP_BREAKPOINT}px)`);
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    if (mq.addEventListener) mq.addEventListener("change", handler);
+    else mq.addListener(handler);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", handler);
+      else mq.removeListener(handler);
+    };
+  }, []);
+  return isDesktop;
+}
+
 const STORAGE_KEY = "warm-theme";
 
 type ThemeMode = "light" | "dark";

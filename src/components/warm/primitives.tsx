@@ -364,6 +364,108 @@ export function TabBar({
   );
 }
 
+/* ---------- Sidebar (desktop ≥1024px, ersätter TabBar) ---------- */
+
+export function Sidebar({
+  t,
+  active,
+  onChange,
+  iconFor,
+  labelFor,
+  footer,
+}: {
+  t: WarmTheme;
+  active: TabKey;
+  onChange: (key: TabKey) => void;
+  iconFor: (key: TabKey, active: boolean) => ReactNode;
+  labelFor: (key: TabKey) => string;
+  footer?: ReactNode;
+}) {
+  const keys: TabKey[] = ["hem", "lab", "fit", "gard"];
+  return (
+    <aside
+      style={{
+        position: "fixed",
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 96,
+        display: "flex",
+        flexDirection: "column",
+        background: t.paperHi,
+        borderRight: `1px solid ${t.line}`,
+        padding: "20px 12px 18px",
+        zIndex: 50,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "stretch",
+          gap: 4,
+          flex: 1,
+          marginTop: 12,
+        }}
+      >
+        {keys.map((k) => {
+          const isActive = active === k;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => onChange(k)}
+              aria-label={labelFor(k)}
+              aria-current={isActive ? "page" : undefined}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                padding: "12px 4px",
+                borderRadius: 16,
+                background: isActive ? ACC : "transparent",
+                color: isActive ? "#FFFBF0" : t.mute,
+                cursor: "pointer",
+                transition: "background 160ms ease, color 160ms ease",
+              }}
+            >
+              {iconFor(k, isActive)}
+              <span
+                style={{
+                  fontFamily: body,
+                  fontSize: 11,
+                  fontWeight: isActive ? 600 : 500,
+                  letterSpacing: "0.01em",
+                }}
+              >
+                {labelFor(k)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {footer ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            paddingTop: 12,
+            borderTop: `1px solid ${t.line}`,
+          }}
+        >
+          {footer}
+        </div>
+      ) : null}
+    </aside>
+  );
+}
+
+export const SIDEBAR_WIDTH = 96;
+export const HUB_PANE_WIDTH = 430;
+
 /* ---------- Spark (mini-line för trender, valfri data 0-1) ---------- */
 
 export function Spark({
