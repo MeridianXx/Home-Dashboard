@@ -101,7 +101,7 @@ function buildPeriodBlocks(hourly: HourlyEntry[]): PeriodBlock[] {
 
 export async function GET() {
   try {
-    const [entity, dailyRes, hourlyRes, sun] = await Promise.all([
+    const [entity, dailyRes, hourlyRes, sun, moon] = await Promise.all([
       getState("weather.forecast_hem"),
       haPost("/api/services/weather/get_forecasts?return_response", {
         entity_id: "weather.forecast_hem",
@@ -119,6 +119,9 @@ export async function GET() {
       // elevation (deg), azimuth (deg), rising (bool). Används för
       // sol-arc + soluppg./nedg.-tider på hemskärmens väderkort.
       getState("sun.sun").catch(() => null),
+      // sensor.moon_fas (HA Moon-integration) — enum av 8 faser
+      // (new_moon → waning_crescent). Används för mån-glyph i SunArc.
+      getState("sensor.moon_fas").catch(() => null),
     ]);
 
     const attrs = entity.attributes;
@@ -173,6 +176,8 @@ export async function GET() {
         }
       : null;
 
+    const moonPhase: string | null = moon ? moon.state : null;
+
     return NextResponse.json({
       current: {
         state: entity.state,
@@ -184,6 +189,7 @@ export async function GET() {
       periods,
       forecast: dailyForecast,
       sun: sunPayload,
+      moon_phase: moonPhase,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

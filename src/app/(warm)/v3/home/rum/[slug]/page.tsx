@@ -1004,10 +1004,10 @@ export default function WarmRoomDetail() {
   };
 
   /** Effektiv K för en lampa: AL:s sol-K om lampan har AL-stöd och AL är
-   *  på + ingen manuell override, annars lampans cached state-K. Används
-   *  för K-pillar och Master-tile så rumssidan + sheet:en visar samma
-   *  värde för AL-lampor. AL_LIGHTS-listan i `@/lib/warm/al-lights`
-   *  bestämmer vilka entity_ids som faktiskt styrs av AL. */
+   *  på + ingen manuell override, annars lampans cached state-K. För AL-
+   *  lampor faller vi tillbaka till AL:s K även när lampan saknar
+   *  state-K (lampor i RGB/xy-mode rapporterar inte color_temp_kelvin) —
+   *  så K-pillen alltid har ett värde att visa för AL-lampor. */
   const effectiveKelvin = (l: LightEntry): number | null => {
     if (!hasAdaptiveLighting(l.entity_id)) return l.color_temp_kelvin;
     const al = adaptiveForLight(l);
@@ -1016,7 +1016,9 @@ export default function WarmRoomDetail() {
     if (al.enabled && !overridden && al.color_temp_kelvin != null) {
       return al.color_temp_kelvin;
     }
-    return l.color_temp_kelvin;
+    // Override eller AL avstängd → visa lampans state om finns, annars
+    // AL:s K som information om "borde-vara"-värdet.
+    return l.color_temp_kelvin ?? al.color_temp_kelvin ?? null;
   };
 
   const sceneActive = useMemo(() => {

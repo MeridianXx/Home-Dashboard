@@ -21,7 +21,8 @@ const PLAYERS: Array<{
     power_entity_id: "remote.vardagsrum_appletv" },
   { entity_id: "media_player.allrum_appletv",     room: "Allrum",     type: "appletv",
     power_entity_id: "remote.allrum_appletv" },
-  { entity_id: "media_player.vardagsrum_tv",      room: "Vardagsrum", type: "tv" },
+  // OBS: `media_player.vardagsrum_tv` (LG TV-entiteten) togs bort med flit —
+  // den är ofta unavailable och dubblerar Apple TV-styrningen i samma rum.
 ];
 
 export type MediaPlayer = {

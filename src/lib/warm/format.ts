@@ -38,6 +38,23 @@ export function formatHubEyebrow(section: string, now: Date = new Date()): strin
   return `${section.toUpperCase()} · ${weekday.toUpperCase()} · V.${isoWeek(now)}`;
 }
 
+/** Mappar HA `sensor.moon_fas` enum-värden till svensk display-text.
+ *  Matchar HA UI:s svenska översättning. */
+const MOON_PHASE_SV: Record<string, string> = {
+  new_moon: "Nymåne",
+  waxing_crescent: "Tilltagande månskära",
+  first_quarter: "Första kvarteret",
+  waxing_gibbous: "Tilltagande halvmåne",
+  full_moon: "Fullmåne",
+  waning_gibbous: "Avtagande halvmåne",
+  last_quarter: "Sista kvarteret",
+  waning_crescent: "Avtagande månskära",
+};
+export function moonPhaseLabel(name: string | null | undefined): string {
+  if (!name) return "";
+  return MOON_PHASE_SV[name] ?? name;
+}
+
 export function kelvinLabel(kelvin: number | null): string {
   if (kelvin == null) return "—";
   if (kelvin < 2500) return "varmvitt";

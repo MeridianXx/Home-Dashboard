@@ -28,6 +28,7 @@ import {
   formatHubEyebrow,
   formatTime,
   lastDarkenedAt,
+  moonPhaseLabel,
   sceneLabel,
   spotLabel,
   svGreeting,
@@ -101,6 +102,7 @@ type WeatherData = {
   periods: WeatherPeriod[];
   forecast: Array<{ datetime: string; condition: string; temperature: number; templow: number }>;
   sun: SunData | null;
+  moon_phase: string | null;
 };
 
 const SCENE_ENTRIES: Array<{
@@ -271,6 +273,7 @@ function WeatherTile({
           {sun ? (
             <SunArc
               sun={sun}
+              moonPhase={data.moon_phase}
               width={130}
               height={48}
               trackColor={t.line}
@@ -282,30 +285,50 @@ function WeatherTile({
             <Glyph size={36} color={t.mute} />
           )}
         </div>
-        {(sunrise || sunset) && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 10,
-              paddingTop: 10,
-              borderTop: `1px solid ${t.line}`,
-            }}
-          >
-            <span
-              style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
-              className="warm-tab-nums"
+        {(sunrise || sunset) && (() => {
+          // På natten: månens fas vänster, soluppgång (nästa händelse) höger.
+          // På dagen: soluppg. vänster (har varit), nedg. höger (nästa).
+          const isNight = sun?.state === "below_horizon";
+          const moonText = isNight ? moonPhaseLabel(data.moon_phase) : "";
+          const left = isNight
+            ? moonText
+            : (sunrise ? `SOLUPPG. ${sunrise}` : "");
+          const right = isNight
+            ? (sunrise ? `SOLUPPG. ${sunrise}` : "")
+            : (sunset ? `NEDG. ${sunset}` : "");
+          return (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+                gap: 8,
+                marginTop: 10,
+                paddingTop: 10,
+                borderTop: `1px solid ${t.line}`,
+              }}
             >
-              {sunrise ? `SOLUPPG. ${sunrise}` : ""}
-            </span>
-            <span
-              style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
-              className="warm-tab-nums"
-            >
-              {sunset ? `NEDG. ${sunset}` : ""}
-            </span>
-          </div>
-        )}
+              {/* Mån-fas-texten är italic + serif eftersom det är en
+                  semantiskt annan typ av info än de tabular klockslagen. */}
+              <span
+                style={
+                  isNight
+                    ? { ...ital(t, 11, t.dim), letterSpacing: "0.01em" }
+                    : { ...lab(t, { fontSize: 10 }), color: t.dim }
+                }
+                className={isNight ? undefined : "warm-tab-nums"}
+              >
+                {left}
+              </span>
+              <span
+                style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
+                className="warm-tab-nums"
+              >
+                {right}
+              </span>
+            </div>
+          );
+        })()}
       </div>
     </Link>
   );
@@ -464,7 +487,17 @@ function TibberTile({ t, energy }: { t: WarmTheme; energy: EnergyData | undefine
         )}
       </div>
       <span style={{ ...ital(t, 12, t.dim), minHeight: 16 }}>
-        {energy?.spot_level ? `spot ${spotLabel(energy.spot_level)}` : ""}
+        {(() => {
+          const ore = energy?.spot_price_ore;
+          const lvl = energy?.spot_level ? spotLabel(energy.spot_level) : "";
+          // Visa "1,42 kr · hög" — pris + nivå. Faller tillbaka på bara
+          // nivå om priset saknas (Tibber-data ej hämtad).
+          if (ore != null) {
+            const kr = (ore / 100).toFixed(2).replace(".", ",");
+            return lvl ? `${kr} kr · ${lvl}` : `${kr} kr`;
+          }
+          return lvl;
+        })()}
       </span>
     </Tile>
   );
