@@ -419,7 +419,7 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
   }
   const eyebrow = eyebrowParts.join(" · ");
 
-  const italicTail = plant.sorttnamn ? `'${plant.sorttnamn}'.` : undefined;
+  const italicTail = plant.sorttnamn ? `'${plant.sorttnamn}'` : undefined;
 
   // Strippa sortnamnet ur titeln om det redan står där (t.ex.
   // "Stäppsalvia 'Caradonna'") — annars visas det två gånger eftersom

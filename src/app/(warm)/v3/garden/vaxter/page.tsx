@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useWarmTheme } from "@/lib/warm/theme";
-import { ACC, body, ital, lab, num } from "@/lib/warm/tokens";
+import { ACC, SAGE, body, ital, lab, num } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { DetailHero } from "@/components/warm/fit/parts";
 import { WarmModal } from "@/components/warm/Modal";
@@ -131,14 +131,26 @@ function PlantCard({ plant }: { plant: Plant }) {
             ...num(t, 14, 500),
             lineHeight: 1.2,
             color: t.ink,
-            display: "-webkit-box",
-            WebkitBoxOrient: "vertical" as const,
-            WebkitLineClamp: 2,
             overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           {plant.vaxt || "Namnlös växt"}
         </div>
+        {plant.sorttnamn ? (
+          <div
+            style={{
+              ...ital(t, 11, SAGE),
+              marginTop: 2,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            &lsquo;{plant.sorttnamn}&rsquo;
+          </div>
+        ) : null}
         {plant.typ ? (
           <div style={{ ...ital(t, 11, color), marginTop: 2 }}>{plant.typ}</div>
         ) : null}
