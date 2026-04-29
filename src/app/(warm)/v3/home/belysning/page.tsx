@@ -26,7 +26,7 @@ type LightsData = { areas: LightArea[] };
 
 const SCENE_ENTRIES: Array<{ key: string; label: string; glyph: "morgon" | "dag" | "kvall" | "natt" }> = [
   { key: "god_morgon", label: "Morgon", glyph: "morgon" },
-  { key: "hemma", label: "Dag", glyph: "dag" },
+  { key: "hemma", label: "Hemma", glyph: "dag" },
   { key: "kvall", label: "Kväll", glyph: "kvall" },
   { key: "natt", label: "Natt", glyph: "natt" },
 ];

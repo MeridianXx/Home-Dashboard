@@ -120,9 +120,18 @@ export function SceneGlyph({
         </svg>
       );
     case "kvall":
+      // Solnedgång: halv sol över horisontlinje + två nedåt-strålar som
+      // antyder rörelse mot horisonten. Skiljer sig tydligt från "Natt"
+      // (måne med stjärnor) och från "Morgon" (full sol över horisont).
       return (
         <svg {...props} style={{ flexShrink: 0, ...style }}>
-          <path d="M19 14.5A7 7 0 0 1 9.5 5a7 7 0 1 0 9.5 9.5Z" />
+          <path d="M6 14a6 6 0 0 1 12 0" />
+          <path d="M3 17h18" />
+          <path d="M12 4v2" />
+          <path d="M5.6 7.6 7 9" />
+          <path d="M18.4 7.6 17 9" />
+          <path d="M9 19.5l-1.5 1.5" />
+          <path d="M15 19.5l1.5 1.5" />
         </svg>
       );
     case "natt":
