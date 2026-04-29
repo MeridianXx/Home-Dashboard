@@ -906,6 +906,32 @@ export default function WarmKlimatPage() {
         {vacuum && "state" in vacuum && (
           <VacuumCard t={t} data={vacuum} onAction={handleVacuumAction} />
         )}
+
+        {/* Status-sektion — placeholder. Tänkt att visa klimat-händelser
+            (NIBE-larm, värmepump-skifte, ventilations-byten m.m.) när
+            stödet finns. Stilen matchar Lab-hubbens STATUS-block. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <span style={lab(t)}>STATUS</span>
+          <div
+            style={{
+              border: `1px dashed ${t.line}`,
+              borderRadius: 14,
+              padding: "20px 16px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+              background: t.paper,
+            }}
+          >
+            <span style={{ ...num(t, 13, 400), color: t.dim }}>
+              Kommer snart
+            </span>
+            <span style={ital(t, 12, t.dim)}>
+              händelser · larm · zon-byten
+            </span>
+          </div>
+        </div>
       </div>
     </>
   );

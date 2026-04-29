@@ -294,10 +294,10 @@ function WeatherTile({
           const moonText = isNight ? moonPhaseLabel(data.moon_phase) : "";
           const left = isNight
             ? moonText
-            : (sunrise ? `Soluppg. ${sunrise}` : "");
+            : (sunrise ? `Soluppgång ${sunrise}` : "");
           const right = isNight
-            ? (sunrise ? `Soluppg. ${sunrise}` : "")
-            : (sunset ? `Nedg. ${sunset}` : "");
+            ? (sunrise ? `Soluppgång ${sunrise}` : "")
+            : (sunset ? `Solnedgång ${sunset}` : "");
           const cellStyle = { ...ital(t, 11, t.dim), letterSpacing: "0.01em" } as const;
           return (
             <div
