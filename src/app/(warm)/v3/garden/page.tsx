@@ -16,9 +16,8 @@ import { useDesktop, useWarmTheme } from "@/lib/warm/theme";
 import { ACC, SAGE, body, ital, lab, num } from "@/lib/warm/tokens";
 import type { WarmTheme } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
-import { HubDisplay, Section } from "@/components/warm/fit/parts";
+import { HubDisplay, HubThemeToggle, Section } from "@/components/warm/fit/parts";
 import { ChevronRight } from "@/components/warm/icons/extra";
-import { ThemeIcon } from "@/components/warm/icons";
 import { SparkleIcon } from "@/components/warm/icons/garden";
 import {
   isoToday,
@@ -481,29 +480,7 @@ export default function GardenHubPage() {
         eyebrow={`TRÄDGÅRD · ${dayLabel.toUpperCase()}`}
         title={phase.label}
         italicTail={phase.italicTail}
-        right={
-          isDesktop ? null : (
-            <button
-              type="button"
-              onClick={() => setDark(!dark)}
-              aria-label="Växla tema"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 36,
-                height: 36,
-                background: t.paper,
-                border: `1px solid ${t.line}`,
-                borderRadius: 999,
-                color: t.mute,
-                cursor: "pointer",
-              }}
-            >
-              <ThemeIcon dark={dark} size={16} color={t.mute} />
-            </button>
-          )
-        }
+        right={<HubThemeToggle dark={dark} onToggle={() => setDark(!dark)} isDesktop={isDesktop} />}
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "0 18px" }}>

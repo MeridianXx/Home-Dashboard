@@ -17,9 +17,8 @@ import { fetcher } from "@/lib/fetcher";
 import { useDesktop, useWarmTheme } from "@/lib/warm/theme";
 import { ACC, AMBER, LINGON, SAGE, SKY, body, ital, lab, num } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
-import { HubDisplay, Section, SectionLabel } from "@/components/warm/fit/parts";
+import { HubDisplay, HubThemeToggle, Section, SectionLabel } from "@/components/warm/fit/parts";
 import { ChevronRight } from "@/components/warm/icons/extra";
-import { ThemeIcon } from "@/components/warm/icons";
 import { sportIcon, SparkleIcon } from "@/components/warm/icons/fit";
 import {
   sportColor,
@@ -199,29 +198,7 @@ export default function WarmFitnessHubPage() {
         eyebrow={`Fitness · ${weekday}`.toUpperCase()}
         title={tagline.title}
         italicTail={tagline.tail}
-        right={
-          isDesktop ? null : (
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 999,
-                background: t.paperHi,
-                border: `1px solid ${t.line}`,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: t.mute,
-              }}
-            >
-              <ThemeIcon dark={dark} size={18} color={t.mute} />
-            </button>
-          )
-        }
+        right={<HubThemeToggle dark={dark} onToggle={toggle} isDesktop={isDesktop} />}
       />
 
       <div style={{ padding: "0 14px 16px", display: "flex", flexDirection: "column", gap: 14 }}>

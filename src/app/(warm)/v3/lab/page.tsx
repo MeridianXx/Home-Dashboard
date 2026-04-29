@@ -16,9 +16,9 @@ import {
   type WarmTheme,
 } from "@/lib/warm/tokens";
 import { Bar } from "@/components/warm/primitives";
+import { HubDisplay, HubThemeToggle } from "@/components/warm/fit/parts";
 import { ChevronRight } from "@/components/warm/icons/extra";
 import { ServerIcon, StorageIcon, StatusDot } from "@/components/warm/icons/lab";
-import { ThemeIcon } from "@/components/warm/icons";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import { formatTime } from "@/lib/warm/format";
 
@@ -111,10 +111,9 @@ type PortainerData = {
   error?: string;
 };
 
-// ─── Header (likt HemHub) ───────────────────────────────────────────────────
+// ─── Header — delad HubDisplay + HubThemeToggle (linjerar med Hem/Fit/Garden)
 
 function HubHeading({
-  t,
   dark,
   onToggle,
 }: {
@@ -122,70 +121,19 @@ function HubHeading({
   dark: boolean;
   onToggle: () => void;
 }) {
-  const [tick, setTick] = useState(0);
-  // Desktop: toggle bor i sidebar-foten — göm den hub-interna varianten.
+  const [, setTick] = useState(0);
   const isDesktop = useDesktop();
   useEffect(() => {
     const id = window.setInterval(() => setTick((x) => x + 1), 30_000);
     return () => window.clearInterval(id);
   }, []);
-  void tick;
   return (
-    <header
-      style={{
-        padding: "20px 22px 12px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <span
-          style={{ ...lab(t), color: ACC, letterSpacing: "0.18em" }}
-          className="warm-tab-nums"
-        >
-          LAB · {formatTime(new Date())}
-        </span>
-        {isDesktop ? null : (
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-label="Växla tema"
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 999,
-              background: t.paperHi,
-              border: `1px solid ${t.line}`,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <ThemeIcon dark={dark} color={t.ink} size={15} />
-          </button>
-        )}
-      </div>
-      <h1
-        style={{
-          ...num(t, 32, 400),
-          lineHeight: 1.05,
-          letterSpacing: "-0.02em",
-        }}
-      >
-        Homelab,{" "}
-        <span style={{ ...ital(t, 32, t.dim), fontWeight: 400 }}>
-          allt rullar.
-        </span>
-      </h1>
-    </header>
+    <HubDisplay
+      eyebrow={`LAB · ${formatTime(new Date())}`}
+      title="Homelab,"
+      italicTail="allt rullar."
+      right={<HubThemeToggle dark={dark} onToggle={onToggle} isDesktop={isDesktop} />}
+    />
   );
 }
 

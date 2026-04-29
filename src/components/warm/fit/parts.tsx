@@ -7,6 +7,48 @@ import type { CSSProperties, ReactNode } from "react";
 import { useWarmTheme } from "@/lib/warm/theme";
 import { ACC, body, ital, lab, num } from "@/lib/warm/tokens";
 import { ChevronLeft, ChevronRight } from "@/components/warm/icons/extra";
+import { ThemeIcon } from "@/components/warm/icons";
+
+/**
+ * `HubThemeToggle` — den ENDA standardiserade toggle-knappen för hub-headers.
+ * Används inuti `HubDisplay`s `right`-slot på alla 4 hubbar så ikon, storlek,
+ * bakgrund och position är identiska över sektioner. Desktop-läget gömmer
+ * den (toggle bor i sidebar-foten istället).
+ */
+export function HubThemeToggle({
+  dark,
+  onToggle,
+  isDesktop,
+}: {
+  dark: boolean;
+  onToggle: () => void;
+  isDesktop: boolean;
+}) {
+  const { t } = useWarmTheme();
+  if (isDesktop) return null;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 999,
+        background: t.paperHi,
+        border: `1px solid ${t.line}`,
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: t.ink,
+        flexShrink: 0,
+      }}
+    >
+      <ThemeIcon dark={dark} size={16} color={t.ink} />
+    </button>
+  );
+}
 
 /* ───── HubEyebrow + Display ──────────────────────────────────────────── */
 

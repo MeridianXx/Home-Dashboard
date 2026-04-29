@@ -16,7 +16,8 @@ import {
   type WarmTheme,
 } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
-import { SceneGlyph, ThemeIcon } from "@/components/warm/icons";
+import { HubDisplay, HubThemeToggle } from "@/components/warm/fit/parts";
+import { SceneGlyph } from "@/components/warm/icons";
 import { ChevronRight } from "@/components/warm/icons/extra";
 import { weatherGlyph } from "@/lib/warm/weather";
 import SunArc from "@/components/warm/SunArc";
@@ -113,9 +114,11 @@ const SCENE_ENTRIES: Array<{
 ];
 
 // ─── Header med "HEM · HH:MM" + kursivt namn ────────────────────────────────
+// Använder delad HubDisplay + HubThemeToggle så header linjerar identiskt
+// över Hem/Lab/Fitness/Garden. Tick-mekaniken (klocka i eyebrow) sker här
+// lokalt — andra hubbar har dag-eyebrow utan minutrytm.
 
 function HubHeading({
-  t,
   dark,
   onToggle,
 }: {
@@ -123,73 +126,19 @@ function HubHeading({
   dark: boolean;
   onToggle: () => void;
 }) {
-  const [tick, setTick] = useState(0);
-  // Desktop: toggle bor i sidebar-foten — göm den hub-interna varianten
-  // så den inte dubbeltrycks.
+  const [, setTick] = useState(0);
   const isDesktop = useDesktop();
   useEffect(() => {
     const id = window.setInterval(() => setTick((x) => x + 1), 30_000);
     return () => window.clearInterval(id);
   }, []);
-  void tick;
   return (
-    <header
-      style={{
-        padding: "20px 22px 12px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <span
-          style={{
-            ...lab(t),
-            color: ACC,
-            letterSpacing: "0.18em",
-          }}
-          className="warm-tab-nums"
-        >
-          HEM · {formatTime(new Date())}
-        </span>
-        {isDesktop ? null : (
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-label="Växla tema"
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 999,
-              background: t.paperHi,
-              border: `1px solid ${t.line}`,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <ThemeIcon dark={dark} color={t.ink} size={15} />
-          </button>
-        )}
-      </div>
-      <h1
-        style={{
-          ...num(t, 32, 400),
-          lineHeight: 1.05,
-          letterSpacing: "-0.02em",
-        }}
-      >
-        {svGreeting()},{" "}
-        <span style={{ ...ital(t, 32, t.dim), fontWeight: 400 }}>Adam.</span>
-      </h1>
-    </header>
+    <HubDisplay
+      eyebrow={`HEM · ${formatTime(new Date())}`}
+      title={`${svGreeting()},`}
+      italicTail="Adam."
+      right={<HubThemeToggle dark={dark} onToggle={onToggle} isDesktop={isDesktop} />}
+    />
   );
 }
 
