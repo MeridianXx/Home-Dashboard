@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { useHydrated, useWarmTheme } from "@/lib/warm/theme";
+import { useDesktop, useHydrated, useWarmTheme } from "@/lib/warm/theme";
 import {
   ACC,
   SAGE,
@@ -123,6 +123,8 @@ function HubHeading({
   onToggle: () => void;
 }) {
   const [tick, setTick] = useState(0);
+  // Desktop: toggle bor i sidebar-foten — göm den hub-interna varianten.
+  const isDesktop = useDesktop();
   useEffect(() => {
     const id = window.setInterval(() => setTick((x) => x + 1), 30_000);
     return () => window.clearInterval(id);
@@ -150,24 +152,26 @@ function HubHeading({
         >
           LAB · {formatTime(new Date())}
         </span>
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label="Växla tema"
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 999,
-            background: t.paperHi,
-            border: `1px solid ${t.line}`,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-          }}
-        >
-          <ThemeIcon dark={dark} color={t.ink} size={15} />
-        </button>
+        {isDesktop ? null : (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label="Växla tema"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 999,
+              background: t.paperHi,
+              border: `1px solid ${t.line}`,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <ThemeIcon dark={dark} color={t.ink} size={15} />
+          </button>
+        )}
       </div>
       <h1
         style={{

@@ -12,7 +12,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { useWarmTheme } from "@/lib/warm/theme";
+import { useDesktop, useWarmTheme } from "@/lib/warm/theme";
 import { ACC, SAGE, body, ital, lab, num } from "@/lib/warm/tokens";
 import type { WarmTheme } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
@@ -446,6 +446,8 @@ function DoorTile({
 
 export default function GardenHubPage() {
   const { t, dark, setDark } = useWarmTheme();
+  // Desktop: toggle bor i sidebar-foten — göm hub-interna varianten.
+  const isDesktop = useDesktop();
   const now = new Date();
   const monthIdx = now.getMonth();
   const phase = seasonPhase(monthIdx);
@@ -480,25 +482,27 @@ export default function GardenHubPage() {
         title={phase.label}
         italicTail={phase.italicTail}
         right={
-          <button
-            type="button"
-            onClick={() => setDark(!dark)}
-            aria-label="Växla tema"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 36,
-              height: 36,
-              background: t.paper,
-              border: `1px solid ${t.line}`,
-              borderRadius: 999,
-              color: t.mute,
-              cursor: "pointer",
-            }}
-          >
-            <ThemeIcon dark={dark} size={16} color={t.mute} />
-          </button>
+          isDesktop ? null : (
+            <button
+              type="button"
+              onClick={() => setDark(!dark)}
+              aria-label="Växla tema"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 36,
+                height: 36,
+                background: t.paper,
+                border: `1px solid ${t.line}`,
+                borderRadius: 999,
+                color: t.mute,
+                cursor: "pointer",
+              }}
+            >
+              <ThemeIcon dark={dark} size={16} color={t.mute} />
+            </button>
+          )
         }
       />
 

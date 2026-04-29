@@ -14,7 +14,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { useWarmTheme } from "@/lib/warm/theme";
+import { useDesktop, useWarmTheme } from "@/lib/warm/theme";
 import { ACC, AMBER, LINGON, SAGE, SKY, body, ital, lab, num } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { HubDisplay, Section, SectionLabel } from "@/components/warm/fit/parts";
@@ -106,6 +106,8 @@ function coachQuote(r: ReadinessResponse | undefined, nextPlan: PlannedWorkout |
 
 export default function WarmFitnessHubPage() {
   const { t, dark, toggle } = useWarmTheme();
+  // Desktop: toggle bor i sidebar-foten — göm hub-interna varianten.
+  const isDesktop = useDesktop();
   useHydrateProfile();
   const profile = useFitnessProfile((s) => s.profile);
 
@@ -198,25 +200,27 @@ export default function WarmFitnessHubPage() {
         title={tagline.title}
         italicTail={tagline.tail}
         right={
-          <button
-            type="button"
-            onClick={toggle}
-            aria-label={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 999,
-              background: t.paperHi,
-              border: `1px solid ${t.line}`,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: t.mute,
-            }}
-          >
-            <ThemeIcon dark={dark} size={18} color={t.mute} />
-          </button>
+          isDesktop ? null : (
+            <button
+              type="button"
+              onClick={toggle}
+              aria-label={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 999,
+                background: t.paperHi,
+                border: `1px solid ${t.line}`,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: t.mute,
+              }}
+            >
+              <ThemeIcon dark={dark} size={18} color={t.mute} />
+            </button>
+          )
         }
       />
 
