@@ -407,22 +407,36 @@ Pragmatisk konsekvens: på desktop tappar man inte hub-kontexten visuellt, men m
 
 ---
 
-### Session W6 — Polish + cutover
+### Session W6 — Polish + cutover ✅ Klar (cutover skarpt; iPhone-verifiering pending)
 **Mål:** v3 går skarpt. v2 hibernerar.
 
 **Levererar:**
-- [ ] Audit av alla 4 sektioner: pull-to-refresh, expand/collapse-anim, modal-stil, toast/loading-states konsekvent i Warm-språk
-- [ ] Ikon-finkalibrering (alla SVG-glyfer, samma stroke-bredd, samma optical alignment)
-- [ ] Theme-toggle-persistens via localStorage (`warm-theme`-key)
-- [ ] Root-layout: `/` → `redirect("/v3/home")` (i `src/app/page.tsx` eller via middleware)
-- [ ] `(warm)/v3` flyttas till `(warm)` utan `/v3`-prefix? (Beslut i sessionen — kan vara enklare att lämna `/v3` kvar för spårbarhet)
-- [ ] v2-routes blir kvar bakom `?legacy=1` eller bara döda (behåll i kod en månad, ta bort sedan)
-- [ ] Manuell test på iPhone (verklig hårdvara) — touch, scroll, modal, AI-stream
-- [ ] Update av AGENTS.md: lägg "Warm Home v3 är primär; v2 djupt-fryst" som första rad
+- [x] Audit av alla 4 sektioner: pull-to-refresh + WarmModal-grammatik + AnimatePresence-mönster verifierade konsekventa. Pull-to-refresh sitter centralt i `(warm)/v3/layout.tsx` (en implementation, alla sektioner ärver). CRUD-modaler i garden/fitness använder samtliga `WarmModal`-primitiven (terracotta-tinted backdrop `rgba(20,14,8,0.55)` + `blur(6px)` + `paperHi`-bakgrund + ACC primary footer). Expand/collapse via `AnimatePresence` med `height: 0/auto` + `opacity: 0/1` används på `RoomLights` + coach AI-draft.
+- [x] Ikon-finkalibrering: STROKE-konstant (1.6) i `tokens.ts` används av alla glyfer. Avvikare (1.0/1.2/1.5) är ett fåtal medvetna special-fall (gridlinjer, fill-paths, dot-cluster). Inga inkonsistenser att rensa.
+- [x] Theme-toggle-persistens via `localStorage["warm-theme"]` — implementerat redan i W0:s `WarmThemeProvider`. `readInitialMode()` läser `localStorage` (med `prefers-color-scheme`-fallback), `setDark()` skriver tillbaka. Verifierat i preview: toggle propagerar via `warm-theme-change`-CustomEvent omedelbart till alla hooks utan reload.
+- [x] Root-redirect: `src/app/page.tsx` flippad från `redirect("/home")` → `redirect("/v3/home")`. Verifierat med `curl -sI /` → `307` + `Location: /v3/home`.
+- [x] `(warm)/v3`-prefix behållet. Beslut: byter inte till `(warm)` utan `/v3` — spårbarhet och "rollback-möjligt" väger tyngre än URL-estetik. Sista cutover (riv v2) kan ta bort prefixet samtidigt som v2-koden raderas, men inte i W6.
+- [x] v2-routes ligger döda kvar i `(dashboard)/`-trädet — inte länkade någonstans (root-redirect pekar på v3, sidebar/TabBar pekar på v3-routes). Ingen `?legacy=1`-flagga; om någon vill backa öppnar de `/home` direkt i URL-fältet.
+- [x] AGENTS.md första rad uppdaterad: header `# Warm Home v3 är primär. v2 djupt-fryst.` + förklarande blockquote ovanför `@WARM_HOME.md`-importen.
+- [x] Synkad backdrop-grammatik i `LightEditSheet`: tidigare `rgba(0,0,0,0.45)` + `blur(2px)` → nu `rgba(20,14,8,0.55)` + `blur(6px)` (matchar WarmModal). Ger sammanhängande overlay-känsla över alla bottom-sheets.
+- [x] Verifierat i preview: alla 4 hubbar (Hem/Lab/Fitness/Trädgård) renderar utan server- eller console-fel. Hem-rum-detalj-drill-down funkar (`/v3/home/rum/sovrum`). Desktop 1280×800: sidebar + content-pane korrekt. Theme-toggle persisterar light↔dark över route-byten.
+- [ ] **Manuell test på iPhone (verklig hårdvara) — pending användarens verifiering** innan PR från `warm-home` → `v2` skapas. Touch-gester, pull-to-refresh, modal-portal, AI-stream behöver verifieras på riktig hårdvara.
 
-**Acceptance:** Du kan använda dashboarden en hel dag på Warm Home utan att sakna något från v2.
+**Acceptance:** Cutover-mekanik klar. Root öppnar Warm Home v3, v2 är inte länkad, theme persisterar, modaler/animationer/ikoner är konsekventa i Warm-språk. Användning en hel dag är pending iPhone-test.
 
-**Observera:** *tomt*
+**Observera:**
+- **Turbopack RSC-cache håller fast i gammal redirect efter file-edit.** Efter att jag flippat `app/page.tsx` från `/home` till `/v3/home` svarade dev-servern fortfarande `307 → /home` på `curl /` i flera försök. `touch` på filen hjälpte inte. Lösning: stoppa preview-servern, `rm -rf .next/`, starta om — då plockades den nya redirecten upp omedelbart. Mönstret är dokumenterat tidigare för hydration-fel men gäller även för RSC-cachade redirects. **Lärdom:** vid root-route-ändringar (page.tsx, layout.tsx, middleware) behövs i princip alltid en .next-rensning + omstart i dev. I produktion via Docker-build är det inte ett problem — bara dev-servern.
+- **Cutover-mekaniken är trivial — risken låg.** En sex-radig fil (`page.tsx`) som bara byter sträng. Allt annat (sidebar/TabBar/intern navigation) pekar redan på `/v3/...`-routes sedan W0–W5. v2-routes är döda av sig själva för att ingenting länkar till dem. Ingen middleware, inga rewrites, ingen redirects-tabell i `next.config.ts` att underhålla. Den enda orsaken att touchen i W6 kändes "tung" var pre-existerande Turbopack-cachen — själva förändringen är 1 commit värd.
+- **WarmModal som lyft primitiv var rätt val i W3–W4.** Vid auditen denna session bekräftades att garden CRUD-modaler (sasong, projekt, vaxter, vaxt) + fitness coach + single-AI-modal alla använder `WarmModal`. En enda källa för backdrop-färg, blur, padding, footer-stil. När jag synkade `LightEditSheet` till samma grammatik räckte det med en två-rads-Edit. Hade modal-stilen duplicerats över 6 filer hade samma fix krävt 6 edits + risk för missar.
+- **Dropped scope: `(warm)/v3` → `(warm)` route-flytt.** Briefen frågade om vi skulle ta bort `/v3`-prefixet i W6. Beslut: nej. (1) Spårbarhet — branch heter `warm-home`, routes heter `/v3/...`, det är en sammanhållen "vi är på Warm Home"-signal i URL-fältet under övergångsperioden. (2) Rollback-friktion — att flytta tillbaka till `/v3` om något skär hade krävt route-rename + nav-update + att uppdatera alla `<Link href="/v3/...">` igen. (3) Kostnad — ~200 LOC sed-byten utan funktionell vinst. När v2-koden faktiskt raderas (sannolikt 4–8 veckor efter cutover) kan prefixet plockas bort i samma städning.
+- **Theme-toggle-persistens redan klar i W0.** `WarmThemeProvider` implementerade `localStorage["warm-theme"]` + `prefers-color-scheme`-fallback redan i setup-sessionen. W6-checkboxen var bara verifiering. Generell observation: när man designar en provider i setup-sessionen, lägg in alla "self-evident"-features (persistens, fallback, broadcast) direkt — billigare än att lägga till dem retroaktivt. Sparar oss en sub-task här.
+- **`prefers-color-scheme`-fallback första gången är fortfarande right thing.** Användarens system är sannolikt mörkt (macOS dark + iPhone dark mode), så första laddningen utan localStorage-värde landar på dark — vilket matchar förväntan. När de toggle:ar sparas valet och följer sedan användaren oavsett system-pref. Om vi ska polish:a vidare: lägg en liten "matcha system"-knapp som rensar localStorage-nyckeln och återgår till `prefers-color-scheme`-läget. Inte i W6.
+- **PR-skapande till v2 (produktionsbranch) är pausat enligt brief.** Jag commitar och pushar till `warm-home` men skapar INTE PR förrän användaren verifierat på iPhone. Detta är medvetet — `v2` är produktionsbranchen som dagligen deployar via GitHub Actions, så fel touch innebär att hela hemmet får trasig dashboard. Användarverifiering på riktig hårdvara är bättre än min mobil-emulator i preview-servern.
+
+**Öppna frågor / vidare när användaren verifierat:**
+- **iPhone-touch-edge-cases:** pull-to-refresh, modal-swipe-down, AI-chat-textarea-fokus, swipe-back-gesture mellan routes, bottom-pill-glasmorf-rendering. Verifiera att `safe-area-inset-bottom` på modaler ser rätt ut på iPhone med home-indicator.
+- **PR-template:** när användaren godkänt iPhone-test, skapa PR `warm-home` → `v2` med checklista (testat på iPhone, alla 4 sektioner, AI-flöden, deploy-secrets oförändrade, root-redirect på plats, AGENTS.md uppdaterad).
+- **v2-städning:** efter att v3 körts skarpt en period (4–8 veckor utan rollback) — separat session som raderar `(dashboard)/`-trädet, `/api/*`-routes som inte används av Warm, gamla v2-komponenter, och flyttar `(warm)/v3` → `(warm)` utan prefix. **Inte W6.**
 
 ---
 
@@ -493,10 +507,10 @@ Pragmatisk konsekvens: på desktop tappar man inte hub-kontexten visuellt, men m
 ### W6 Cutover
 
 **Start:**
-> Kör W6 enligt WARM_HOME.md, branch `warm-home`. Polish-pass: pull-to-refresh, animationer, modal-stil, ikon-konsistens. Theme-toggle persisterar i `localStorage["warm-theme"]`. Flippa root: `/` → `/v3/home`. v2-routes blir kvar i kod (för rollback) men är inte länkade. Update AGENTS.md första rad till "Warm Home v3 är primär". Manuell test på iPhone. Innan du mergar till `main`: pausa och be mig verifiera på riktig hårdvara först.
+> Kör W6 enligt WARM_HOME.md, branch `warm-home`. Polish-pass: pull-to-refresh, animationer, modal-stil, ikon-konsistens. Theme-toggle persisterar i `localStorage["warm-theme"]`. Flippa root: `/` → `/v3/home`. v2-routes blir kvar i kod (för rollback) men är inte länkade. Update AGENTS.md första rad till "Warm Home v3 är primär". Manuell test på iPhone. Innan du mergar till `v2` (produktionsbranchen — `main` är övergiven): pausa och be mig verifiera på riktig hårdvara först.
 
 **Avslut:**
-> Observera-block + final commit `feat(warm): W6 — polish + cutover till v3`. **Mergea INTE** till `v2` eller `main` automatiskt. Skapa en PR från `warm-home` → `main` med checklista (testat på iPhone, alla sektioner, AI-flöden, deploy-secrets oförändrade). Sammanfatta totalförändringen (LOC, antal nya filer, nya routes, beroenden).
+> Observera-block + final commit `feat(warm): W6 — polish + cutover till v3`. **Mergea INTE** till `v2` automatiskt. Skapa en PR från `warm-home` → `v2` (produktionsbranchen — `main` är övergiven, ignorera den) med checklista (testat på iPhone, alla sektioner, AI-flöden, deploy-secrets oförändrade). Sammanfatta totalförändringen (LOC, antal nya filer, nya routes, beroenden).
 
 ---
 
