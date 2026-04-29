@@ -21,6 +21,12 @@ type AdaptiveInstance = {
   configuration_id: string;
   enabled: boolean;
   manual_control: string[];
+  /** AL:s aktuella sol-baserade K. Om AL är på + ingen manual override
+   *  är detta den verkliga "borde-vara"-temperaturen, vilket ofta skiljer
+   *  sig från lampans state.color_temp_kelvin (som halkar efter mellan
+   *  AL:s skriv-cykler). */
+  color_temp_kelvin?: number | null;
+  brightness_pct?: number | null;
 };
 
 const KELVIN_PRESETS: Array<{ value: number; label: string }> = [
@@ -61,10 +67,19 @@ export default function LightEditSheet({
 
   if (!mounted || !open || !light) return null;
 
-  const currentK = liveKelvin ?? light.color_temp_kelvin ?? 2700;
-  const fillPct = ((currentK - KELVIN_MIN) / (KELVIN_MAX - KELVIN_MIN)) * 100;
   const adaptiveOn = adaptive?.enabled ?? false;
   const manualOverride = adaptive?.manual_control.includes(light.entity_id) ?? false;
+  // När AL är primärkälla (på + ingen manual override) speglar vi AL:s
+  // beräknade sol-K, inte lampans cached state. Lampans state halkar ofta
+  // efter AL:s ramp-cykler — användaren skulle då se 2000K mitt på dagen
+  // även om AL kör 4500K. Live-drag override:ar alltid båda.
+  const alK = adaptive?.color_temp_kelvin ?? null;
+  const useAlK = adaptiveOn && !manualOverride && alK != null;
+  const currentK = liveKelvin ?? (useAlK ? alK : light.color_temp_kelvin ?? 2700);
+  // Slider-fyllning clampas mellan 0-100% — AL kan rapportera värden utanför
+  // KELVIN_MIN/MAX-intervallet (sleep mode = 1000K), och slidern ska då bara
+  // visas tom/full, inte gå negativt.
+  const fillPct = Math.max(0, Math.min(100, ((currentK - KELVIN_MIN) / (KELVIN_MAX - KELVIN_MIN)) * 100));
 
   const sheet = (
     <div

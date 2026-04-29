@@ -335,41 +335,39 @@ function AttGoraNu({ tasks }: { tasks: SeasonTask[] }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 6,
+                    fontFamily: body,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: t.ink,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                     minWidth: 0,
                   }}
                 >
+                  {tk.uppgift || "Namnlös uppgift"}
+                </div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 1, minWidth: 0 }}>
+                  {tk.status && tk.status !== "Klar" && (
+                    <span style={{ ...ital(t, 11, dotColor), flexShrink: 0, opacity: 0.9 }}>
+                      {tk.status === "Pågår" ? "pågår" : "planerad"}
+                    </span>
+                  )}
                   <span
                     style={{
                       fontFamily: body,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: t.ink,
+                      fontSize: 11,
+                      color: t.mute,
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       minWidth: 0,
                     }}
                   >
-                    {tk.uppgift || "Namnlös uppgift"}
+                    {tk.status && tk.status !== "Klar" ? "· " : ""}
+                    {isToday ? "Idag" : shortDateSv(tk.datum)}
+                    {tk.typ ? ` · ${tk.typ}` : ""}
                   </span>
-                  {tk.status && tk.status !== "Klar" && (
-                    <span
-                      style={{
-                        ...ital(t, 12, dotColor),
-                        flexShrink: 0,
-                        opacity: 0.9,
-                      }}
-                    >
-                      {tk.status === "Pågår" ? "pågår" : "planerad"}
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontFamily: body, fontSize: 11, color: t.mute, marginTop: 1 }}>
-                  {isToday ? "Idag" : shortDateSv(tk.datum)}
-                  {tk.typ ? ` · ${tk.typ}` : ""}
                 </div>
               </div>
               <ChevronRight size={14} color={t.dim} />

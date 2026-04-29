@@ -911,9 +911,13 @@ export default function WarmRoomDetail() {
       configuration_id: string;
       enabled: boolean;
       manual_control: string[];
+      color_temp_kelvin: number | null;
+      brightness_pct: number | null;
     }>;
   }>(hydrated ? "/api/homeassistant/adaptive-lighting" : null, fetcher, {
-    refreshInterval: 60_000,
+    // 30 s — AL ramppar i intervaller, så snabbare poll än 60 s ger
+    // mindre lag mellan AL:s ändring och dashboard-display.
+    refreshInterval: 30_000,
   });
 
   const area = lights?.areas.find((a) => a.name === roomName);
