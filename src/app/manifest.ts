@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Homelab & smarthome dashboard",
     start_url: "/home",
     display: "standalone",
-    background_color: "#fffcf7",
-    theme_color: "#475bc2",
+    background_color: "#FFFBF0",
+    theme_color: "#C96F4A",
     orientation: "portrait-primary",
     icons: [
       {
