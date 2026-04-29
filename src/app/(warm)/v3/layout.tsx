@@ -2,9 +2,19 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { TabBar, type TabKey } from "@/components/warm/primitives";
-import { FitIcon, GardIcon, HemIcon, LabIcon } from "@/components/warm/icons";
-import { useWarmTheme, WarmThemeProvider } from "@/lib/warm/theme";
+import {
+  Sidebar,
+  SIDEBAR_WIDTH,
+  TabBar,
+  type TabKey,
+} from "@/components/warm/primitives";
+import { FitIcon, GardIcon, HemIcon, LabIcon, ThemeIcon } from "@/components/warm/icons";
+import {
+  DESKTOP_BREAKPOINT,
+  useDesktop,
+  useWarmTheme,
+  WarmThemeProvider,
+} from "@/lib/warm/theme";
 import { ACC, SAGE, body } from "@/lib/warm/tokens";
 import { CheckIcon } from "@/components/warm/icons/extra";
 
@@ -29,8 +39,8 @@ function activeTab(pathname: string): TabKey {
   return "hem";
 }
 
-function tabIcon(key: TabKey, color: string) {
-  const props = { size: 20, color };
+function tabIcon(key: TabKey, color: string, size = 20) {
+  const props = { size, color };
   if (key === "hem") return <HemIcon {...props} />;
   if (key === "lab") return <LabIcon {...props} />;
   if (key === "fit") return <FitIcon {...props} />;
@@ -50,16 +60,18 @@ export default function WarmV3Layout({ children }: { children: ReactNode }) {
 function WarmV3Chrome({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname() ?? "/v3/home";
-  const { t } = useWarmTheme();
+  const { t, dark, toggle } = useWarmTheme();
   const tab = activeTab(pathname);
+  const isDesktop = useDesktop();
 
-  // Pull-to-refresh
+  // Pull-to-refresh — bara på mobil. Desktop använder ingen pull-gesture.
   const [pull, setPull] = useState(0);
   const [confirming, setConfirming] = useState(false);
   const startY = useRef<number | null>(null);
   const armed = useRef(false);
 
   useEffect(() => {
+    if (isDesktop) return;
     function onTouchStart(e: TouchEvent) {
       if (window.scrollY > 0) {
         startY.current = null;
@@ -104,9 +116,9 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
       window.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [pull, router]);
+  }, [pull, router, isDesktop]);
 
-  const showSpinner = pull > 16 || confirming;
+  const showSpinner = !isDesktop && (pull > 16 || confirming);
 
   return (
     <div
@@ -117,7 +129,7 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
         position: "relative",
       }}
     >
-      {/* Pull-to-refresh-indikator */}
+      {/* Pull-to-refresh-indikator (bara mobil) */}
       <div
         style={{
           position: "fixed",
@@ -181,24 +193,81 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      {/* Innehåll */}
+      {/* Sidebar (desktop ≥1024px). Pure CSS-skifte sker via paddingLeft +
+          rendering — useDesktop()-hook returnerar `false` vid första render
+          så SSR-strukturen blir mobil-stabil. */}
+      {isDesktop ? (
+        <Sidebar
+          t={t}
+          active={tab}
+          onChange={(key) => router.push(TAB_ROUTES[key])}
+          labelFor={(key) => TAB_LABELS[key]}
+          iconFor={(key, isActive) => tabIcon(key, isActive ? "#FFFBF0" : t.mute, 22)}
+          footer={
+            <button
+              type="button"
+              onClick={toggle}
+              aria-label={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
+              title={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 38,
+                height: 38,
+                borderRadius: 999,
+                background: t.paper,
+                border: `1px solid ${t.line}`,
+                color: t.ink,
+                cursor: "pointer",
+              }}
+            >
+              <ThemeIcon dark={dark} size={16} color={t.ink} />
+            </button>
+          }
+        />
+      ) : null}
+
+      {/* Innehåll. På desktop får sidan ett sidebar-offset + max-width-centrerad
+          inner-pane. På mobil: paddingBottom för TabBar-pillen + pull-translate. */}
       <div
         style={{
-          paddingBottom: 110,
-          transform: `translateY(${pull * 0.6}px)`,
-          transition: armed.current ? "none" : "transform 200ms ease",
+          paddingBottom: isDesktop ? 0 : 110,
+          paddingLeft: isDesktop ? SIDEBAR_WIDTH : 0,
+          transform: !isDesktop ? `translateY(${pull * 0.6}px)` : undefined,
+          transition: !isDesktop && armed.current ? "none" : "transform 200ms ease",
         }}
       >
-        {children}
+        {isDesktop ? (
+          <div
+            style={{
+              maxWidth: 980,
+              margin: "0 auto",
+              padding: "12px 28px 48px",
+            }}
+          >
+            {children}
+          </div>
+        ) : (
+          children
+        )}
       </div>
 
-      <TabBar
-        t={t}
-        active={tab}
-        onChange={(key) => router.push(TAB_ROUTES[key])}
-        labelFor={(key) => TAB_LABELS[key]}
-        iconFor={(key, isActive) => tabIcon(key, isActive ? "#FFFBF0" : t.mute)}
-      />
+      {/* Bottom-pill (mobil <1024px) */}
+      {!isDesktop ? (
+        <TabBar
+          t={t}
+          active={tab}
+          onChange={(key) => router.push(TAB_ROUTES[key])}
+          labelFor={(key) => TAB_LABELS[key]}
+          iconFor={(key, isActive) => tabIcon(key, isActive ? "#FFFBF0" : t.mute)}
+        />
+      ) : null}
     </div>
   );
 }
+
+// `DESKTOP_BREAKPOINT` exporteras endast för dokumentation — inline via @media
+// i `globals.warm.css` är inte aktuellt eftersom alla styles drivs inline-style
+// (princip 7). Hooks-versionen (`useDesktop()`) är källan till sanning.
+export { DESKTOP_BREAKPOINT };
