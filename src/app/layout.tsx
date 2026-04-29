@@ -30,18 +30,18 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "inicio.cloud — Villa Björkdalen",
+  title: "Boet — Villa Björkdalen",
   description: "Homelab & smarthome dashboard",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "inicio",
+    title: "Boet",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#475bc2",
+  themeColor: "#C96F4A",
   width: "device-width",
   initialScale: 1,
 };

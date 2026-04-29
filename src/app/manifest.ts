@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "inicio.cloud — Villa Björkdalen",
-    short_name: "inicio",
+    name: "Boet — Villa Björkdalen",
+    short_name: "Boet",
     description: "Homelab & smarthome dashboard",
     start_url: "/home",
     display: "standalone",
