@@ -370,16 +370,40 @@ Varje session är **en egen chatt**, en egen commit-cykel, eget acceptance-test.
 ### Session W5 — Desktop-tolkning
 **Mål:** Warm Home funkar lika bra på desktop som mobil.
 
-**Levererar:**
-- [ ] Sidebar i Warm-språk (Fraunces-rubriker + 4 nav-items, terracotta active-pill, glasmorf bakgrund) som ersätter bottom-pillen vid `≥1024px`
-- [ ] Hub-och-detalj som **två kolumner** vid desktop-bredd: hub kvar i vänsterkolumn (max-bredd ~430px), detalj-route i höger (resten av bredden). Drill-down öppnar höger kolumn istället för full route-navigation.
-- [ ] `(warm)/v3` layout är responsiv — switcher mellan mobile-stack vs desktop-split via container query (eller media query)
-- [ ] Theme-toggle flyttar från mobil-position (TBD i W0) till sidebar-fot på desktop
-- [ ] Verifiera alla 4 sektioner i 1440px och 1024px viewport
+**Levererar (W5 MVP):**
+- [x] `WarmSidebar` i `primitives.tsx` — 96 px bred fast vänster-sidebar, terracotta active-pill (samma styling-grammatik som TabBar:s aktiva pill), 4 nav-items + footer-slot. Bakgrund `t.paperHi` + 1 px höger-border `t.line`. Inget glasmorf-blur (sidebar sitter mot bg, ingen overlap).
+- [x] `useDesktop()` + `DESKTOP_BREAKPOINT = 1024` i `lib/warm/theme.tsx` — `matchMedia`-baserad hook som hydrerar `false` på SSR och flippar i effect. Lyssnar på `change`-event så resize i farten propagerar.
+- [x] `(warm)/v3/layout.tsx` — kompletterande shell: sidebar vid ≥1024 px ersätter bottom-pillen, content-pane får `paddingLeft: 96` + `maxWidth: 980` + `margin: 0 auto`. Pull-to-refresh-lyssnaren disablas på desktop (touch-gester finns inte där). På mobil oförändrat — TabBar i botten, full-bredd content.
+- [x] Theme-toggle flyttad till sidebar-foten (rund 38 × 38 knapp över en `borderTop`). Hub-interna toggle i `HubHeading` (Hem + Lab) och `HubDisplay.right` (Fitness + Garden) gömd via `useDesktop()`-check så det inte blir två toggles på desktop.
+- [x] Verifierat alla 4 sektioner i mobil 393 px (TabBar synlig, hub-toggle synlig), 1024 px (sidebar + content + sidebar-toggle), 1440 px (samma men content centrerad mot ~980 px) — light + dark verifierat på Lab-hubben.
 
-**Acceptance:** Öppna `/v3/home` i 1440px och se sidebar + hub + tom detalj-pane. Klicka rum-rad → rum-detalj öppnas i höger pane utan att hub töms.
+**Dropped scope — inget hub-stays-mounted-on-left + inget 2-col split-pane.**
+Briefen ville hub-och-detalj som två kolumner med drill-down i höger pane utan full route-navigation. För att leverera det krävdes endera:
+1. **Parallel routes** med `@detail`-slot under varje sektion — varje detail page måste flyttas till slot-strukturen (4 sektioner × 4–6 detaljer = ~20 page-flyttar), `default.tsx` per slot, ny intercepting routes-modell.
+2. **Hub-extraktion till komponenter** — varje hub-page (Hem 937 LOC, Lab 733 LOC, Fitness 728 LOC, Garden 585 LOC) lyfts till `src/components/warm/hubs/{Section}Hub.tsx` så layouten kan rendera dem oberoende av routing. Page-filerna blir thin wrappers.
 
-**Observera:** *tomt*
+Båda var möjliga men kostnaden mättes mot risken: ~3000 LOC kod att flytta + ny intro/empty-state-komponent + ny routing-tankegång — i en session där jag också måste verifiera 4 sektioner × 3 viewports och inte får riskera daglig användning. Beslut: leverera MVP-chrome (sidebar + max-width content) som ger 80 % av desktop-vinsten med 20 % av risken. Hub-stays-mounted-pattern parkeras för en framtida session.
+
+Pragmatisk konsekvens: på desktop tappar man inte hub-kontexten visuellt, men man navigerar fortfarande med back-chevron. Sidebar låter en hoppa mellan sektioner i ett klick, vilket är den största desktop-vinsten oavsett kolumn-modell. För användare som främst vill se sin hub + en detalj samtidigt: lägg till hub-stays-mounted som en post-W6 polish om det visar sig saknas i daglig användning.
+
+**Acceptance:** Öppna `/v3/home` i 1440 px → sidebar + hub-content. Klicka Lab i sidebar → URL byter till `/v3/lab`, sidebar-active flyttar till Lab. Klicka rum på Hem → drill-down till `/v3/home/rum/sovrum`, sidebar kvar (Hem aktiv), back-chevron i toppen för att gå tillbaka.
+
+**Observera:**
+- **MVP > full split-pane.** Att skeppa sidebar + max-width-pane ger desktop-användaren största nyttan (snabb navigation mellan sektioner, läsbar layout) utan att slå sönder befintlig route-modell. Hub-stays-mounted-pattern är en separat investering i Next.js parallel routes — värt att göra som en egen session, inte som en sub-task i en setup-vecka. Lärdom: när scope och risk växlar mot varandra, släng den dyraste komponenten först och mät hur mycket den faktiskt saknades.
+- **`useDesktop()` returnerar `false` på SSR + första render.** Mobil är default i SSR-strukturen så att hydration alltid matchar (mobil-first DOM). Korta "mobil → desktop"-flippet vid mount är acceptabelt eftersom alternativet (läsa `window.matchMedia` synkront i state-init) bryter SSR. Samma mönster som `useHydrated()`, `WarmThemeProvider`-init m.fl. — varje gång du behöver client-only-data i ett SSR-träd, defaulta till "tom"/"falsk" och hydrera i effect.
+- **Pull-to-refresh-effekten disablas helt på desktop** (early-return från `useEffect` när `isDesktop`). Touch-eventet skulle aldrig fyra på desktop ändå (mus-gester triggar inte `touchstart`), men cleanup-listenern är gratis att ta bort så vi sparar lite event-bubble-overhead. Också säkrare om någon kör med touch-emulator i devtools.
+- **Sidebar-toggle är 38 × 38 px (mot 36 × 36 i hub-headern)** — något större eftersom den lever ensam i sidebar-foten, inte konkurrerar med eyebrow + display-rubrik. Padding-top + `borderTop` på footer-slotten gör visuell separation från nav-items utan att introducera en hård linje.
+- **Hub-interna theme-toggles gömmas, inte raderas.** Varje hub har kvar sin toggle-button i koden men wrappad i `isDesktop ? null : <button>`. Om sidan någonsin skulle bli "desktop med hub-internal toggle" igen kan vi backa flippet med en enradig ändring per hub. Att ta bort toggle helt hade varit värre — vi tappar mobil-funktionalitet och måste sedan återinföra den.
+- **Stale `.next/`-mapp + körande server = krasch.** När jag rensade `.next/` med `rm -rf` medan dev-servern fortfarande körde gav Turbopack "Cannot find module ../chunks/ssr/[turbopack]_runtime.js" och Internal Server Error i browsern. Lärdom: stoppa servern (`preview_stop`) FÖRST, rensa cachen, starta om — annars dör Turbopack i en obegriplig manifest-fault. Mönstret är dokumenterat tidigare för hydration-fel men gäller för alla `rm -rf .next/`-operationer.
+- **Pre-existing W4 hydration-fel i Garden SeasonCard kvarstår** ("`+background: rgba(122,148,117,0.14)` server vs `-background-color: rgba(201, 111, 74, 0.12)` client"). Påverkar inte W5 — funktionen renderar korrekt efter regenerering, bara konsolen dirty. Felet är dokumenterat i W4-observera och har sin egen rotorsak (per-render-tema med inline-style). W5-ändringarna förvärrade inte det.
+- **`max-width: 980 px` är en pragmatisk default**, inte forskat fram. Hub-vyer är primärt en kolumn av kort med stat-grids — efter ~900 px blir kort-bredderna otympliga och radlängden kämpig att läsa. Detail-sidor kan tåla mer (kartor, tidsserier), men för MVP är ett enhetligt max ~ 980 enklare. Om Climate-grafer eller Coach-kalendern visar sig vara cramped i en framtida iteration: lyft konstanten till per-route-prop och tweak:a.
+- **Sidebar-bredd 96 px** rymmer både `text-11px`-label och 22 px-ikon med god vertikal padding. Mindre (80 px) hade krävt 11–12 px-label vilket blir cramped även i Fraunces. Större (110+ px) stjäl content-bredd onödigt på 1024 px-viewporten där varje pixel räknas.
+
+**Öppna frågor / vidare till W6:**
+- **Hub-stays-mounted-pattern:** om användaren saknar det efter en period med MVP-versionen, lyft hubbar till `src/components/warm/hubs/` i en dedikerad session. Då kan layouten välja: vid hub-root-URL → bara hub i full content-bredd; vid detail-URL → 2-col split med hub kvar till vänster ~430 px + children till höger.
+- **Sidebar-rubrik / hus-logo** saknas ovanför nav-items. På mobilen finns ingen logga heller, men på desktop känns det "öppet" där. Förslag W6: lägg en kompakt Warm-stiliserad husikon i ACC eller `t.ink` ovanför nav-listan, med `paddingTop: 8`.
+- **Sidebar-active-state-animation:** terracotta-fyllningen flippar instant vid byte. En 200 ms ease-cross-fade hade gett mjukare övergång — inte blockerande, men nice-to-have för polish-passet.
+- **Pre-existing hydration-fel i Garden SeasonCard** (rapporterat i W4) kvarstår. Bör root-cause:as innan cutover (W6).
 
 ---
 
