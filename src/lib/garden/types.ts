@@ -19,7 +19,24 @@ export type PlantType =
   | "Fruktträd"
   | "Marktäckare"
   | "Grönsak"
-  | "Blomma";
+  | "Blomma"
+  | "Ört";
+
+export type PlantPhase =
+  | "Sådd"
+  | "Plantskola"
+  | "Härdning"
+  | "Utplantering"
+  | "Skörd"
+  | "Etablerad"
+  | "Vilande";
+
+export type WateringInterval =
+  | "Dagligen"
+  | "Varannan dag"
+  | "Veckovis"
+  | "Vid behov"
+  | "Inte nu";
 
 export type PlantLocation = "Inomhus" | "Växthus" | "Altan" | "Baksida" | "Framsida";
 export type PruningSeason = "Höst" | "Efter blomning" | "Ingen" | "JAS" | "Vår" | "Vårvinter" | "Löpande";
@@ -51,6 +68,36 @@ export interface Plant {
   atgardIds: string[];
   /** https://www.notion.so/<id-utan-bindestreck> */
   notionUrl: string;
+
+  // ── Nya fält (livscykel + daglig skötsel) ──────────────────────────────────
+  /** Sortnamn / kultivarnamn, t.ex. "San Marzano". */
+  sorttnamn: string | null;
+  /** ISO-datum för sådd/plantering. */
+  sadddatum: string | null;
+  /** Antal plantor eller exemplar. */
+  antalPlantor: number | null;
+  /** Aktuell livscykelfas. */
+  fas: PlantPhase | string | null;
+  /** Total säsongslängd i dagar (t.ex. 120 för tomater). */
+  sasongslangd: number | null;
+  /** ISO-datum för senast vattnad. */
+  senastVattnad: string | null;
+  /** Hur ofta växten behöver vattnas. */
+  vattningsintervall: WateringInterval | string | null;
+  /** Fri text om vattning, t.ex. "jord torr ca 2 cm ner". */
+  vattningsnotering: string | null;
+  /** Näringsinformation, t.ex. "Söndag, halv dos kvävebaserat". */
+  naring: string | null;
+  /** Ljusbehov, t.ex. "14 t/dag" eller "Halvskugga". */
+  ljusbehov: string | null;
+  /** Temperaturintervall, t.ex. "20–22 °C, undvik drag". */
+  temperaturintervall: string | null;
+  /** Höjd, t.ex. "160–200 cm". */
+  hojd: string | null;
+  /** Skördeperiod, t.ex. "Aug–sep". */
+  skordeperiod: string | null;
+  /** Längre skötselguide-text (ersätter/kompletterar skotselrad). */
+  skotselguide: string | null;
 }
 
 export interface SeasonTask {
@@ -93,6 +140,20 @@ export interface PlantInput {
   godsling?: string[];
   skotselrad?: string | null;
   atgardIds?: string[];
+  sorttnamn?: string | null;
+  sadddatum?: string | null;
+  antalPlantor?: number | null;
+  fas?: string | null;
+  sasongslangd?: number | null;
+  senastVattnad?: string | null;
+  vattningsintervall?: string | null;
+  vattningsnotering?: string | null;
+  naring?: string | null;
+  ljusbehov?: string | null;
+  temperaturintervall?: string | null;
+  hojd?: string | null;
+  skordeperiod?: string | null;
+  skotselguide?: string | null;
 }
 
 export interface SeasonTaskInput {

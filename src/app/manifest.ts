@@ -2,13 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "inicio.cloud — Villa Björkdalen",
-    short_name: "inicio",
+    name: "Boet — Villa Björkdalen",
+    short_name: "Boet",
     description: "Homelab & smarthome dashboard",
     start_url: "/home",
     display: "standalone",
-    background_color: "#fffcf7",
-    theme_color: "#475bc2",
+    background_color: "#FFFBF0",
+    theme_color: "#C96F4A",
     orientation: "portrait-primary",
     icons: [
       {

@@ -29,7 +29,7 @@ export default function TopNav() {
           className="text-xl font-bold tracking-tight font-headline"
           style={{ color: "var(--color-inverse-surface)" }}
         >
-          inicio.cloud
+          Boet
         </span>
 
         <nav className="hidden md:flex gap-1">

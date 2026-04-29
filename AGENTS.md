@@ -1,3 +1,12 @@
+# Warm Home v3 är primär. v2 djupt-fryst.
+
+> Cutover skedde 2026-04-29 (W6). Root `/` redirectar till `/v3/home`. v2-routes
+> (`/home`, `/garden`, `/fitness`, `/homelab`) ligger kvar i kod för rollback men
+> är inte länkade någonstans. All ny utveckling sker mot `(warm)/v3/`-trädet —
+> se [WARM_HOME.md](WARM_HOME.md) för designprinciper, primitiver och sessionsplan.
+
+@WARM_HOME.md
+
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 
