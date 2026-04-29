@@ -288,14 +288,17 @@ function WeatherTile({
         {(sunrise || sunset) && (() => {
           // På natten: månens fas vänster, soluppgång (nästa händelse) höger.
           // På dagen: soluppg. vänster (har varit), nedg. höger (nästa).
+          // Hela raden i italic Fraunces så månfas-text + sol-tider hänger
+          // ihop visuellt.
           const isNight = sun?.state === "below_horizon";
           const moonText = isNight ? moonPhaseLabel(data.moon_phase) : "";
           const left = isNight
             ? moonText
-            : (sunrise ? `SOLUPPG. ${sunrise}` : "");
+            : (sunrise ? `Soluppg. ${sunrise}` : "");
           const right = isNight
-            ? (sunrise ? `SOLUPPG. ${sunrise}` : "")
-            : (sunset ? `NEDG. ${sunset}` : "");
+            ? (sunrise ? `Soluppg. ${sunrise}` : "")
+            : (sunset ? `Nedg. ${sunset}` : "");
+          const cellStyle = { ...ital(t, 11, t.dim), letterSpacing: "0.01em" } as const;
           return (
             <div
               style={{
@@ -308,24 +311,8 @@ function WeatherTile({
                 borderTop: `1px solid ${t.line}`,
               }}
             >
-              {/* Mån-fas-texten är italic + serif eftersom det är en
-                  semantiskt annan typ av info än de tabular klockslagen. */}
-              <span
-                style={
-                  isNight
-                    ? { ...ital(t, 11, t.dim), letterSpacing: "0.01em" }
-                    : { ...lab(t, { fontSize: 10 }), color: t.dim }
-                }
-                className={isNight ? undefined : "warm-tab-nums"}
-              >
-                {left}
-              </span>
-              <span
-                style={{ ...lab(t, { fontSize: 10 }), color: t.dim }}
-                className="warm-tab-nums"
-              >
-                {right}
-              </span>
+              <span style={cellStyle}>{left}</span>
+              <span style={cellStyle}>{right}</span>
             </div>
           );
         })()}
