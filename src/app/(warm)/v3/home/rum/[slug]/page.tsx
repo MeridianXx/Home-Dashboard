@@ -155,6 +155,7 @@ function MasterTile({
   onAllOn,
   onSetAll,
   loadingKey,
+  effectiveKelvin,
 }: {
   t: WarmTheme;
   area: LightArea;
@@ -162,6 +163,9 @@ function MasterTile({
   onAllOn: () => void;
   onSetAll: (pct: number) => void;
   loadingKey: "off" | "on" | null;
+  /** Override K per lampa när AL är primärkälla — så Master-tile speglar
+   *  samma värde som lamp-rad-pillen och sheet:en. */
+  effectiveKelvin: (l: LightEntry) => number | null;
 }) {
   const onLights = area.lights.filter((l) => l.state === "on");
   const avgPct =
@@ -175,7 +179,7 @@ function MasterTile({
       : 0;
   const avgKelvin = (() => {
     const k = onLights
-      .map((l) => l.color_temp_kelvin)
+      .map((l) => effectiveKelvin(l))
       .filter((x): x is number => x != null);
     if (k.length === 0) return null;
     return Math.round(k.reduce((s, x) => s + x, 0) / k.length / 50) * 50;
@@ -338,6 +342,7 @@ function LampRow({
   onCommit,
   onOpenEdit,
   isLast,
+  effectiveKelvin,
 }: {
   t: WarmTheme;
   light: LightEntry;
@@ -347,9 +352,13 @@ function LampRow({
   onCommit: (id: string, pct: number) => void;
   onOpenEdit: (l: LightEntry) => void;
   isLast: boolean;
+  /** AL-styrt K om AL är primärkälla — annars lampans state-K. Bygger
+   *  konsekvens med Master-tile + sheet:en. */
+  effectiveKelvin: number | null;
 }) {
   const lon = light.state === "on";
   const display = liveBrightness ?? light.brightness_pct ?? (lon ? 100 : 0);
+  const displayK = effectiveKelvin ?? light.color_temp_kelvin;
   return (
     <div
       style={{
@@ -421,7 +430,7 @@ function LampRow({
               {light.name}
             </span>
           </button>
-          {lon && light.color_temp_kelvin != null && (
+          {lon && displayK != null && (
             <button
               type="button"
               onClick={() => onOpenEdit(light)}
@@ -443,7 +452,7 @@ function LampRow({
               }}
               className="warm-tab-nums"
             >
-              {light.color_temp_kelvin} K
+              {displayK} K
             </button>
           )}
         </div>
@@ -993,6 +1002,19 @@ export default function WarmRoomDetail() {
     return bySlug ?? alData.instances[0] ?? null;
   };
 
+  /** Effektiv K för en lampa: AL:s sol-K om AL är på + ingen manuell
+   *  override, annars lampans cached state-K. Används för K-pillar och
+   *  Master-tile så hela rumssidan + sheet:en visar samma värde. */
+  const effectiveKelvin = (l: LightEntry): number | null => {
+    const al = adaptiveForLight(l);
+    if (!al) return l.color_temp_kelvin;
+    const overridden = al.manual_control.includes(l.entity_id);
+    if (al.enabled && !overridden && al.color_temp_kelvin != null) {
+      return al.color_temp_kelvin;
+    }
+    return l.color_temp_kelvin;
+  };
+
   const sceneActive = useMemo(() => {
     const snapshot = lights?.areas?.flatMap((a) =>
       a.lights.map((l) => ({
@@ -1121,6 +1143,7 @@ export default function WarmRoomDetail() {
               onAllOn={handleAllOn}
               onSetAll={handleSetAll}
               loadingKey={masterLoading}
+              effectiveKelvin={effectiveKelvin}
             />
 
             <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1146,6 +1169,7 @@ export default function WarmRoomDetail() {
                     onCommit={handleBrightness}
                     onOpenEdit={(l) => setEditingLight(l)}
                     isLast={i === area.lights.length - 1}
+                    effectiveKelvin={effectiveKelvin(light)}
                   />
                 ))}
               </div>
