@@ -30,6 +30,7 @@ import LightEditSheet from "@/components/warm/LightEditSheet";
 import WarmPress from "@/components/warm/WarmPress";
 import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { slugToName } from "@/lib/warm/rooms";
+import { hasAdaptiveLighting } from "@/lib/warm/al-lights";
 import { formatTime, kelvinLabel, sceneLabel } from "@/lib/warm/format";
 import {
   formatEvents,
@@ -430,7 +431,7 @@ function LampRow({
               {light.name}
             </span>
           </button>
-          {lon && displayK != null && (
+          {lon && displayK != null && hasAdaptiveLighting(light.entity_id) && (
             <button
               type="button"
               onClick={() => onOpenEdit(light)}
@@ -1002,10 +1003,13 @@ export default function WarmRoomDetail() {
     return bySlug ?? alData.instances[0] ?? null;
   };
 
-  /** Effektiv K för en lampa: AL:s sol-K om AL är på + ingen manuell
-   *  override, annars lampans cached state-K. Används för K-pillar och
-   *  Master-tile så hela rumssidan + sheet:en visar samma värde. */
+  /** Effektiv K för en lampa: AL:s sol-K om lampan har AL-stöd och AL är
+   *  på + ingen manuell override, annars lampans cached state-K. Används
+   *  för K-pillar och Master-tile så rumssidan + sheet:en visar samma
+   *  värde för AL-lampor. AL_LIGHTS-listan i `@/lib/warm/al-lights`
+   *  bestämmer vilka entity_ids som faktiskt styrs av AL. */
   const effectiveKelvin = (l: LightEntry): number | null => {
+    if (!hasAdaptiveLighting(l.entity_id)) return l.color_temp_kelvin;
     const al = adaptiveForLight(l);
     if (!al) return l.color_temp_kelvin;
     const overridden = al.manual_control.includes(l.entity_id);
