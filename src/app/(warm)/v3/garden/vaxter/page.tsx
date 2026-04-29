@@ -394,12 +394,28 @@ function CreateModal({
 export default function GardenPlantsPage() {
   const { t } = useWarmTheme();
   const router = useRouter();
+  // Filter persisterar i URL-querystring så sortering följer med över
+  // navigation (klicka på en växt + back returnerar samma vy). Initial-state
+  // måste vara samma på SSR + första client-render för att undvika
+  // hydration-mismatch — vi läser därför URL i en effect istället för i
+  // state-init.
   const [typFilter, setTypFilter] = useState("Alla");
   const [platsFilter, setPlatsFilter] = useState("Alla");
+  const [filterHydrated, setFilterHydrated] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Hydrera filter från URL vid mount.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const t0 = params.get("typ");
+    const p0 = params.get("plats");
+    if (t0) setTypFilter(t0);
+    if (p0) setPlatsFilter(p0);
+    setFilterHydrated(true);
+  }, []);
 
   const qs = useMemo(() => {
     const p = new URLSearchParams();
@@ -407,6 +423,18 @@ export default function GardenPlantsPage() {
     if (platsFilter !== "Alla") p.set("plats", platsFilter);
     return p.toString();
   }, [typFilter, platsFilter]);
+
+  // Skriv tillbaka filter till URL via replace (ingen ny history-entry —
+  // back-knappen ska gå till hub, inte till föregående filter-kombination).
+  // Hoppa över första rendret innan filter hydrerats från URL — annars
+  // skriver vi tomma filter över redan-satta query-params.
+  useEffect(() => {
+    if (!filterHydrated) return;
+    const target = `/v3/garden/vaxter${qs ? `?${qs}` : ""}`;
+    if (window.location.pathname + window.location.search !== target) {
+      router.replace(target, { scroll: false });
+    }
+  }, [qs, router, filterHydrated]);
 
   const { data, error, isLoading, mutate } = useSWR<PlantsResponse>(
     `/api/garden/plants${qs ? `?${qs}` : ""}`,
