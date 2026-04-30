@@ -202,11 +202,12 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
         position: "relative",
       }}
     >
-      {/* Pull-to-refresh-indikator (bara mobil) */}
+      {/* Pull-to-refresh-indikator (bara mobil). `top` använder safe-area-inset-top
+          så pillen hamnar under notch:en när Capacitor kör med `contentInset: "never"`. */}
       <div
         style={{
           position: "fixed",
-          top: 12,
+          top: "calc(env(safe-area-inset-top) + 12px)",
           left: 0,
           right: 0,
           display: "flex",
