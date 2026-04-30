@@ -193,6 +193,87 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
     };
   }, [dark]);
 
+  // Capacitor SplashScreen — göm direkt vid mount istället för att vänta ut
+  // launchShowDuration-timeouten. Inget hänger på mobil/PWA — Capacitor
+  // no-op:ar utanför native iOS.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { Capacitor } = await import("@capacitor/core");
+      if (cancelled || Capacitor.getPlatform() !== "ios") return;
+      const { SplashScreen } = await import("@capacitor/splash-screen");
+      try {
+        await SplashScreen.hide();
+      } catch {
+        // No-op — plugin saknas eller redan dold.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Edge-swipe → router.back() · iOS native `allowsBackForwardNavigationGestures`
+  // exponeras inte via Capacitor 8:s config, och WKWebView-gesten är dessutom
+  // läjlig med Next.js App Router (SPA-pushState). Vi rullar egen: aktivera
+  // bara om touch startar inom 24 px från vänsterkanten + horisontellt drag.
+  useEffect(() => {
+    if (isDesktop) return;
+    let startX = 0;
+    let startY = 0;
+    let armedSwipe = false;
+    let cancelled = false;
+
+    function onStart(e: TouchEvent) {
+      const touch = e.touches[0];
+      if (!touch) return;
+      if (touch.clientX <= 24) {
+        startX = touch.clientX;
+        startY = touch.clientY;
+        armedSwipe = true;
+        cancelled = false;
+      } else {
+        armedSwipe = false;
+      }
+    }
+    function onMove(e: TouchEvent) {
+      if (!armedSwipe || cancelled) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const dx = touch.clientX - startX;
+      const dy = Math.abs(touch.clientY - startY);
+      // Avbryt om vertikal rörelse dominerar — då är det scroll, inte swipe-back.
+      if (dy > 30 && dy > dx) {
+        cancelled = true;
+      }
+    }
+    function onEnd(e: TouchEvent) {
+      if (!armedSwipe || cancelled) {
+        armedSwipe = false;
+        return;
+      }
+      const touch = e.changedTouches[0];
+      armedSwipe = false;
+      if (!touch) return;
+      const dx = touch.clientX - startX;
+      if (dx >= 80) {
+        void haptic("tap");
+        router.back();
+      }
+    }
+
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    window.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onEnd);
+      window.removeEventListener("touchcancel", onEnd);
+    };
+  }, [isDesktop, router]);
+
   const showSpinner = !isDesktop && (pull > 16 || confirming);
 
   return (

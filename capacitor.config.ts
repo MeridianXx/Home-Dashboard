@@ -13,8 +13,6 @@ const config: CapacitorConfig = {
     contentInset: "never",
     backgroundColor: "#FFFBF0",
     limitsNavigationsToAppBoundDomains: false,
-    // Aktivera iOS edge-swipe för back/forward-navigation i WKWebView.
-    allowsBackForwardNavigationGestures: true,
   },
   plugins: {
     SplashScreen: {
