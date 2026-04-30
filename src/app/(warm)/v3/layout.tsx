@@ -18,6 +18,7 @@ import {
 } from "@/lib/warm/theme";
 import { ACC, SAGE, body } from "@/lib/warm/tokens";
 import { CheckIcon } from "@/components/warm/icons/extra";
+import { haptic } from "@/lib/warm/haptics";
 
 const TAB_LABELS: Record<TabKey, string> = {
   hem: "Hem",
@@ -133,6 +134,7 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
         setConfirming(true);
         setLabelMode("confirmed");
         setPull(0);
+        void haptic("success");
         setTimeout(() => {
           void bypassFitnessCacheIfRelevant();
           router.refresh();

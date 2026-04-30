@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { ACC } from "@/lib/warm/tokens";
+import { haptic } from "@/lib/warm/haptics";
 
 /**
  * WarmPress — delad knapp-wrapper med taktil feedback.
@@ -49,6 +50,7 @@ export default function WarmPress({
       onClick={async (e) => {
         e.stopPropagation();
         if (isDisabled || !onClick) return;
+        void haptic("tap");
         const result = onClick();
         if (result && typeof (result as Promise<void>).then === "function") {
           setRunning(true);
