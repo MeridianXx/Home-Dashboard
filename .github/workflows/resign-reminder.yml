@@ -1,0 +1,56 @@
+name: Re-sign iOS-påminnelse
+
+# Sideloadade iOS-appar med gratis Apple Developer-konto upphör efter 7 dagar.
+# Det här workflowet skapar en GitHub Issue var 6:e dag som påminnelse om att
+# köra `./resign.sh` lokalt och installera om Boet på iPhonen innan certet löper ut.
+
+on:
+  schedule:
+    # 06:00 UTC var 6:e dag (cron stödjer inte "var N:e dag" direkt — vi använder
+    # day-of-month-listan 1,7,13,19,25,31 vilket ger ungefär 6 dagars mellanrum).
+    - cron: "0 6 1,7,13,19,25,31 * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skapa påminnelse-issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = "Re-sign iOS-appen";
+            const body = [
+              "Boet (sideloadad iOS-app) går ut snart — gratis Apple Developer-certifikat",
+              "är bara giltiga i 7 dagar.",
+              "",
+              "**Att göra:**",
+              "1. Anslut iPhonen via USB.",
+              "2. Kör `./resign.sh` i projektroten.",
+              "3. Godkänn ev. nytt utvecklingscertifikat på iPhonen om den klagar.",
+              "",
+              "Stäng denna issue när det är gjort.",
+            ].join("\n");
+
+            // Skapa inte ny om en öppen redan finns
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "ios-resign",
+            });
+            if (open.data.length > 0) {
+              core.info(`En öppen påminnelse finns redan: #${open.data[0].number}`);
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ["ios-resign"],
+            });
