@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { mutate as swrMutate } from "swr";
 import {
   Sidebar,
@@ -51,10 +50,6 @@ function tabIcon(key: TabKey, color: string, size = 20) {
 }
 
 const PULL_THRESHOLD = 80;
-// Cubic-bezier för Warm Home page transitions — samma kurva som v2 körde i
-// `(dashboard)/layout.tsx`. Snabb start, mjuk avslutning.
-const FADE_EASE = [0.4, 0, 0.2, 1] as const;
-const FADE_DURATION = 0.18;
 
 export default function WarmV3Layout({ children }: { children: ReactNode }) {
   return (
@@ -420,24 +415,24 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
           transition: !isDesktop && armed.current ? "none" : "transform 200ms ease",
         }}
       >
-        {/* Fade-in på ny sida vid pathname-byte. Inget AnimatePresence — det
-            dubbel-renderar vid soft-navigation eftersom children-prop:n delas
-            mellan exiting + entering motion.div. Bara `key={pathname}` räcker
-            för att React ska unmount:a gammalt och mount:a nytt. */}
-        <motion.div
+        {/* Fade-in på ny sida vid pathname-byte via CSS-animation
+            `warm-page-fade-in` (definierad i globals.warm.css). React mount:ar
+            ny div via `key={pathname}` → CSS-animation körs från noll varje
+            mount. Använder INTE framer-motion eller Web Animations API — båda
+            har visat sig opålitliga (motion.div fastnade på opacity 0,
+            element.animate() registrerade animation men progresserade aldrig
+            i preview-environment). Ren CSS är robustaste vägen. */}
+        <div
           key={pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: FADE_DURATION, ease: FADE_EASE }}
-          style={{
-            willChange: "opacity",
-            ...(isDesktop
+          className="warm-page-fade"
+          style={
+            isDesktop
               ? { maxWidth: 980, margin: "0 auto", padding: "12px 28px 48px" }
-              : {}),
-          }}
+              : undefined
+          }
         >
           {children}
-        </motion.div>
+        </div>
       </div>
 
       {/* Bottom-pill (mobil <1024px) */}
