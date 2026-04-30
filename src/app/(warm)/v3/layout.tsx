@@ -179,7 +179,9 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
       if (cancelled || Capacitor.getPlatform() !== "ios") return;
       const { StatusBar, Style } = await import("@capacitor/status-bar");
       try {
-        await StatusBar.setStyle({ style: dark ? Style.Light : Style.Dark });
+        // Capacitor `Style`-enum är counter-intuitivt: `Style.Dark` betyder
+        // "för mörk bakgrund" → ljus text, `Style.Light` → mörk text.
+        await StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light });
       } catch {
         // No-op — status-bar-plugin saknas eller iOS-versionen blockerar.
       }
