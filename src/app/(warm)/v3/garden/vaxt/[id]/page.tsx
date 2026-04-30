@@ -15,6 +15,7 @@ import { ACC, SAGE, body, ital, lab, num } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { DetailHero, Section } from "@/components/warm/fit/parts";
 import { WarmModal } from "@/components/warm/Modal";
+import { haptic } from "@/lib/warm/haptics";
 import { inputStyle, Field, SelectBox, MultiSelectChips } from "@/components/warm/garden/forms";
 import {
   plantGlyph,
@@ -267,14 +268,14 @@ function EditModal({
         <div style={{ display: "flex", gap: 8, width: "100%", justifyContent: "flex-end" }}>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => { void haptic("tap"); onClose(); }}
             style={{ fontFamily: body, fontSize: 13, fontWeight: 500, background: "transparent", border: `1px solid ${t.line}`, borderRadius: 999, padding: "8px 16px", color: t.mute, cursor: "pointer" }}
           >
             Avbryt
           </button>
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => { void haptic("success"); handleSave(); }}
             disabled={saving}
             style={{ fontFamily: body, fontSize: 13, fontWeight: 600, background: ACC, border: "none", borderRadius: 999, padding: "8px 20px", color: "#FFFBF0", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}
           >
@@ -460,7 +461,7 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
         right={
           <button
             type="button"
-            onClick={() => { setMounted(true); setEditOpen(true); }}
+            onClick={() => { void haptic("tap"); setMounted(true); setEditOpen(true); }}
             style={{
               display: "inline-flex",
               alignItems: "center",

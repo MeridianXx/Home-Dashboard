@@ -12,6 +12,7 @@ import { useWarmTheme } from "@/lib/warm/theme";
 import { ACC, body, ital, lab, num } from "@/lib/warm/tokens";
 import { DetailHero, ChevronRight } from "@/components/warm/fit/parts";
 import { sportIcon, SparkleIcon } from "@/components/warm/icons/fit";
+import { haptic } from "@/lib/warm/haptics";
 import {
   hasCardioZone,
   monthKey,
@@ -106,6 +107,7 @@ export default function WarmFitnessHistorikPage() {
                 key={f.value}
                 type="button"
                 onClick={() => {
+                  void haptic("tap");
                   setFilter(f.value);
                   setPage(1);
                 }}
@@ -250,7 +252,7 @@ export default function WarmFitnessHistorikPage() {
               <div style={{ display: "flex", justifyContent: "center", paddingTop: 4 }}>
                 <button
                   type="button"
-                  onClick={() => setPage((p) => p + 1)}
+                  onClick={() => { void haptic("tap"); setPage((p) => p + 1); }}
                   style={{
                     fontFamily: body,
                     fontSize: 12,

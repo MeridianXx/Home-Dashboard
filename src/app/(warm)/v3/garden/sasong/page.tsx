@@ -21,6 +21,7 @@ import {
 import { Tile } from "@/components/warm/primitives";
 import { DetailHero } from "@/components/warm/fit/parts";
 import { ChevronLeft, ChevronRight } from "@/components/warm/icons/extra";
+import { haptic } from "@/lib/warm/haptics";
 import {
   PlusIcon,
   CheckCircleIcon,
@@ -130,7 +131,7 @@ function CalendarStrip({
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
         <button
           type="button"
-          onClick={goToday}
+          onClick={() => { void haptic("tap"); goToday(); }}
           title="Gå till idag"
           style={{
             ...num(t, 15, 500),
@@ -146,10 +147,10 @@ function CalendarStrip({
         >
           {monthLabelSv(year, monthIdx)}
         </button>
-        <button type="button" onClick={() => navigate(-1)} aria-label="Föregående månad" style={navBtn(t)}>
+        <button type="button" onClick={() => { void haptic("tap"); navigate(-1); }} aria-label="Föregående månad" style={navBtn(t)}>
           <ChevronLeft size={14} color={t.mute} />
         </button>
-        <button type="button" onClick={() => navigate(1)} aria-label="Nästa månad" style={navBtn(t)}>
+        <button type="button" onClick={() => { void haptic("tap"); navigate(1); }} aria-label="Nästa månad" style={navBtn(t)}>
           <ChevronRight size={14} color={t.mute} />
         </button>
       </div>
@@ -188,7 +189,7 @@ function CalendarStrip({
             <button
               key={cell.iso}
               type="button"
-              onClick={() => onPickDate(cell.iso)}
+              onClick={() => { void haptic("tap"); onPickDate(cell.iso); }}
               aria-label={`${cell.iso}`}
               style={{
                 position: "relative" as const,
@@ -310,7 +311,7 @@ function TaskRow({
       {/* Info */}
       <button
         type="button"
-        onClick={() => onEdit(task)}
+        onClick={() => { void haptic("tap"); onEdit(task); }}
         style={{
           flex: 1,
           minWidth: 0,
@@ -346,7 +347,7 @@ function TaskRow({
       {!isDone && (
         <button
           type="button"
-          onClick={() => onMarkDone(task)}
+          onClick={() => { void haptic("success"); onMarkDone(task); }}
           aria-label="Markera klar"
           style={{
             background: "none",
@@ -497,7 +498,7 @@ function TaskList({
         <div style={{ marginTop: 4 }}>
           <button
             type="button"
-            onClick={() => setShowDone((s) => !s)}
+            onClick={() => { void haptic("tap"); setShowDone((s) => !s); }}
             style={{
               display: "flex",
               alignItems: "center",
@@ -786,7 +787,7 @@ export default function GardenSeasonPage() {
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button
             type="button"
-            onClick={() => setEditing({ datum: isoToday(), status: "Planerad" })}
+            onClick={() => { void haptic("tap"); setEditing({ datum: isoToday(), status: "Planerad" }); }}
             style={{
               display: "inline-flex",
               alignItems: "center",

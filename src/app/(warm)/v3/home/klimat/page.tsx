@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -23,6 +23,7 @@ import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import TempGraph from "@/components/warm/TempGraph";
 import WarmPress from "@/components/warm/WarmPress";
 import { formatTime, periodLabel } from "@/lib/warm/format";
+import { haptic } from "@/lib/warm/haptics";
 
 type SensorArea = {
   area_id: string;
@@ -155,7 +156,10 @@ function PageHeading({
     >
       <button
         type="button"
-        onClick={back}
+        onClick={() => {
+          void haptic("tap");
+          back();
+        }}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -1110,6 +1114,8 @@ function HeroTempSlider({
   onSet: (v: number) => void;
 }) {
   const [live, setLive] = useState<number | null>(null);
+  // Senast hapticade halv-grad — fyrar haptic per 0.5° steg under drag.
+  const lastStep = useRef<number>(value);
   const display = live ?? value;
   const fillPct = ((display - 16) / (30 - 16)) * 100;
   return (
@@ -1149,6 +1155,10 @@ function HeroTempSlider({
             `${(((v - 16) / (30 - 16)) * 100).toFixed(1)}%`
           );
           setLive(v);
+          if (lastStep.current !== v) {
+            lastStep.current = v;
+            void haptic("select");
+          }
         }}
         onMouseUp={(e) => onSet(parseFloat((e.target as HTMLInputElement).value))}
         onTouchEnd={(e) => onSet(parseFloat((e.target as HTMLInputElement).value))}

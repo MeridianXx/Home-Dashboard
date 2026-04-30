@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -19,6 +19,7 @@ import {
   VolumeIcon,
 } from "@/components/warm/icons/extra";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
+import { haptic } from "@/lib/warm/haptics";
 
 type MediaPlayer = {
   entity_id: string;
@@ -87,7 +88,10 @@ function TransportButton({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        void haptic("tap");
+        onClick();
+      }}
       aria-label={label}
       disabled={disabled}
       style={{
@@ -121,6 +125,8 @@ function SonosTile({
 }) {
   const playing = isPlaying(player.state);
   const [liveVol, setLiveVol] = useState<number | null>(null);
+  // Senast hapticade 10%-steg på volymslidern.
+  const lastVolStep = useRef<number>(-1);
   const volPct = Math.round(((liveVol ?? player.volume_level ?? 0) as number) * 100);
   const subtitle =
     player.media_artist ||
@@ -279,6 +285,11 @@ function SonosTile({
             const v = parseInt(el.value);
             el.style.setProperty("--fill", `${v}%`);
             setLiveVol(v / 100);
+            const step = Math.round(v / 10) * 10;
+            if (lastVolStep.current !== step) {
+              lastVolStep.current = step;
+              void haptic("select");
+            }
           }}
           onMouseUp={async (e) => {
             const v = parseInt((e.target as HTMLInputElement).value) / 100;
@@ -465,7 +476,10 @@ function AppleTvTile({
       >
         <button
           type="button"
-          onClick={togglePower}
+          onClick={() => {
+            void haptic("tap");
+            togglePower();
+          }}
           aria-label={isOff ? "Slå på" : "Stäng av"}
           style={{
             width: 28,

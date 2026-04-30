@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { useWarmTheme } from "@/lib/warm/theme";
 import { body, num } from "@/lib/warm/tokens";
 import { CloseIcon } from "@/components/warm/icons/fit";
+import { haptic } from "@/lib/warm/haptics";
 
 /**
  * Bottom-sheet-style modal i Warm-stil. Renderas via React-portal mot
@@ -79,7 +80,10 @@ export function WarmModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              void haptic("tap");
+              onClose();
+            }}
             aria-label="Stäng"
             style={{
               background: "transparent",

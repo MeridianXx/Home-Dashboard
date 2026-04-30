@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { callAction } from "@/lib/actions";
 import { useHydrated, useWarmTheme } from "@/lib/warm/theme";
+import { haptic } from "@/lib/warm/haptics";
 import {
   ACC,
   body,
@@ -91,7 +92,10 @@ function SceneRow({
             <button
               key={s.key}
               type="button"
-              onClick={() => onActivate(s.key)}
+              onClick={() => {
+                void haptic("tap");
+                onActivate(s.key);
+              }}
               aria-pressed={isActive}
               style={{
                 display: "inline-flex",
@@ -186,7 +190,10 @@ function FloorSection({
           {sectionOn > 0 && (
             <button
               type="button"
-              onClick={() => onSectionOff(sectionKey, list)}
+              onClick={() => {
+                void haptic("tap");
+                onSectionOff(sectionKey, list);
+              }}
               disabled={offLoading === sectionKey}
               style={{
                 fontFamily: body,
@@ -364,7 +371,10 @@ export default function WarmLightingPage() {
             {totalOn > 0 && (
               <button
                 type="button"
-                onClick={handleAllOff}
+                onClick={() => {
+                  void haptic("tap");
+                  handleAllOff();
+                }}
                 disabled={offLoading === "all"}
                 style={{
                   fontFamily: body,

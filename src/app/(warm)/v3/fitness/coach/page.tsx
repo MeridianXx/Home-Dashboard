@@ -18,6 +18,7 @@ import { ACC, AMBER, body, ital, lab, num, SAGE, LINGON } from "@/lib/warm/token
 import { DetailHero, SectionLabel } from "@/components/warm/fit/parts";
 import { Tile } from "@/components/warm/primitives";
 import { WarmModal } from "@/components/warm/Modal";
+import { haptic } from "@/lib/warm/haptics";
 import {
   CalendarIcon,
   PlusIcon,
@@ -219,12 +220,12 @@ function WarmFitnessCoachInner() {
       <div style={{ padding: "0 14px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
         {/* Period-nav */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button type="button" onClick={() => shiftPeriod(-1)} aria-label="Föregående period" style={iconBtn(t)}>
+          <button type="button" onClick={() => { void haptic("tap"); shiftPeriod(-1); }} aria-label="Föregående period" style={iconBtn(t)}>
             <ChevronLeft size={16} color={t.mute} />
           </button>
           <button
             type="button"
-            onClick={goToday}
+            onClick={() => { void haptic("tap"); goToday(); }}
             title="Gå till idag"
             style={{
               flex: 1,
@@ -247,7 +248,7 @@ function WarmFitnessCoachInner() {
           >
             {periodLabel}
           </button>
-          <button type="button" onClick={() => shiftPeriod(1)} aria-label="Nästa period" style={iconBtn(t)}>
+          <button type="button" onClick={() => { void haptic("tap"); shiftPeriod(1); }} aria-label="Nästa period" style={iconBtn(t)}>
             <ChevronRight size={16} color={t.mute} />
           </button>
           <div
@@ -265,7 +266,7 @@ function WarmFitnessCoachInner() {
               <button
                 key={v}
                 type="button"
-                onClick={() => setView(v)}
+                onClick={() => { void haptic("tap"); setView(v); }}
                 style={{
                   fontFamily: body,
                   fontSize: 11,
@@ -288,7 +289,7 @@ function WarmFitnessCoachInner() {
         <div style={{ display: "flex", gap: 8 }}>
           <button
             type="button"
-            onClick={() => openNew(isoDate(new Date()))}
+            onClick={() => { void haptic("tap"); openNew(isoDate(new Date())); }}
             style={{
               flex: 1,
               display: "inline-flex",
@@ -311,7 +312,7 @@ function WarmFitnessCoachInner() {
           </button>
           <button
             type="button"
-            onClick={() => setSingleAI({ date: isoDate(new Date()), hint: "" })}
+            onClick={() => { void haptic("tap"); setSingleAI({ date: isoDate(new Date()), hint: "" }); }}
             style={{
               flex: 1,
               display: "inline-flex",
@@ -479,7 +480,7 @@ function WeekView({
               </div>
               <button
                 type="button"
-                onClick={() => onOpen({ datum: iso })}
+                onClick={() => { void haptic("tap"); onOpen({ datum: iso }); }}
                 aria-label="Lägg till pass"
                 style={{
                   background: "transparent",
@@ -603,7 +604,7 @@ function PlanPill({
     );
   }
   return (
-    <button type="button" onClick={onClick} style={baseStyle}>
+    <button type="button" onClick={() => { void haptic("tap"); onClick(); }} style={baseStyle}>
       {inner}
     </button>
   );
@@ -715,6 +716,7 @@ function MonthView({
               key={i}
               type="button"
               onClick={() => {
+                void haptic("tap");
                 if (items.length === 1 && done.length === 0) onOpen(items[0]);
                 else onOpen({ datum: iso });
               }}
@@ -827,7 +829,7 @@ function PlanModal({
           {isEdit && onDelete ? (
             <button
               type="button"
-              onClick={del}
+              onClick={() => { void haptic("warning"); del(); }}
               disabled={saving}
               style={{
                 fontFamily: body,
@@ -851,7 +853,7 @@ function PlanModal({
           <div style={{ flex: 1 }} />
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => { void haptic("tap"); onClose(); }}
             disabled={saving}
             style={{
               fontFamily: body,
@@ -869,7 +871,7 @@ function PlanModal({
           </button>
           <button
             type="button"
-            onClick={save}
+            onClick={() => { void haptic("success"); save(); }}
             disabled={saving || !form.datum}
             style={{
               display: "inline-flex",
@@ -1093,7 +1095,7 @@ function SingleAIModal({
             <div style={{ flex: 1 }} />
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => { void haptic("tap"); onClose(); }}
               style={{
                 fontFamily: body,
                 fontSize: 12,
@@ -1110,7 +1112,7 @@ function SingleAIModal({
             </button>
             <button
               type="button"
-              onClick={generate}
+              onClick={() => { void haptic("tap"); generate(); }}
               disabled={generating}
               style={{
                 display: "inline-flex",
@@ -1136,7 +1138,7 @@ function SingleAIModal({
           <>
             <button
               type="button"
-              onClick={() => setDraft(null)}
+              onClick={() => { void haptic("tap"); setDraft(null); }}
               disabled={saving}
               style={{
                 display: "inline-flex",
@@ -1159,7 +1161,7 @@ function SingleAIModal({
             <div style={{ flex: 1 }} />
             <button
               type="button"
-              onClick={save}
+              onClick={() => { void haptic("success"); save(); }}
               disabled={saving}
               style={{
                 display: "inline-flex",
@@ -1400,7 +1402,7 @@ function AIPlanSection({ onApplied }: { onApplied: () => Promise<void> }) {
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
               <button
                 type="button"
-                onClick={generate}
+                onClick={() => { void haptic("tap"); generate(); }}
                 disabled={generating || !prompt.trim()}
                 style={{
                   display: "inline-flex",
@@ -1541,7 +1543,7 @@ function DraftPanel({
                 </span>
                 <button
                   type="button"
-                  onClick={() => regenerateOne(i)}
+                  onClick={() => { void haptic("tap"); regenerateOne(i); }}
                   disabled={anyRegenerating || revising || saving}
                   aria-label="Regenerera detta pass"
                   title="Byt ut detta pass"
@@ -1586,7 +1588,7 @@ function DraftPanel({
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
           <button
             type="button"
-            onClick={revise}
+            onClick={() => { void haptic("tap"); revise(); }}
             disabled={revising || !feedback.trim() || regenIndex !== null || saving}
             style={{
               display: "inline-flex",
@@ -1640,7 +1642,7 @@ function DraftPanel({
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
         <button
           type="button"
-          onClick={cancel}
+          onClick={() => { void haptic("tap"); cancel(); }}
           disabled={saving || revising || regenIndex !== null}
           style={{
             fontFamily: body,
@@ -1658,7 +1660,7 @@ function DraftPanel({
         </button>
         <button
           type="button"
-          onClick={save}
+          onClick={() => { void haptic("success"); save(); }}
           disabled={saving || revising || regenIndex !== null}
           style={{
             display: "inline-flex",

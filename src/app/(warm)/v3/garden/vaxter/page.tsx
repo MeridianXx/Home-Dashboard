@@ -14,6 +14,7 @@ import { useWarmTheme } from "@/lib/warm/theme";
 import { ACC, SAGE, body, ital, lab, num } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { DetailHero } from "@/components/warm/fit/parts";
+import { haptic } from "@/lib/warm/haptics";
 import { WarmModal } from "@/components/warm/Modal";
 import { inputStyle, Field, SelectBox, MultiSelectChips } from "@/components/warm/garden/forms";
 import { plantGlyph, PlusIcon } from "@/components/warm/icons/garden";
@@ -68,7 +69,7 @@ function FilterRow({
             <button
               key={opt}
               type="button"
-              onClick={() => onChange(opt)}
+              onClick={() => { void haptic("tap"); onChange(opt); }}
               style={{
                 fontFamily: body,
                 fontSize: 11,
@@ -305,14 +306,14 @@ function CreateModal({
         <div style={{ display: "flex", gap: 8, width: "100%", justifyContent: "flex-end" }}>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => { void haptic("tap"); onClose(); }}
             style={{ fontFamily: body, fontSize: 13, fontWeight: 500, background: "transparent", border: `1px solid ${t.line}`, borderRadius: 999, padding: "8px 16px", color: t.mute, cursor: "pointer" }}
           >
             Avbryt
           </button>
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => { void haptic("success"); handleSave(); }}
             disabled={saving}
             style={{ fontFamily: body, fontSize: 13, fontWeight: 600, background: ACC, border: "none", borderRadius: 999, padding: "8px 20px", color: "#FFFBF0", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}
           >
@@ -457,7 +458,7 @@ export default function GardenPlantsPage() {
         right={
           <button
             type="button"
-            onClick={() => setCreateOpen(true)}
+            onClick={() => { void haptic("tap"); setCreateOpen(true); }}
             style={{
               display: "inline-flex",
               alignItems: "center",

@@ -44,6 +44,10 @@ export const viewport: Viewport = {
   themeColor: "#C96F4A",
   width: "device-width",
   initialScale: 1,
+  // Lås zoom — annars auto-zoomar iOS in när man fokuserar en text-input
+  // i Capacitor-appen och fastnar i fel skala efter att tangentbordet stängts.
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

@@ -10,6 +10,7 @@ import { fetcher } from "@/lib/fetcher";
 import { useWarmTheme } from "@/lib/warm/theme";
 import { ACC, body, ital, lab, num } from "@/lib/warm/tokens";
 import { SparkleIcon, RefreshIcon, ErrorIcon } from "@/components/warm/icons/fit";
+import { haptic } from "@/lib/warm/haptics";
 
 interface AnalyseGet {
   analysis: string | null;
@@ -135,7 +136,7 @@ export function WarmAIAnalysisCard({
             {!generating && (
               <button
                 type="button"
-                onClick={() => setShowCommentForRegen((s) => !s)}
+                onClick={() => { void haptic("tap"); setShowCommentForRegen((s) => !s); }}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -156,7 +157,7 @@ export function WarmAIAnalysisCard({
             )}
             <button
               type="button"
-              onClick={generate}
+              onClick={() => { void haptic("tap"); generate(); }}
               disabled={generating}
               style={{
                 display: "inline-flex",
@@ -233,7 +234,7 @@ export function WarmAIAnalysisCard({
           <div style={{ marginBottom: 12 }}>{commentField}</div>
           <button
             type="button"
-            onClick={generate}
+            onClick={() => { void haptic("tap"); generate(); }}
             disabled={generating}
             style={{
               display: "inline-flex",

@@ -6,6 +6,7 @@
 // bågen för att justera värdet).
 
 import { useRef, useState, type ReactNode } from "react";
+import { haptic } from "@/lib/warm/haptics";
 
 export default function ArcGauge({
   value,
@@ -88,6 +89,8 @@ export default function ArcGauge({
     return Math.max(0, Math.min(100, Math.round(progress * 100)));
   }
 
+  // Senast hapticade 10%-steg under drag.
+  const lastStep = useRef<number>(-1);
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!interactive) return;
     e.stopPropagation();
@@ -97,6 +100,8 @@ export default function ArcGauge({
       setDragging(true);
       setLiveValue(v);
       onChange?.(v);
+      lastStep.current = Math.round(v / 10) * 10;
+      void haptic("select");
     }
   };
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -105,6 +110,11 @@ export default function ArcGauge({
     if (v != null) {
       setLiveValue(v);
       onChange?.(v);
+      const step = Math.round(v / 10) * 10;
+      if (lastStep.current !== step) {
+        lastStep.current = step;
+        void haptic("select");
+      }
     }
   };
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {

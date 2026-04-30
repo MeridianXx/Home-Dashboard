@@ -242,6 +242,7 @@ export default function LightEditSheet({
                   key={p.value}
                   type="button"
                   onClick={async () => {
+                    void haptic("tap");
                     setLiveKelvin(p.value);
                     await onSetKelvin(light.entity_id, p.value);
                   }}
@@ -325,7 +326,10 @@ export default function LightEditSheet({
           {adaptive && (
             <button
               type="button"
-              onClick={() => onToggleAdaptive(adaptive)}
+              onClick={() => {
+                void haptic("tap");
+                onToggleAdaptive(adaptive);
+              }}
               aria-label={adaptiveOn ? "Stäng av Följ solen" : "Slå på Följ solen"}
               style={{
                 position: "relative",
@@ -359,7 +363,10 @@ export default function LightEditSheet({
         {/* Stäng */}
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => {
+            void haptic("tap");
+            onClose();
+          }}
           style={{
             alignSelf: "center",
             display: "inline-flex",

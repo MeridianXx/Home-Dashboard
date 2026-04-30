@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, notFound } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -28,6 +28,7 @@ import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import ArcGauge from "@/components/warm/ArcGauge";
 import LightEditSheet from "@/components/warm/LightEditSheet";
 import WarmPress from "@/components/warm/WarmPress";
+import { haptic } from "@/lib/warm/haptics";
 import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { slugToName } from "@/lib/warm/rooms";
 import { hasAdaptiveLighting } from "@/lib/warm/al-lights";
@@ -98,7 +99,10 @@ function RumHeading({
     >
       <button
         type="button"
-        onClick={back}
+        onClick={() => {
+          void haptic("tap");
+          back();
+        }}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -360,6 +364,8 @@ function LampRow({
   const lon = light.state === "on";
   const display = liveBrightness ?? light.brightness_pct ?? (lon ? 100 : 0);
   const displayK = effectiveKelvin ?? light.color_temp_kelvin;
+  // Senast hapticade 10%-steg på dimmer-slidern.
+  const lastStep = useRef<number>(-1);
   return (
     <div
       style={{
@@ -389,7 +395,10 @@ function LampRow({
         >
           <button
             type="button"
-            onClick={() => onToggle(light)}
+            onClick={() => {
+              void haptic("tap");
+              onToggle(light);
+            }}
             aria-label={`Slå ${lon ? "av" : "på"} ${light.name}`}
             style={{
               flex: 1,
@@ -434,7 +443,10 @@ function LampRow({
           {lon && displayK != null && hasAdaptiveLighting(light.entity_id) && (
             <button
               type="button"
-              onClick={() => onOpenEdit(light)}
+              onClick={() => {
+                void haptic("tap");
+                onOpenEdit(light);
+              }}
               aria-label={`Redigera färgtemperatur för ${light.name}`}
               style={{
                 display: "inline-flex",
@@ -515,6 +527,11 @@ function LampRow({
             const v = parseInt(el.value);
             el.style.setProperty("--fill", `${v}%`);
             onLiveBrightness(light.entity_id, v);
+            const step = Math.round(v / 10) * 10;
+            if (lastStep.current !== step) {
+              lastStep.current = step;
+              void haptic("select");
+            }
           }}
           onMouseUp={(e) =>
             onCommit(light.entity_id, parseInt((e.target as HTMLInputElement).value))
@@ -743,7 +760,10 @@ function MediaPlayerRow({
           <button
             type="button"
             aria-label="Föregående"
-            onClick={() => call("media_previous_track")}
+            onClick={() => {
+              void haptic("tap");
+              call("media_previous_track");
+            }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -761,7 +781,10 @@ function MediaPlayerRow({
           <button
             type="button"
             aria-label={playing ? "Pausa" : "Spela"}
-            onClick={() => call(playing ? "media_pause" : "media_play")}
+            onClick={() => {
+              void haptic("tap");
+              call(playing ? "media_pause" : "media_play");
+            }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -783,7 +806,10 @@ function MediaPlayerRow({
           <button
             type="button"
             aria-label="Nästa"
-            onClick={() => call("media_next_track")}
+            onClick={() => {
+              void haptic("tap");
+              call("media_next_track");
+            }}
             style={{
               display: "inline-flex",
               alignItems: "center",

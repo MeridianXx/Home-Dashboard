@@ -16,6 +16,7 @@ import {
   type WarmTheme,
 } from "@/lib/warm/tokens";
 import { ChevronLeft } from "@/components/warm/icons/extra";
+import { haptic } from "@/lib/warm/haptics";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import { formatTime, spotLabel } from "@/lib/warm/format";
 
@@ -69,7 +70,7 @@ function PageHeading({
     >
       <button
         type="button"
-        onClick={back}
+        onClick={() => { void haptic("tap"); back(); }}
         style={{
           display: "inline-flex",
           alignItems: "center",

@@ -13,6 +13,7 @@ import { useWarmTheme } from "@/lib/warm/theme";
 import { ACC, body, ital, lab, num } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { DetailHero } from "@/components/warm/fit/parts";
+import { haptic } from "@/lib/warm/haptics";
 import {
   SparkleIcon,
   SendIcon,
@@ -221,7 +222,7 @@ function ContextPanel({ ctx, onRefresh, loading }: { ctx: ContextSummary | undef
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <span style={lab(t)}>Kontext laddat till AI</span>
         <div style={{ flex: 1 }} />
-        <button type="button" onClick={onRefresh} disabled={loading} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: body, fontSize: 11, fontWeight: 600, color: t.ink, background: t.paper, border: `1px solid ${t.line}`, borderRadius: 999, padding: "4px 10px", cursor: loading ? "wait" : "pointer" }}>
+        <button type="button" onClick={() => { void haptic("tap"); onRefresh(); }} disabled={loading} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: body, fontSize: 11, fontWeight: 600, color: t.ink, background: t.paper, border: `1px solid ${t.line}`, borderRadius: 999, padding: "4px 10px", cursor: loading ? "wait" : "pointer" }}>
           <RefreshIcon size={11} color={t.mute} style={{ animation: loading ? "spin-anim 0.8s linear infinite" : undefined }} />
           Uppdatera
         </button>
@@ -385,7 +386,7 @@ function GardenAIInner() {
         right={
           <button
             type="button"
-            onClick={() => setShowContext((v) => !v)}
+            onClick={() => { void haptic("tap"); setShowContext((v) => !v); }}
             style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: body, fontSize: 11, fontWeight: 600, background: showContext ? `${ACC}20` : t.paper, color: showContext ? ACC : t.mute, border: `1px solid ${showContext ? ACC : t.line}`, borderRadius: 999, padding: "5px 11px", cursor: "pointer" }}
           >
             <SparkleIcon size={11} color={showContext ? ACC : t.mute} />
@@ -422,7 +423,7 @@ function GardenAIInner() {
                 <button
                   key={q}
                   type="button"
-                  onClick={() => { setInput(q); textareaRef.current?.focus(); }}
+                  onClick={() => { void haptic("tap"); setInput(q); textareaRef.current?.focus(); }}
                   style={{ fontFamily: body, fontSize: 12, fontWeight: 500, background: t.paper, color: t.ink, border: `1px solid ${t.line}`, borderRadius: 12, padding: "10px 12px", cursor: "pointer", textAlign: "left", lineHeight: 1.35 }}
                 >
                   {q}
@@ -457,7 +458,7 @@ function GardenAIInner() {
               {pendingImages.map((img, i) => (
                 <div key={i} style={{ position: "relative" }}>
                   <img src={`data:${img.mediaType};base64,${img.base64}`} alt={`bilaga ${i + 1}`} style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8, display: "block" }} />
-                  <button type="button" onClick={() => setPendingImages((arr) => arr.filter((_, idx) => idx !== i))} aria-label="Ta bort bild" style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: 9, background: t.ink, border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                  <button type="button" onClick={() => { void haptic("tap"); setPendingImages((arr) => arr.filter((_, idx) => idx !== i)); }} aria-label="Ta bort bild" style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: 9, background: t.ink, border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
                     <CloseIcon size={10} color={t.bg} />
                   </button>
                 </div>
@@ -466,10 +467,10 @@ function GardenAIInner() {
           )}
 
           <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
-            <button type="button" onClick={handlePickCamera} disabled={busy} aria-label="Ta foto" title="Ta foto" style={{ width: 34, height: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 17, background: "transparent", border: "none", cursor: busy ? "wait" : "pointer", flexShrink: 0, padding: 0 }}>
+            <button type="button" onClick={() => { void haptic("tap"); handlePickCamera(); }} disabled={busy} aria-label="Ta foto" title="Ta foto" style={{ width: 34, height: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 17, background: "transparent", border: "none", cursor: busy ? "wait" : "pointer", flexShrink: 0, padding: 0 }}>
               <CameraIcon size={18} color={t.mute} />
             </button>
-            <button type="button" onClick={handlePickFile} disabled={busy} aria-label="Lägg till bild" title="Lägg till bild" style={{ width: 34, height: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 17, background: "transparent", border: "none", cursor: busy ? "wait" : "pointer", flexShrink: 0, padding: 0 }}>
+            <button type="button" onClick={() => { void haptic("tap"); handlePickFile(); }} disabled={busy} aria-label="Lägg till bild" title="Lägg till bild" style={{ width: 34, height: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 17, background: "transparent", border: "none", cursor: busy ? "wait" : "pointer", flexShrink: 0, padding: 0 }}>
               <ImageIcon size={18} color={t.mute} />
             </button>
             <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleFileChange} style={{ display: "none" }} />
@@ -508,7 +509,7 @@ function GardenAIInner() {
               }}
             />
 
-            <button type="button" onClick={() => send(input, pendingImages)} disabled={busy || (!input.trim() && pendingImages.length === 0)} aria-label="Skicka" style={{ width: 34, height: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 17, background: ACC, color: "#FFFBF0", border: "none", cursor: busy ? "wait" : "pointer", opacity: busy || (!input.trim() && pendingImages.length === 0) ? 0.5 : 1, flexShrink: 0 }}>
+            <button type="button" onClick={() => { void haptic("success"); send(input, pendingImages); }} disabled={busy || (!input.trim() && pendingImages.length === 0)} aria-label="Skicka" style={{ width: 34, height: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 17, background: ACC, color: "#FFFBF0", border: "none", cursor: busy ? "wait" : "pointer", opacity: busy || (!input.trim() && pendingImages.length === 0) ? 0.5 : 1, flexShrink: 0 }}>
               {busy ? (
                 <span style={{ display: "inline-flex", animation: "spin-anim 0.8s linear infinite" }}>
                   <ProgressIcon size={16} color="#FFFBF0" />

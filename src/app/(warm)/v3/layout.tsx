@@ -282,7 +282,10 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
           footer={
             <button
               type="button"
-              onClick={toggle}
+              onClick={() => {
+                void haptic("tap");
+                toggle();
+              }}
               aria-label={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
               title={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
               style={{

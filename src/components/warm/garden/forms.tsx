@@ -5,6 +5,7 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { useWarmTheme } from "@/lib/warm/theme";
+import { haptic } from "@/lib/warm/haptics";
 import { ACC, body, lab } from "@/lib/warm/tokens";
 import type { WarmTheme } from "@/lib/warm/tokens";
 
@@ -99,7 +100,10 @@ export function MultiSelectChips({
           <button
             key={opt}
             type="button"
-            onClick={() => toggle(opt)}
+            onClick={() => {
+              void haptic("tap");
+              toggle(opt);
+            }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -219,7 +223,10 @@ export function ModalFooter({
       {destructiveLabel && onDestructive ? (
         <button
           type="button"
-          onClick={onDestructive}
+          onClick={() => {
+            void haptic("warning");
+            onDestructive?.();
+          }}
           disabled={saving}
           style={{
             fontFamily: body,
@@ -238,7 +245,10 @@ export function ModalFooter({
       <div style={{ flex: 1 }} />
       <button
         type="button"
-        onClick={onCancel}
+        onClick={() => {
+          void haptic("tap");
+          onCancel();
+        }}
         disabled={saving}
         style={{
           fontFamily: body,
@@ -255,7 +265,10 @@ export function ModalFooter({
       </button>
       <button
         type="button"
-        onClick={onSave}
+        onClick={() => {
+          void haptic("success");
+          onSave();
+        }}
         disabled={saving || !canSave}
         style={{
           fontFamily: body,

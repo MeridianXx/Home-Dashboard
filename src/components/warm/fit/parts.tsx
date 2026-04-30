@@ -8,6 +8,7 @@ import { useWarmTheme } from "@/lib/warm/theme";
 import { ACC, body, ital, lab, num } from "@/lib/warm/tokens";
 import { ChevronLeft, ChevronRight } from "@/components/warm/icons/extra";
 import { ThemeIcon } from "@/components/warm/icons";
+import { haptic } from "@/lib/warm/haptics";
 
 /**
  * `HubThemeToggle` — den ENDA standardiserade toggle-knappen för hub-headers.
@@ -29,7 +30,10 @@ export function HubThemeToggle({
   return (
     <button
       type="button"
-      onClick={onToggle}
+      onClick={() => {
+        void haptic("tap");
+        onToggle();
+      }}
       aria-label={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
       style={{
         width: 36,

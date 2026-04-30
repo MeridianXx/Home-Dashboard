@@ -1,6 +1,7 @@
 "use client";
 
 import { body, type WarmTheme } from "@/lib/warm/tokens";
+import { haptic } from "@/lib/warm/haptics";
 
 export default function WarmErrorBanner({
   t,
@@ -32,7 +33,7 @@ export default function WarmErrorBanner({
       {onRetry ? (
         <button
           type="button"
-          onClick={onRetry}
+          onClick={() => { void haptic("tap"); onRetry?.(); }}
           style={{
             fontFamily: body,
             fontSize: 12,

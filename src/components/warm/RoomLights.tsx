@@ -58,7 +58,10 @@ export function RoomLightRow({
       <div style={{ display: "flex", alignItems: "stretch" }}>
         <button
           type="button"
-          onClick={() => onToggleArea(area)}
+          onClick={() => {
+            void haptic("tap");
+            onToggleArea(area);
+          }}
           style={{
             display: "flex",
             alignItems: "center",
@@ -118,7 +121,10 @@ export function RoomLightRow({
         </button>
         <button
           type="button"
-          onClick={onToggleExpand}
+          onClick={() => {
+            void haptic("tap");
+            onToggleExpand();
+          }}
           aria-label={expanded ? "Dölj lampor" : "Visa lampor"}
           style={{
             display: "inline-flex",

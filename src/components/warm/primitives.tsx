@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import { haptic } from "@/lib/warm/haptics";
 import {
   ACC,
   RADII,
@@ -41,7 +42,10 @@ export function Tile({
     return (
       <button
         type="button"
-        onClick={onClick}
+        onClick={() => {
+          void haptic("tap");
+          onClick?.();
+        }}
         style={{ ...baseStyle, textAlign: "left", width: "100%", cursor: onClick ? "pointer" : "default" }}
       >
         {children}
@@ -87,7 +91,10 @@ export function Pill({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        void haptic("tap");
+        onClick?.();
+      }}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -249,7 +256,10 @@ export function DetailHeader({
     >
       <button
         type="button"
-        onClick={back}
+        onClick={() => {
+          void haptic("tap");
+          back();
+        }}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -328,7 +338,10 @@ export function TabBar({
             <button
               key={k}
               type="button"
-              onClick={() => onChange(k)}
+              onClick={() => {
+                void haptic("tap");
+                onChange(k);
+              }}
               aria-label={labelFor(k)}
               style={{
                 display: "inline-flex",
@@ -414,7 +427,10 @@ export function Sidebar({
             <button
               key={k}
               type="button"
-              onClick={() => onChange(k)}
+              onClick={() => {
+                void haptic("tap");
+                onChange(k);
+              }}
               aria-label={labelFor(k)}
               aria-current={isActive ? "page" : undefined}
               style={{

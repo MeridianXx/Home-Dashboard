@@ -13,6 +13,7 @@ import { ACC, body, ital, lab, num } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { DetailHero } from "@/components/warm/fit/parts";
 import { PlusIcon, EditIcon } from "@/components/warm/icons/garden";
+import { haptic } from "@/lib/warm/haptics";
 import { ChevronLeft } from "@/components/warm/icons/extra";
 import { WarmModal } from "@/components/warm/Modal";
 import {
@@ -68,7 +69,7 @@ function FilterPills({
             <button
               key={opt}
               type="button"
-              onClick={() => onChange(opt === "Alla" ? "" : opt)}
+              onClick={() => { void haptic("tap"); onChange(opt === "Alla" ? "" : opt); }}
               style={{
                 fontFamily: body,
                 fontSize: 11,
@@ -173,7 +174,7 @@ function ProjectCard({
         </div>
         <button
           type="button"
-          onClick={() => onEdit(project)}
+          onClick={() => { void haptic("tap"); onEdit(project); }}
           onPointerDown={(e) => e.stopPropagation()}
           style={{
             background: "none",
@@ -289,7 +290,7 @@ function StatusGroup({
     <div>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => { void haptic("tap"); setOpen((o) => !o); }}
         style={{
           width: "100%",
           display: "flex",
@@ -647,7 +648,7 @@ export default function ProjektPage() {
         {/* Nytt projekt-knapp */}
         <button
           type="button"
-          onClick={openCreate}
+          onClick={() => { void haptic("tap"); openCreate(); }}
           style={{
             display: "flex",
             alignItems: "center",

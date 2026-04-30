@@ -691,6 +691,7 @@ function RoomList({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
+                  void haptic("tap");
                   if (r.lightArea) onToggleArea(r.lightArea);
                 }}
                 disabled={!r.lightArea}

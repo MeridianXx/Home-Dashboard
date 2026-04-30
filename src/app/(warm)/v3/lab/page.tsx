@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useDesktop, useHydrated, useWarmTheme } from "@/lib/warm/theme";
+import { haptic } from "@/lib/warm/haptics";
 import {
   ACC,
   SAGE,
@@ -249,7 +250,7 @@ function HostCard({
   const router = useRouter();
   return (
     <div
-      onClick={() => router.push(href)}
+      onClick={() => { void haptic("tap"); router.push(href); }}
       style={{
         display: "block",
         color: t.ink,

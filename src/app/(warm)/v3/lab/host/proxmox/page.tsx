@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useHydrated, useWarmTheme } from "@/lib/warm/theme";
+import { haptic } from "@/lib/warm/haptics";
 import {
   ACC,
   SAGE,
@@ -97,7 +98,7 @@ function PageHeading({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <button
           type="button"
-          onClick={back}
+          onClick={() => { void haptic("tap"); back(); }}
           style={{
             display: "inline-flex",
             alignItems: "center",
