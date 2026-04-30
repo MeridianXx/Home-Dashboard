@@ -20,6 +20,7 @@ import { HubDisplay, HubThemeToggle } from "@/components/warm/fit/parts";
 import { SceneGlyph } from "@/components/warm/icons";
 import { ChevronRight } from "@/components/warm/icons/extra";
 import { weatherGlyph } from "@/lib/warm/weather";
+import { haptic } from "@/lib/warm/haptics";
 import SunArc from "@/components/warm/SunArc";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
@@ -377,7 +378,10 @@ function ScenesSection({
             <button
               key={s.key}
               type="button"
-              onClick={() => onActivate(s.key)}
+              onClick={() => {
+                void haptic("tap");
+                onActivate(s.key);
+              }}
               aria-pressed={isActive}
               style={{
                 display: "inline-flex",

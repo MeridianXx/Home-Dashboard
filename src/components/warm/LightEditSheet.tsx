@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ACC, body, ital, lab, num, serif, type WarmTheme } from "@/lib/warm/tokens";
 import { kelvinLabel } from "@/lib/warm/format";
 import { CheckIcon } from "@/components/warm/icons/extra";
 import { SunIcon } from "@/components/warm/icons/extra";
+import { haptic } from "@/lib/warm/haptics";
 
 type LightEntry = {
   entity_id: string;
@@ -60,6 +61,8 @@ export default function LightEditSheet({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const [liveKelvin, setLiveKelvin] = useState<number | null>(null);
+  // Senast hapticade 10%-steg på K-slidern.
+  const lastKelvinStep = useRef<number>(-1);
 
   useEffect(() => {
     if (open) setLiveKelvin(null);
@@ -190,6 +193,11 @@ export default function LightEditSheet({
               const fp = ((v - KELVIN_MIN) / (KELVIN_MAX - KELVIN_MIN)) * 100;
               el.style.setProperty("--fill", `${fp}%`);
               setLiveKelvin(v);
+              const step = Math.round(fp / 10) * 10;
+              if (lastKelvinStep.current !== step) {
+                lastKelvinStep.current = step;
+                void haptic("select");
+              }
             }}
             onMouseUp={async (e) => {
               const v = parseInt((e.target as HTMLInputElement).value);

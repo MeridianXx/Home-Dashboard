@@ -1,6 +1,7 @@
 "use client";
 
 import { ACC, type WarmTheme } from "@/lib/warm/tokens";
+import { haptic } from "@/lib/warm/haptics";
 
 export default function WarmSwitch({
   on,
@@ -21,6 +22,7 @@ export default function WarmSwitch({
       aria-label={ariaLabel}
       onClick={(e) => {
         e.stopPropagation();
+        void haptic("tap");
         onChange();
       }}
       style={{

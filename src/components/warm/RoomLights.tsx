@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import WarmSwitch from "@/components/warm/Switch";
 import { BulbIcon, ChevronDown, ChevronUp } from "@/components/warm/icons/extra";
 import { ACC, body, type WarmTheme } from "@/lib/warm/tokens";
+import { haptic } from "@/lib/warm/haptics";
 
 type LightEntry = {
   entity_id: string;
@@ -42,6 +43,8 @@ export function RoomLightRow({
 }) {
   const on = area.on_count > 0;
   const [liveBrightness, setLiveBrightness] = useState<Record<string, number>>({});
+  // Senast hapticade 10%-steg per lampa — så vi inte fyrar haptic på varje pixel-rörelse.
+  const lastStep = useRef<Record<string, number>>({});
   return (
     <div
       style={{
@@ -219,6 +222,11 @@ export function RoomLightRow({
                             const v = parseInt(el.value);
                             el.style.setProperty("--fill", `${v}%`);
                             setLiveBrightness((p) => ({ ...p, [light.entity_id]: v }));
+                            const step = Math.round(v / 10) * 10;
+                            if (lastStep.current[light.entity_id] !== step) {
+                              lastStep.current[light.entity_id] = step;
+                              void haptic("select");
+                            }
                           }}
                           onMouseUp={(e) =>
                             onBrightness(
