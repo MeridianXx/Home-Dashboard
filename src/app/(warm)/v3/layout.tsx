@@ -213,52 +213,64 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Edge-swipe → router.back() · iOS native `allowsBackForwardNavigationGestures`
-  // exponeras inte via Capacitor 8:s config, och WKWebView-gesten är dessutom
-  // läjlig med Next.js App Router (SPA-pushState). Vi rullar egen: aktivera
-  // bara om touch startar inom 24 px från vänsterkanten + horisontellt drag.
+  // Edge-swipe → router.back() / router.forward() · iOS native
+  // `allowsBackForwardNavigationGestures` exponeras inte via Capacitor 8:s
+  // config, och WKWebView-gesten är dessutom läjlig med Next.js App Router
+  // (SPA-pushState). Vi rullar egen: vänsterkant → drag höger = back,
+  // högerkant → drag vänster = forward. Aktivering bara inom 24 px från
+  // respektive kant, drag måste vara ≥ 80 px horisontellt.
   useEffect(() => {
     if (isDesktop) return;
     let startX = 0;
     let startY = 0;
-    let armedSwipe = false;
+    let edge: "left" | "right" | null = null;
     let cancelled = false;
 
     function onStart(e: TouchEvent) {
       const touch = e.touches[0];
       if (!touch) return;
+      const w = window.innerWidth;
       if (touch.clientX <= 24) {
-        startX = touch.clientX;
-        startY = touch.clientY;
-        armedSwipe = true;
-        cancelled = false;
+        edge = "left";
+      } else if (touch.clientX >= w - 24) {
+        edge = "right";
       } else {
-        armedSwipe = false;
+        edge = null;
+        return;
       }
+      startX = touch.clientX;
+      startY = touch.clientY;
+      cancelled = false;
     }
     function onMove(e: TouchEvent) {
-      if (!armedSwipe || cancelled) return;
+      if (!edge || cancelled) return;
       const touch = e.touches[0];
       if (!touch) return;
       const dx = touch.clientX - startX;
       const dy = Math.abs(touch.clientY - startY);
-      // Avbryt om vertikal rörelse dominerar — då är det scroll, inte swipe-back.
-      if (dy > 30 && dy > dx) {
+      // Avbryt om vertikal rörelse dominerar — då är det scroll, inte swipe.
+      // Riktningen avgörs av edge: left vill ha dx > 0, right vill ha dx < 0.
+      const absDx = Math.abs(dx);
+      if (dy > 30 && dy > absDx) {
         cancelled = true;
       }
     }
     function onEnd(e: TouchEvent) {
-      if (!armedSwipe || cancelled) {
-        armedSwipe = false;
+      if (!edge || cancelled) {
+        edge = null;
         return;
       }
       const touch = e.changedTouches[0];
-      armedSwipe = false;
+      const startEdge = edge;
+      edge = null;
       if (!touch) return;
       const dx = touch.clientX - startX;
-      if (dx >= 80) {
+      if (startEdge === "left" && dx >= 80) {
         void haptic("tap");
         router.back();
+      } else if (startEdge === "right" && dx <= -80) {
+        void haptic("tap");
+        router.forward();
       }
     }
 
