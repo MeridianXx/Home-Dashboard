@@ -169,6 +169,26 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
     }
   }, [pull, confirming]);
 
+  // Capacitor StatusBar — match status-bar text-färgen mot Warm-temat.
+  // Dynamic import för att inte dra in plugin-koden i SSR/Safari/PWA där
+  // den bara no-op:ar ändå.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { Capacitor } = await import("@capacitor/core");
+      if (cancelled || Capacitor.getPlatform() !== "ios") return;
+      const { StatusBar, Style } = await import("@capacitor/status-bar");
+      try {
+        await StatusBar.setStyle({ style: dark ? Style.Light : Style.Dark });
+      } catch {
+        // No-op — status-bar-plugin saknas eller iOS-versionen blockerar.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dark]);
+
   const showSpinner = !isDesktop && (pull > 16 || confirming);
 
   return (
@@ -280,10 +300,15 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
       ) : null}
 
       {/* Innehåll. På desktop får sidan ett sidebar-offset + max-width-centrerad
-          inner-pane. På mobil: paddingBottom för TabBar-pillen + pull-translate. */}
+          inner-pane. På mobil: paddingBottom för TabBar-pillen + pull-translate.
+          `env(safe-area-inset-*)` ger plats åt notch/home indicator när appen
+          körs i Capacitor med `contentInset: "never"`. I vanlig browser är de 0. */}
       <div
         style={{
-          paddingBottom: isDesktop ? 0 : 110,
+          paddingTop: isDesktop ? 0 : "env(safe-area-inset-top)",
+          paddingBottom: isDesktop
+            ? 0
+            : "calc(110px + env(safe-area-inset-bottom))",
           paddingLeft: isDesktop ? SIDEBAR_WIDTH : 0,
           transform: !isDesktop ? `translateY(${pull * 0.6}px)` : undefined,
           transition: !isDesktop && armed.current ? "none" : "transform 200ms ease",
