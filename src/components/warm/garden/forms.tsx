@@ -12,8 +12,6 @@ import type { WarmTheme } from "@/lib/warm/tokens";
 export function inputStyle(t: WarmTheme): CSSProperties {
   return {
     width: "100%",
-    // minWidth: 0 säkrar att native date/select inte tvingar containern
-    // bredare än sin grid-cell — annars överlappar boxarna sidledes på iPhone.
     minWidth: 0,
     maxWidth: "100%",
     fontFamily: body,
@@ -28,6 +26,60 @@ export function inputStyle(t: WarmTheme): CSSProperties {
     outline: "none",
     boxSizing: "border-box",
   };
+}
+
+/**
+ * Wrapper för `<input type="date">` på iOS — native picker ignorerar
+ * `width: 100%` och kan expandera utöver sin parent. Vi flyttar all
+ * visuell styling (border, padding, background) till en wrapper-`<div>`
+ * och gör input transparent inom. `overflow: hidden` på wrappern
+ * säkerställer att eventuell intrinsic överbredd från native rendering
+ * klipps visuellt.
+ */
+export function DateInputBox({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const { t } = useWarmTheme();
+  return (
+    <div
+      style={{
+        backgroundColor: t.paper,
+        border: `1px solid ${t.line}`,
+        borderRadius: 8,
+        padding: "0 12px",
+        minHeight: 56,
+        display: "flex",
+        alignItems: "center",
+        boxSizing: "border-box",
+        overflow: "hidden",
+        width: "100%",
+        minWidth: 0,
+      }}
+    >
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width: "100%",
+          minWidth: 0,
+          background: "transparent",
+          border: "none",
+          outline: "none",
+          padding: 0,
+          margin: 0,
+          fontFamily: body,
+          fontSize: 16,
+          lineHeight: 1.4,
+          color: t.ink,
+        }}
+      />
+    </div>
+  );
 }
 
 export function Field({

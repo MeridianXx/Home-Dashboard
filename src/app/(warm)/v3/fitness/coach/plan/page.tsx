@@ -18,6 +18,7 @@ import { ACC, AMBER, body, ital, lab, num, SAGE, LINGON } from "@/lib/warm/token
 import { DetailHero, SectionLabel } from "@/components/warm/fit/parts";
 import { Tile } from "@/components/warm/primitives";
 import { WarmModal } from "@/components/warm/Modal";
+import { DateInputBox } from "@/components/warm/garden/forms";
 import { haptic } from "@/lib/warm/haptics";
 import {
   CalendarIcon,
@@ -905,10 +906,10 @@ function PlanModal({
             style={inputStyle(t)}
           />
         </Field>
-        {/* Stackade på en kolumn — native iOS date/select överstyr
-            grid-cell-bredden och boxarna överlappade på iPhone. */}
+        {/* DateInputBox wrappar native date i en transparent inner-input
+            så iOS WKWebView inte kan expandera utöver vår container. */}
         <Field label="Datum">
-          <input type="date" value={form.datum} onChange={(e) => upd({ datum: e.target.value })} style={inputStyle(t)} />
+          <DateInputBox value={form.datum ?? ""} onChange={(v) => upd({ datum: v })} />
         </Field>
         <Field label="Typ">
           <SelectBox value={form.typ ?? ""} options={TYPE_OPTIONS} placeholder="Välj…" onChange={(v) => upd({ typ: v })} />
@@ -1196,7 +1197,7 @@ function SingleAIModal({
             Coachen väljer pass utifrån ditt aktuella formläge (TSB/CTL/ATL) och planerad backlog runt datumet.
           </p>
           <Field label="Datum">
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle(t)} />
+            <DateInputBox value={date} onChange={setDate} />
           </Field>
           <Field label="Riktning (valfri)">
             <input

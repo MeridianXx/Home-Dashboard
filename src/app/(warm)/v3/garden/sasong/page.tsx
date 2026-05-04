@@ -37,6 +37,7 @@ import {
   ModalFooter,
   ModalErrorRow,
   inputStyle,
+  DateInputBox,
 } from "@/components/warm/garden/forms";
 import {
   isoDate,
@@ -626,16 +627,10 @@ function TaskModal({
           />
         </Field>
 
-        {/* Stackade på en kolumn — två-kolumners-grid orsakade överlapp på
-            iPhone (native date/select har implicit min-content som
-            överstyr CSS minmax(0, 1fr)). */}
+        {/* DateInputBox wrappar native date i en transparent inner-input
+            så iOS WKWebView inte kan expandera utöver vår container. */}
         <Field label="Datum">
-          <input
-            type="date"
-            value={form.datum ?? ""}
-            onChange={(e) => upd({ datum: e.target.value })}
-            style={inputStyle(t)}
-          />
+          <DateInputBox value={form.datum ?? ""} onChange={(v) => upd({ datum: v })} />
         </Field>
         <Field label="Status">
           <SelectBox
