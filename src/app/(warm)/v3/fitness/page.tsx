@@ -379,11 +379,11 @@ function PlanHeroTile({ plan, linkedWorkout }: { plan: PlannedWorkout; linkedWor
       </Link>
     );
   }
-  // Ej genomfört än → öppna planen i Coach via ?edit=<id>. Coach läser
-  // query-paramen och autoöppnar redigeringsmodalen så användaren ser hela
-  // pass-detaljerna direkt utan att leta upp dagen i kalendern.
+  // Ej genomfört än → öppna planen i kalender-vyn via ?edit=<id>. Plan-sidan
+  // läser query-paramen och autoöppnar redigeringsmodalen så användaren ser
+  // hela pass-detaljerna direkt utan att leta upp dagen i kalendern.
   return (
-    <Link href={`/v3/fitness/coach?edit=${plan.id}`} style={baseStyle}>
+    <Link href={`/v3/fitness/coach/plan?edit=${plan.id}`} style={baseStyle}>
       {inner}
     </Link>
   );
