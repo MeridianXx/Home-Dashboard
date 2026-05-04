@@ -312,7 +312,7 @@ function AttGoraNu({ tasks }: { tasks: SeasonTask[] }) {
           return (
             <Link
               key={tk.id}
-              href="/v3/garden/sasong"
+              href={`/v3/garden/sasong?edit=${tk.id}`}
               style={{
                 display: "flex",
                 alignItems: "center",

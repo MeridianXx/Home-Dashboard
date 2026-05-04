@@ -6,8 +6,9 @@
 // CRUD via WarmModal (portal). Klick på dag = ny uppgift med datum förifyllt.
 // Klick på dag-event = redigera. "Markera klar"-bock-knapp på rader.
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useWarmTheme } from "@/lib/warm/theme";
@@ -625,29 +626,24 @@ function TaskModal({
           />
         </Field>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 12,
-          }}
-        >
-          <Field label="Datum">
-            <input
-              type="date"
-              value={form.datum ?? ""}
-              onChange={(e) => upd({ datum: e.target.value })}
-              style={inputStyle(t)}
-            />
-          </Field>
-          <Field label="Status">
-            <SelectBox
-              value={form.status ?? "Planerad"}
-              options={STATUS_OPTIONS}
-              onChange={(v) => upd({ status: v })}
-            />
-          </Field>
-        </div>
+        {/* Stackade på en kolumn — två-kolumners-grid orsakade överlapp på
+            iPhone (native date/select har implicit min-content som
+            överstyr CSS minmax(0, 1fr)). */}
+        <Field label="Datum">
+          <input
+            type="date"
+            value={form.datum ?? ""}
+            onChange={(e) => upd({ datum: e.target.value })}
+            style={inputStyle(t)}
+          />
+        </Field>
+        <Field label="Status">
+          <SelectBox
+            value={form.status ?? "Planerad"}
+            options={STATUS_OPTIONS}
+            onChange={(v) => upd({ status: v })}
+          />
+        </Field>
 
         <Field label="Typ">
           <SelectBox
@@ -693,7 +689,19 @@ function TaskModal({
 // ── Sidkomponent ─────────────────────────────────────────────────────────────
 
 export default function GardenSeasonPage() {
+  // useSearchParams() kräver Suspense-boundary vid prerendering (Next 16).
+  return (
+    <Suspense fallback={null}>
+      <GardenSeasonInner />
+    </Suspense>
+  );
+}
+
+function GardenSeasonInner() {
   const { t } = useWarmTheme();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editParam = searchParams?.get("edit") ?? null;
   const [editing, setEditing] = useState<Draft | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -768,6 +776,19 @@ export default function GardenSeasonPage() {
     kommentar: tk.kommentar,
     plantIds: tk.plantIds,
   });
+
+  // Auto-öppna edit-modal när vi navigeras hit med ?edit=<taskId>.
+  // Trädgård-hubbens "Att göra"-rader länkar hit för att öppna en
+  // specifik uppgift utan att behöva leta i listan.
+  useEffect(() => {
+    if (!editParam || tasks.length === 0) return;
+    const target = tasks.find((tk) => tk.id === editParam);
+    if (!target) return;
+    setEditing(draftFromTask(target));
+    // Rensa query-paramen så reload inte återöppnar modalen
+    router.replace("/v3/garden/sasong", { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editParam, tasks]);
 
   // Antal aktiva uppgifter (ej klara)
   const activeCount = tasks.filter((tk) => tk.status !== "Klar").length;

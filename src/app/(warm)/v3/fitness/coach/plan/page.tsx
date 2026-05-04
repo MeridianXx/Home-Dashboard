@@ -905,14 +905,14 @@ function PlanModal({
             style={inputStyle(t)}
           />
         </Field>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
-          <Field label="Datum">
-            <input type="date" value={form.datum} onChange={(e) => upd({ datum: e.target.value })} style={inputStyle(t)} />
-          </Field>
-          <Field label="Typ">
-            <SelectBox value={form.typ ?? ""} options={TYPE_OPTIONS} placeholder="Välj…" onChange={(v) => upd({ typ: v })} />
-          </Field>
-        </div>
+        {/* Stackade på en kolumn — native iOS date/select överstyr
+            grid-cell-bredden och boxarna överlappade på iPhone. */}
+        <Field label="Datum">
+          <input type="date" value={form.datum} onChange={(e) => upd({ datum: e.target.value })} style={inputStyle(t)} />
+        </Field>
+        <Field label="Typ">
+          <SelectBox value={form.typ ?? ""} options={TYPE_OPTIONS} placeholder="Välj…" onChange={(v) => upd({ typ: v })} />
+        </Field>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
           <Field label="Tid / längd">
             <input
@@ -933,20 +933,18 @@ function PlanModal({
             />
           </Field>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
-          <Field label="Pulsintervall">
-            <input
-              type="text"
-              value={form.pulsintervall ?? ""}
-              onChange={(e) => upd({ pulsintervall: e.target.value })}
-              placeholder="t.ex. Z3, 160–170"
-              style={inputStyle(t)}
-            />
-          </Field>
-          <Field label="Underlag">
-            <SelectBox value={form.underlag ?? ""} options={UNDERLAG_OPTIONS} placeholder="Välj…" onChange={(v) => upd({ underlag: v })} />
-          </Field>
-        </div>
+        <Field label="Pulsintervall">
+          <input
+            type="text"
+            value={form.pulsintervall ?? ""}
+            onChange={(e) => upd({ pulsintervall: e.target.value })}
+            placeholder="t.ex. Z3, 160–170"
+            style={inputStyle(t)}
+          />
+        </Field>
+        <Field label="Underlag">
+          <SelectBox value={form.underlag ?? ""} options={UNDERLAG_OPTIONS} placeholder="Välj…" onChange={(v) => upd({ underlag: v })} />
+        </Field>
         <Field label="Syfte">
           <textarea
             value={form.syfte ?? ""}
