@@ -15,17 +15,17 @@ export function inputStyle(t: WarmTheme): CSSProperties {
     fontFamily: body,
     // 16px = minst för iOS Safari (mindre triggar autozoom vid focus).
     fontSize: 16,
-    lineHeight: 1.5,
-    // backgroundColor (inte shorthand `background`) så att globals.warm.css
-    // chevron-bilden på <select> inte resetas till none av inline-style.
+    lineHeight: 1.4,
     backgroundColor: t.paper,
     border: `1px solid ${t.line}`,
     borderRadius: 8,
-    // 14px vertikal padding + minHeight 50 = säker plats för iOS native
-    // date/select-pickers som ignorerar CSS line-height. Tidigare 11px
-    // klippte descenders i datumfältet på iPhone.
-    padding: "14px 12px",
-    minHeight: 50,
+    // iOS WKWebView native date/select renderar text nära fält-toppen
+    // oavsett line-height. Asymmetrisk padding (mer top) kompenserar:
+    // 18px top + 12px bottom centrerar texten visuellt på iPhone, samtidigt
+    // som desktop browser också ser balanserat ut. minHeight säkrar fält-
+    // höjden så native pickern inte skrumpnar ihop.
+    padding: "18px 12px 14px",
+    minHeight: 56,
     color: t.ink,
     outline: "none",
     boxSizing: "border-box",

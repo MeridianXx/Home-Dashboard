@@ -990,20 +990,18 @@ function inputStyle(t: import("@/lib/warm/tokens").WarmTheme): React.CSSProperti
   return {
     width: "100%",
     boxSizing: "border-box",
-    // backgroundColor — inte shorthand `background` — så globals.warm.css
-    // chevron-bakgrunden på <select> inte resetas.
     backgroundColor: t.paperHi,
     color: t.ink,
     border: `1px solid ${t.line}`,
     borderRadius: 10,
-    // 16px font tvångsappliceras av iOS-zoom-skyddet i globals.warm.css.
-    // 14px vertikal padding + minHeight 50 = säker plats för iOS native
-    // date/select-pickers som ignorerar CSS line-height. 11px klippte
-    // descenders i datumfältet på iPhone.
-    padding: "14px 12px",
-    minHeight: 50,
+    // iOS WKWebView native date/select renderar text nära fält-toppen
+    // oavsett line-height. Asymmetrisk padding (18 top, 14 bottom) +
+    // minHeight 56 ger texten luft mot toppkanten utan att fält-höjden
+    // skrumpnar.
+    padding: "18px 12px 14px",
+    minHeight: 56,
     fontSize: 16,
-    lineHeight: 1.5,
+    lineHeight: 1.4,
     fontFamily: body,
     outline: "none",
   };

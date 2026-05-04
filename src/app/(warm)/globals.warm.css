@@ -49,36 +49,14 @@
    Visuell skalning av små text-inputs får hanteras via container-storlek
    eller transform: scale, inte via font-size.
 
-   OBS: ingen `.warm-root` parent-selektor här — modaler renderas via
-   `createPortal(document.body)` och hamnar utanför warm-root-trädet, så
-   prefixad regel skulle missa dem. v2-routes har egen styling. */
+   OBS: ingen `.warm-root` parent-selektor — modaler renderas via
+   createPortal(document.body) och hamnar utanför warm-root-trädet.
+
+   Inga andra CSS-regler på inputs — date/select på iOS WKWebView ignorerar
+   line-height + appearance + chevron-bilder oavsett !important. Lösningen
+   ligger i container-padding (se forms.tsx inputStyle). */
 :is(input, textarea, select) {
   font-size: max(16px, 1em) !important;
-  /* line-height: select på iOS Safari ignorerar inline `lineHeight` och
-     fallbackar till "normal" (~1.2). Det klipper text vertikalt när
-     padding är < line-box-marginal. !important säkrar 1.5 även där. */
-  line-height: 1.5 !important;
-}
-
-/* iOS Safari renderar date-input via en `::-webkit-date-and-time-value`
-   pseudo-element som ärver line-height inte från min CSS utan från native
-   styling. Plus webkit:s default-padding i fältet klipper texten. Tvinga
-   ärvning + ta bort padding på pseudo:en. */
-input[type="date"]::-webkit-date-and-time-value {
-  text-align: left;
-  line-height: inherit;
-  padding: 0;
-}
-/* Select-pilen tar plats — säkra padding-right + ta bort native styling
-   så vår egen container-höjd respekteras. Custom chevron via SVG-data-URL. */
-select {
-  -webkit-appearance: none !important;
-  appearance: none !important;
-  padding-right: 32px !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239C907B' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 10px 6px;
 }
 
 /* Warm-slider — generisk stil som ärver fyllning + track-färg via CSS-vars
