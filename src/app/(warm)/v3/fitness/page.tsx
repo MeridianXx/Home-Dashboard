@@ -199,7 +199,7 @@ export default function WarmFitnessHubPage() {
         right={<HubThemeToggle dark={dark} onToggle={toggle} isDesktop={isDesktop} />}
       />
 
-      <div style={{ padding: "0 14px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ padding: "0 18px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
         {/* Readiness — terracotta-tinted */}
         <ReadinessTile data={readinessData} />
 

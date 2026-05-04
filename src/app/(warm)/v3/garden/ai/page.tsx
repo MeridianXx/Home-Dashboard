@@ -480,8 +480,8 @@ function GardenAIInner() {
       <DetailHero
         backHref="/v3/garden"
         backLabel="Trädgård"
-        eyebrow="AI-RÅDGIVARE"
-        title="Coachen,"
+        eyebrow="TRÄDGÅRDSMÄSTAREN"
+        title="Trädgårdsmästaren,"
         italicTail="frågor och svar."
         subtitle={ctx ? `${ctx.plantCount} växter · ${ctx.upcomingTaskCount} kommande · zon ${ctx.gardenZone}` : "laddar kontext…"}
         right={
@@ -514,7 +514,7 @@ function GardenAIInner() {
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: t.paper, border: `1px solid ${t.line}`, borderRadius: 14 }}>
               <SparkleIcon size={20} color={ACC} />
               <div>
-                <div style={{ ...num(t, 14, 500), color: t.ink, lineHeight: 1.2 }}>Fråga AI:n om trädgården</div>
+                <div style={{ ...num(t, 14, 500), color: t.ink, lineHeight: 1.2 }}>Fråga trädgårdsmästaren</div>
                 <div style={{ ...ital(t, 11, t.dim), marginTop: 2 }}>Växtregister · säsongsplan · projekt · väder Borås</div>
               </div>
             </div>

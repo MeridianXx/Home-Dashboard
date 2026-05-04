@@ -598,7 +598,7 @@ export default function PlantDetailPage({ params }: { params: Promise<{ id: stri
             }}
           >
             <SparkleIcon size={13} color="#FFFBF0" />
-            Fråga AI om {plant.vaxt}
+            Fråga trädgårdsmästaren
           </Link>
           <a
             href={plant.notionUrl}

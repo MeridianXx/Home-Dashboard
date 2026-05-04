@@ -857,7 +857,7 @@ export default function WarmHomeHub() {
 
       <div
         style={{
-          padding: "0 22px 24px",
+          padding: "0 18px 24px",
           display: "flex",
           flexDirection: "column",
           gap: 18,

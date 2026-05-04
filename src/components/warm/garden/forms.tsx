@@ -15,11 +15,15 @@ export function inputStyle(t: WarmTheme): CSSProperties {
     fontFamily: body,
     // 16px = minst för iOS Safari (mindre triggar autozoom vid focus).
     fontSize: 16,
-    lineHeight: 1.45,
+    lineHeight: 1.5,
     background: t.paper,
     border: `1px solid ${t.line}`,
     borderRadius: 8,
-    padding: "11px 12px",
+    // 14px vertikal padding + minHeight 50 = säker plats för iOS native
+    // date/select-pickers som ignorerar CSS line-height. Tidigare 11px
+    // klippte descenders i datumfältet på iPhone.
+    padding: "14px 12px",
+    minHeight: 50,
     color: t.ink,
     outline: "none",
     boxSizing: "border-box",

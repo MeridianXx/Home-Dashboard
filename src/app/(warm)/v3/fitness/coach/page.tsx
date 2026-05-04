@@ -995,10 +995,13 @@ function inputStyle(t: import("@/lib/warm/tokens").WarmTheme): React.CSSProperti
     border: `1px solid ${t.line}`,
     borderRadius: 10,
     // 16px font tvångsappliceras av iOS-zoom-skyddet i globals.warm.css.
-    // Padding + line-height gör plats för descenders så "j", "g", "p" inte klipper.
-    padding: "11px 12px",
+    // 14px vertikal padding + minHeight 50 = säker plats för iOS native
+    // date/select-pickers som ignorerar CSS line-height. 11px klippte
+    // descenders i datumfältet på iPhone.
+    padding: "14px 12px",
+    minHeight: 50,
     fontSize: 16,
-    lineHeight: 1.45,
+    lineHeight: 1.5,
     fontFamily: body,
     outline: "none",
   };

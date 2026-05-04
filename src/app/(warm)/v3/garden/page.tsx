@@ -426,7 +426,7 @@ function FragaAICard() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           <span style={{ ...lab(t), color: ACC, display: "inline-flex", alignItems: "center", gap: 5 }}>
             <SparkleIcon size={11} color={ACC} />
-            FRÅGA AI
+            TRÄDGÅRDSMÄSTAREN
           </span>
           <ChevronRight size={14} color={ACC} />
         </div>
