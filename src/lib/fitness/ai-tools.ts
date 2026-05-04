@@ -203,8 +203,8 @@ const getRecentWorkoutsTool: ToolDefinition = {
       time: w.time,
       type: w.type,
       distanceM: w.distanceM,
-      durationSec: w.durationSec,
-      avgHr: w.avgHr,
+      totalTimeSec: w.totalTimeSec,
+      avgHR: w.avgHR,
       trimp: w.trimp,
       rpe: w.rpe,
     }));
@@ -237,7 +237,7 @@ const generateWeekPlanTool: ToolDefinition = {
       const result = await generateTrainingPlan(prompt);
       return {
         ok: true,
-        items: result.items.map((it: GeneratedPlanItem) => ({
+        items: result.plan.map((it: GeneratedPlanItem) => ({
           datum: it.datum,
           passnamn: it.passnamn,
           typ: it.typ,
@@ -248,7 +248,7 @@ const generateWeekPlanTool: ToolDefinition = {
           tid: it.tid,
           underlag: it.underlag,
         })),
-        comment: result.comment,
+        comment: result.commentary,
       };
     } catch (err) {
       if (err instanceof PlanParseError) {
@@ -292,7 +292,6 @@ const generateSingleWorkoutTool: ToolDefinition = {
         tid: result.item.tid,
         underlag: result.item.underlag,
       },
-      comment: result.comment,
     };
   },
 };
