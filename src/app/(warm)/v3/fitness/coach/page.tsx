@@ -489,7 +489,7 @@ function FitnessCoachInner() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100dvh - 140px)", minHeight: 480 }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100dvh - 190px)", minHeight: 460, paddingBottom: 8 }}>
       <DetailHero
         backHref="/v3/fitness"
         backLabel="Fitness"
