@@ -16,7 +16,9 @@ export function inputStyle(t: WarmTheme): CSSProperties {
     // 16px = minst för iOS Safari (mindre triggar autozoom vid focus).
     fontSize: 16,
     lineHeight: 1.5,
-    background: t.paper,
+    // backgroundColor (inte shorthand `background`) så att globals.warm.css
+    // chevron-bilden på <select> inte resetas till none av inline-style.
+    backgroundColor: t.paper,
     border: `1px solid ${t.line}`,
     borderRadius: 8,
     // 14px vertikal padding + minHeight 50 = säker plats för iOS native
@@ -69,7 +71,9 @@ export function SelectBox({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      style={{ ...inputStyle(t), appearance: "auto" }}
+      // appearance hanteras av globals.warm.css (none + custom chevron) så
+      // line-height och padding på <select> respekteras på iOS Safari.
+      style={inputStyle(t)}
     >
       {placeholder ? (
         <option value="" disabled>

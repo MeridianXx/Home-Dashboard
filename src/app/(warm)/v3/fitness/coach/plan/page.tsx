@@ -990,7 +990,9 @@ function inputStyle(t: import("@/lib/warm/tokens").WarmTheme): React.CSSProperti
   return {
     width: "100%",
     boxSizing: "border-box",
-    background: t.paperHi,
+    // backgroundColor — inte shorthand `background` — så globals.warm.css
+    // chevron-bakgrunden på <select> inte resetas.
+    backgroundColor: t.paperHi,
     color: t.ink,
     border: `1px solid ${t.line}`,
     borderRadius: 10,

@@ -218,9 +218,16 @@ export default function WarmFitnessHubPage() {
           )}
         </Section>
 
-        {/* Vecka + streak */}
+        {/* Vecka + streak. WeekTile är clickable och leder till plan-vyn —
+            inget annat ställe på FitHub har genväg dit nu när coach-tile
+            öppnar chatten. */}
         <div style={{ display: "flex", gap: 10 }}>
-          <WeekTile days={weekDays} todayIso={today} />
+          <Link
+            href="/v3/fitness/coach/plan"
+            style={{ flex: 1, minWidth: 0, textDecoration: "none", color: "inherit", display: "flex" }}
+          >
+            <WeekTile days={weekDays} todayIso={today} />
+          </Link>
           <StreakTile streak={streak} nextPlan={nextPlan} />
         </div>
 
@@ -483,7 +490,18 @@ function WeekTile({
   const dayInitials = ["M", "T", "O", "T", "F", "L", "S"];
   return (
     <Tile t={t} style={{ flex: 1, padding: 14, minWidth: 0 }}>
-      <div style={{ ...lab(t, { marginBottom: 12 }) }}>Veckan</div>
+      <div
+        style={{
+          ...lab(t, { marginBottom: 12 }),
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 6,
+        }}
+      >
+        <span>Veckan</span>
+        <ChevronRight size={11} color={t.dim} />
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 4 }}>
         {days.map((d, i) => {
           const isToday = d.iso === todayIso;
