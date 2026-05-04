@@ -994,8 +994,11 @@ function inputStyle(t: import("@/lib/warm/tokens").WarmTheme): React.CSSProperti
     color: t.ink,
     border: `1px solid ${t.line}`,
     borderRadius: 10,
-    padding: "8px 12px",
-    fontSize: 13,
+    // 16px font tvångsappliceras av iOS-zoom-skyddet i globals.warm.css.
+    // Padding + line-height gör plats för descenders så "j", "g", "p" inte klipper.
+    padding: "11px 12px",
+    fontSize: 16,
+    lineHeight: 1.45,
     fontFamily: body,
     outline: "none",
   };

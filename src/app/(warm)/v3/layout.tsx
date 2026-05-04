@@ -16,9 +16,13 @@ import {
   useWarmTheme,
   WarmThemeProvider,
 } from "@/lib/warm/theme";
-import { ACC, SAGE, body } from "@/lib/warm/tokens";
+import { ACC, SAGE, body, serif } from "@/lib/warm/tokens";
 import { CheckIcon } from "@/components/warm/icons/extra";
 import { haptic } from "@/lib/warm/haptics";
+import {
+  WarmTopBarProvider,
+  useWarmTopBar,
+} from "@/lib/warm/topbar";
 
 const TAB_LABELS: Record<TabKey, string> = {
   hem: "Hem",
@@ -54,7 +58,9 @@ const PULL_THRESHOLD = 80;
 export default function WarmV3Layout({ children }: { children: ReactNode }) {
   return (
     <WarmThemeProvider>
-      <WarmV3Chrome>{children}</WarmV3Chrome>
+      <WarmTopBarProvider>
+        <WarmV3Chrome>{children}</WarmV3Chrome>
+      </WarmTopBarProvider>
     </WarmThemeProvider>
   );
 }
@@ -287,6 +293,7 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
   }, [isDesktop, router]);
 
   const showSpinner = !isDesktop && (pull > 16 || confirming);
+  const { scrolled: topbarScrolled, compactTitle } = useWarmTopBar();
 
   return (
     <div
@@ -297,6 +304,46 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
         position: "relative",
       }}
     >
+      {/* WarmTopBar: blur-strip ovan content (bara mobil). Visar safe-area-zon
+          + en kompakt titelrad när användaren scrollat förbi tröskeln. */}
+      {!isDesktop ? (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "calc(env(safe-area-inset-top) + 44px)",
+            background: dark
+              ? "rgba(26, 23, 18, 0.72)"
+              : "rgba(245, 238, 222, 0.72)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            zIndex: 50,
+            opacity: topbarScrolled ? 1 : 0,
+            transition: "opacity 220ms ease-out",
+            pointerEvents: topbarScrolled ? "auto" : "none",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            paddingBottom: 10,
+          }}
+          aria-hidden={!topbarScrolled}
+        >
+          <span
+            style={{
+              fontFamily: serif,
+              fontSize: 17,
+              fontWeight: 500,
+              letterSpacing: "-0.01em",
+              color: t.ink,
+            }}
+          >
+            {compactTitle}
+          </span>
+        </div>
+      ) : null}
+
       {/* Pull-to-refresh-indikator (bara mobil). `top` använder safe-area-inset-top
           så pillen hamnar under notch:en när Capacitor kör med `contentInset: "never"`. */}
       <div

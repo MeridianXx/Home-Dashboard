@@ -73,10 +73,52 @@ const QUICK_PROMPTS = [
   "Föreslå nästa månads säsongsuppgifter",
 ];
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Cap efter resize: 4 MB är säkerhetsmarginal mot Anthropics 5 MB-limit per
+// bild. I praktiken landar resize:ade bilder runt 0.5–2 MB.
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+// Anthropic optimerar bilder runt 1568 px på längsta sidan — större ger
+// ingen kvalitetsvinst men kostar tokens. Vi kompir:ar via canvas.
+const RESIZE_MAX_DIMENSION = 1568;
+// Hur många bilder som max kan bifogas per meddelande.
+const MAX_IMAGES_PER_MESSAGE = 8;
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+/**
+ * Läser ett `File`/`Blob` till en HTMLImageElement, ritar i canvas vid max
+ * 1568 px på längsta sidan, returnerar `image/jpeg`-base64 (utan data-prefix).
+ * Spar ~50–80 % filstorlek vs raw kamera-bild på iPhone.
+ */
+async function resizeImageToBase64(
+  file: Blob,
+): Promise<{ mediaType: "image/jpeg"; base64: string }> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("filläsning misslyckades"));
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error("kunde inte tolka bilden"));
+    el.src = dataUrl;
+  });
+  const max = Math.max(img.width, img.height);
+  const scale = max > RESIZE_MAX_DIMENSION ? RESIZE_MAX_DIMENSION / max : 1;
+  const w = Math.round(img.width * scale);
+  const h = Math.round(img.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas-context saknas");
+  ctx.drawImage(img, 0, 0, w, h);
+  const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+  const base64 = jpegDataUrl.split(",")[1] ?? "";
+  return { mediaType: "image/jpeg", base64 };
 }
 
 // ── SSE-parser ───────────────────────────────────────────────────────────────
@@ -354,20 +396,79 @@ function GardenAIInner() {
   };
 
   const handlePickFile = () => fileInputRef.current?.click();
-  const handlePickCamera = () => cameraInputRef.current?.click();
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+
+  /**
+   * Native iOS-kamera via @capacitor/camera-pluginet. Kraschar inte i
+   * Capacitor-appen (vilket html `<input capture>` gör pga minne) och ger
+   * automatisk resize. Web-fallback öppnar dolt file-input.
+   */
+  const handlePickCamera = async () => {
+    try {
+      const { Capacitor } = await import("@capacitor/core");
+      if (Capacitor.getPlatform() === "ios" || Capacitor.getPlatform() === "android") {
+        const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
+        const photo = await Camera.getPhoto({
+          quality: 80,
+          allowEditing: false,
+          resultType: CameraResultType.Base64,
+          source: CameraSource.Camera,
+          width: RESIZE_MAX_DIMENSION,
+        });
+        if (photo.base64String) {
+          setPendingImages((arr) => {
+            if (arr.length >= MAX_IMAGES_PER_MESSAGE) {
+              alert(`Max ${MAX_IMAGES_PER_MESSAGE} bilder per meddelande.`);
+              return arr;
+            }
+            return [...arr, { mediaType: "image/jpeg", base64: photo.base64String! }];
+          });
+        }
+        return;
+      }
+    } catch (err) {
+      // Plugin ej tillgänglig eller användaren avbröt — fallback till input.
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("cancel")) return;
+    }
+    cameraInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = "";
-    if (!file) return;
-    if (file.size > MAX_IMAGE_BYTES) { alert(`Bilden är för stor (max ${MAX_IMAGE_BYTES / 1024 / 1024} MB).`); return; }
+    if (files.length === 0) return;
     const supported = ["image/png", "image/jpeg", "image/gif", "image/webp"];
-    if (!supported.includes(file.type)) { alert("Endast PNG, JPEG, GIF eller WebP stöds."); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(",")[1] ?? "";
-      setPendingImages((arr) => [...arr, { mediaType: file.type as UIImage["mediaType"], base64 }]);
-    };
-    reader.readAsDataURL(file);
+    const slotsLeft = MAX_IMAGES_PER_MESSAGE - pendingImages.length;
+    if (slotsLeft <= 0) {
+      alert(`Max ${MAX_IMAGES_PER_MESSAGE} bilder per meddelande.`);
+      return;
+    }
+    const accepted = files.slice(0, slotsLeft);
+    const newImages: UIImage[] = [];
+    for (const file of accepted) {
+      if (!supported.includes(file.type)) {
+        alert(`"${file.name}" stöds inte. Endast PNG, JPEG, GIF eller WebP.`);
+        continue;
+      }
+      try {
+        const { mediaType, base64 } = await resizeImageToBase64(file);
+        const sizeBytes = (base64.length * 3) / 4;
+        if (sizeBytes > MAX_IMAGE_BYTES) {
+          alert(`"${file.name}" är fortfarande för stor efter komprimering. Hoppa över.`);
+          continue;
+        }
+        newImages.push({ mediaType, base64 });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "okänt fel";
+        alert(`Kunde inte läsa "${file.name}": ${msg}`);
+      }
+    }
+    if (newImages.length > 0) {
+      setPendingImages((arr) => [...arr, ...newImages]);
+    }
+    if (files.length > slotsLeft) {
+      alert(`Bara ${slotsLeft} av ${files.length} bilder lades till — max ${MAX_IMAGES_PER_MESSAGE} per meddelande.`);
+    }
   };
 
   const errMsg = ctxSwr.error instanceof Error ? ctxSwr.error.message : "";
@@ -473,7 +574,7 @@ function GardenAIInner() {
             <button type="button" onClick={() => { void haptic("tap"); handlePickFile(); }} disabled={busy} aria-label="Lägg till bild" title="Lägg till bild" style={{ width: 34, height: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 17, background: "transparent", border: "none", cursor: busy ? "wait" : "pointer", flexShrink: 0, padding: 0 }}>
               <ImageIcon size={18} color={t.mute} />
             </button>
-            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleFileChange} style={{ display: "none" }} />
+            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple onChange={handleFileChange} style={{ display: "none" }} />
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} style={{ display: "none" }} />
 
             <textarea

@@ -47,5 +47,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Boet behöver kameran för att kunna ta foton till AI-rådgivaren.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Boet behöver bildbiblioteket för att lägga till foton till AI-rådgivaren.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Boet behöver behörighet att spara foton om du väljer det.</string>
 </dict>
 </plist>

@@ -65,7 +65,9 @@ export function WarmModal({
           borderRadius: 16,
           width: "100%",
           maxWidth,
-          maxHeight: "92vh",
+          // Begränsa modalens höjd så toppen aldrig hamnar under notch/status-bar.
+          // 92vh - safe-area-inset-top - lite andrum.
+          maxHeight: "calc(92vh - env(safe-area-inset-top) - 12px)",
           overflowY: "auto",
           padding: 18,
           marginBottom: "max(16px, env(safe-area-inset-bottom))",

@@ -15,12 +15,14 @@ export function inputStyle(t: WarmTheme): CSSProperties {
     fontFamily: body,
     // 16px = minst för iOS Safari (mindre triggar autozoom vid focus).
     fontSize: 16,
+    lineHeight: 1.45,
     background: t.paper,
     border: `1px solid ${t.line}`,
     borderRadius: 8,
-    padding: "8px 10px",
+    padding: "11px 12px",
     color: t.ink,
     outline: "none",
+    boxSizing: "border-box",
   };
 }
 

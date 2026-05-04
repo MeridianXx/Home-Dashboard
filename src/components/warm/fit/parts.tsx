@@ -9,6 +9,7 @@ import { ACC, body, ital, lab, num } from "@/lib/warm/tokens";
 import { ChevronLeft, ChevronRight } from "@/components/warm/icons/extra";
 import { ThemeIcon } from "@/components/warm/icons";
 import { haptic } from "@/lib/warm/haptics";
+import { useRegisterCompactTitle } from "@/lib/warm/topbar";
 
 /**
  * `HubThemeToggle` — den ENDA standardiserade toggle-knappen för hub-headers.
@@ -66,14 +67,25 @@ export function HubDisplay({
   italicTail,
   subtitle,
   right,
+  compactTitle,
 }: {
   eyebrow: string;
   title: string;
   italicTail?: string;
   subtitle?: string;
   right?: ReactNode;
+  /** Visas i blur-strippen ovan content när användaren scrollar förbi
+   *  tröskeln. Default = första ordet i `eyebrow` (t.ex. "HEM" → "Hem"). */
+  compactTitle?: string;
 }) {
   const { t } = useWarmTheme();
+  // Default compact-titel = eyebrow:s första segment, kapitaliserat.
+  const fallback = eyebrow.split("·")[0]?.trim() ?? "";
+  const cap =
+    fallback.length > 0
+      ? fallback.charAt(0).toUpperCase() + fallback.slice(1).toLowerCase()
+      : "";
+  useRegisterCompactTitle(compactTitle ?? cap);
   return (
     <header style={{ padding: "20px 18px 12px", display: "flex", alignItems: "flex-start", gap: 12 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -113,6 +125,7 @@ export function DetailHero({
   italicColor,
   subtitle,
   right,
+  compactTitle,
 }: {
   backHref: string;
   backLabel: string;
@@ -124,8 +137,12 @@ export function DetailHero({
   italicColor?: string;
   subtitle?: string;
   right?: ReactNode;
+  /** Visas i blur-strippen ovan content vid scroll. Default = `backLabel`
+   *  (sektionsnamnet — bäst för detail-pages där titeln är dynamisk). */
+  compactTitle?: string;
 }) {
   const { t } = useWarmTheme();
+  useRegisterCompactTitle(compactTitle ?? backLabel);
   return (
     <header style={{ padding: "16px 18px 8px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
