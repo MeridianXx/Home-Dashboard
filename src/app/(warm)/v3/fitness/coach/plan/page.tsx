@@ -909,7 +909,7 @@ function PlanModal({
         {/* DateInputBox wrappar native date i en transparent inner-input
             så iOS WKWebView inte kan expandera utöver vår container. */}
         <Field label="Datum">
-          <DateInputBox value={form.datum ?? ""} onChange={(v) => upd({ datum: v })} />
+          <DateInputBox value={form.datum ?? ""} onChange={(v) => upd({ datum: v })} bg={t.paperHi} />
         </Field>
         <Field label="Typ">
           <SelectBox value={form.typ ?? ""} options={TYPE_OPTIONS} placeholder="Välj…" onChange={(v) => upd({ typ: v })} />
@@ -1197,7 +1197,7 @@ function SingleAIModal({
             Coachen väljer pass utifrån ditt aktuella formläge (TSB/CTL/ATL) och planerad backlog runt datumet.
           </p>
           <Field label="Datum">
-            <DateInputBox value={date} onChange={setDate} />
+            <DateInputBox value={date} onChange={setDate} bg={t.paperHi} />
           </Field>
           <Field label="Riktning (valfri)">
             <input

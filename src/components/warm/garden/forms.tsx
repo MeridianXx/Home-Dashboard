@@ -8,6 +8,7 @@ import { useWarmTheme } from "@/lib/warm/theme";
 import { haptic } from "@/lib/warm/haptics";
 import { ACC, body, lab } from "@/lib/warm/tokens";
 import type { WarmTheme } from "@/lib/warm/tokens";
+import { ChevronDown } from "@/components/warm/icons/extra";
 
 export function inputStyle(t: WarmTheme): CSSProperties {
   return {
@@ -34,26 +35,33 @@ export function inputStyle(t: WarmTheme): CSSProperties {
  * visuell styling (border, padding, background) till en wrapper-`<div>`
  * och gör input transparent inom. `overflow: hidden` på wrappern
  * säkerställer att eventuell intrinsic överbredd från native rendering
- * klipps visuellt.
+ * klipps visuellt. Plus chevron-ikon till höger så det ser ut som ett
+ * dropdown-fält (vilket det är — date-picker-popover).
+ *
+ * `bg`-prop låter konsumenten välja färg om wrappern ska matcha en
+ * specifik modal-bakgrund (`t.paperHi` inom modaler, `t.paper` på sidor).
  */
 export function DateInputBox({
   value,
   onChange,
+  bg,
 }: {
   value: string;
   onChange: (v: string) => void;
+  bg?: string;
 }) {
   const { t } = useWarmTheme();
   return (
     <div
       style={{
-        backgroundColor: t.paper,
+        backgroundColor: bg ?? t.paper,
         border: `1px solid ${t.line}`,
         borderRadius: 8,
         padding: "0 12px",
-        minHeight: 56,
+        height: 56,
         display: "flex",
         alignItems: "center",
+        gap: 8,
         boxSizing: "border-box",
         overflow: "hidden",
         width: "100%",
@@ -65,8 +73,9 @@ export function DateInputBox({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         style={{
-          width: "100%",
+          flex: 1,
           minWidth: 0,
+          height: "100%",
           background: "transparent",
           border: "none",
           outline: "none",
@@ -74,10 +83,12 @@ export function DateInputBox({
           margin: 0,
           fontFamily: body,
           fontSize: 16,
-          lineHeight: 1.4,
+          // Match wrapper-höjd så native rendering centreras vertikalt.
+          lineHeight: "54px",
           color: t.ink,
         }}
       />
+      <ChevronDown size={14} color={t.mute} style={{ flexShrink: 0 }} />
     </div>
   );
 }
