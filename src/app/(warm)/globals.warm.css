@@ -50,13 +50,23 @@
    eller transform: scale, inte via font-size.
 
    OBS: ingen `.warm-root` parent-selektor — modaler renderas via
-   createPortal(document.body) och hamnar utanför warm-root-trädet.
-
-   Inga andra CSS-regler på inputs — date/select på iOS WKWebView ignorerar
-   line-height + appearance + chevron-bilder oavsett !important. Lösningen
-   ligger i container-padding (se forms.tsx inputStyle). */
+   createPortal(document.body) och hamnar utanför warm-root-trädet. */
 :is(input, textarea, select) {
   font-size: max(16px, 1em) !important;
+}
+
+/* iOS WKWebView native `input[type="date"]` ignorerar `width: 100%` när
+   dess intrinsic content är bredare och låter content-divet expandera
+   utöver parent. Tvinga block-rendering + 100% bredd via !important så
+   inputen ALDRIG sticker ut ur sin container. */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
 }
 
 /* Warm-slider — generisk stil som ärver fyllning + track-färg via CSS-vars
