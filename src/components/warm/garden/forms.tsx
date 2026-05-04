@@ -12,18 +12,16 @@ import type { WarmTheme } from "@/lib/warm/tokens";
 export function inputStyle(t: WarmTheme): CSSProperties {
   return {
     width: "100%",
+    // minWidth: 0 säkrar att native date/select inte tvingar containern
+    // bredare än sin grid-cell — annars överlappar boxarna sidledes på iPhone.
+    minWidth: 0,
+    maxWidth: "100%",
     fontFamily: body,
-    // 16px = minst för iOS Safari (mindre triggar autozoom vid focus).
     fontSize: 16,
     lineHeight: 1.4,
     backgroundColor: t.paper,
     border: `1px solid ${t.line}`,
     borderRadius: 8,
-    // iOS WKWebView native date/select renderar text nära fält-toppen
-    // oavsett line-height. Asymmetrisk padding (mer top) kompenserar:
-    // 18px top + 12px bottom centrerar texten visuellt på iPhone, samtidigt
-    // som desktop browser också ser balanserat ut. minHeight säkrar fält-
-    // höjden så native pickern inte skrumpnar ihop.
     padding: "18px 12px 14px",
     minHeight: 56,
     color: t.ink,
@@ -45,7 +43,9 @@ export function Field({
 }) {
   const { t } = useWarmTheme();
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4, ...style }}>
+    // minWidth: 0 så Field i en grid-cell inte tvingas bredare än sin
+    // tilldelade tracker när native date/select har implicit min-content.
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, ...style }}>
       <span style={lab(t)}>{label}</span>
       {children}
       {hint ? (

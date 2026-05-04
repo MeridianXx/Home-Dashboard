@@ -989,15 +989,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function inputStyle(t: import("@/lib/warm/tokens").WarmTheme): React.CSSProperties {
   return {
     width: "100%",
+    // minWidth: 0 + maxWidth: 100% säkrar att native date/select inte
+    // expanderar utöver sin grid-cell på iPhone (annars överlappar
+    // datum/status-boxarna sidledes).
+    minWidth: 0,
+    maxWidth: "100%",
     boxSizing: "border-box",
     backgroundColor: t.paperHi,
     color: t.ink,
     border: `1px solid ${t.line}`,
     borderRadius: 10,
-    // iOS WKWebView native date/select renderar text nära fält-toppen
-    // oavsett line-height. Asymmetrisk padding (18 top, 14 bottom) +
-    // minHeight 56 ger texten luft mot toppkanten utan att fält-höjden
-    // skrumpnar.
     padding: "18px 12px 14px",
     minHeight: 56,
     fontSize: 16,
