@@ -68,7 +68,7 @@ export default function WarmV3Layout({ children }: { children: ReactNode }) {
 function WarmV3Chrome({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname() ?? "/v3/home";
-  const { t, dark, toggle } = useWarmTheme();
+  const { t, dark, mode, cycleMode } = useWarmTheme();
   const tab = activeTab(pathname);
   const isDesktop = useDesktop();
 
@@ -424,10 +424,22 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
               type="button"
               onClick={() => {
                 void haptic("tap");
-                toggle();
+                cycleMode();
               }}
-              aria-label={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
-              title={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
+              aria-label={
+                mode === "auto"
+                  ? `Tema: auto (${dark ? "mörkt" : "ljust"})`
+                  : mode === "dark"
+                  ? "Tema: mörkt"
+                  : "Tema: ljust"
+              }
+              title={
+                mode === "auto"
+                  ? `Tema: auto (${dark ? "mörkt" : "ljust"})`
+                  : mode === "dark"
+                  ? "Tema: mörkt"
+                  : "Tema: ljust"
+              }
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -441,7 +453,7 @@ function WarmV3Chrome({ children }: { children: ReactNode }) {
                 cursor: "pointer",
               }}
             >
-              <ThemeIcon dark={dark} size={16} color={t.ink} />
+              <ThemeIcon dark={dark} mode={mode} size={16} color={t.ink} />
             </button>
           }
         />

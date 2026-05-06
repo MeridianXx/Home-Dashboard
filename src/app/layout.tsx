@@ -30,13 +30,13 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Boet — Villa Björkdalen",
+  title: "Björk — Villa Björkdalen",
   description: "Homelab & smarthome dashboard",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Boet",
+    title: "Björk",
   },
 };
 

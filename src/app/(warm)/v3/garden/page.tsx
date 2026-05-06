@@ -512,7 +512,7 @@ function DoorTile({
 // ── Sidkomponent ────────────────────────────────────────────────────────────
 
 export default function GardenHubPage() {
-  const { t, dark, setDark } = useWarmTheme();
+  const { t } = useWarmTheme();
   // Desktop: toggle bor i sidebar-foten — göm hub-interna varianten.
   const isDesktop = useDesktop();
   const now = new Date();
@@ -547,7 +547,7 @@ export default function GardenHubPage() {
         eyebrow={formatHubEyebrow("TRÄDGÅRD")}
         title={phase.label}
         italicTail={phase.italicTail}
-        right={<HubThemeToggle dark={dark} onToggle={() => setDark(!dark)} isDesktop={isDesktop} />}
+        right={<HubThemeToggle isDesktop={isDesktop} />}
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "0 18px" }}>

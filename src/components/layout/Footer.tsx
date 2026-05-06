@@ -9,7 +9,7 @@ export default function Footer() {
           className="text-[11px] font-medium uppercase tracking-wider opacity-60"
           style={{ color: "var(--color-on-surface)" }}
         >
-          © 2024 Boet • System Operational
+          © 2024 Björk • System Operational
         </span>
         <div className="flex gap-6">
           {["Privacy", "Docs", "API"].map((label) => (
@@ -27,7 +27,7 @@ export default function Footer() {
           className="text-sm font-bold font-headline"
           style={{ color: "var(--color-on-surface)" }}
         >
-          Boet
+          Björk
         </span>
       </div>
     </footer>

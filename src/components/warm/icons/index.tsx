@@ -167,15 +167,24 @@ export function SceneGlyph({
 
 /* ---------- Theme-toggle (sol/måne) ---------- */
 
-export function ThemeIcon({ dark, size = 18, color = "currentColor", style }: IconProps & { dark: boolean }) {
-  if (dark) {
-    return (
-      <svg {...baseSvg(size, color)} style={{ flexShrink: 0, ...style }}>
-        <path d="M19 14.5A7 7 0 0 1 9.5 5a7 7 0 1 0 9.5 9.5Z" />
-      </svg>
-    );
-  }
-  return (
+/**
+ * `ThemeIcon` ritar sol-, mån- eller "auto"-glyf utifrån resolved `dark`-state.
+ * När `mode === "auto"` läggs en liten ACC-prick i nedre högra hörnet ovanpå
+ * sol/mån-glyfen som signalerar "appen följer solen" — utan att slita ut
+ * själva glyfen så användaren ser vilket tema som faktiskt är aktivt.
+ */
+export function ThemeIcon({
+  dark,
+  mode,
+  size = 18,
+  color = "currentColor",
+  style,
+}: IconProps & { dark: boolean; mode?: "light" | "dark" | "auto" }) {
+  const Glyph = dark ? (
+    <svg {...baseSvg(size, color)} style={{ flexShrink: 0, ...style }}>
+      <path d="M19 14.5A7 7 0 0 1 9.5 5a7 7 0 1 0 9.5 9.5Z" />
+    </svg>
+  ) : (
     <svg {...baseSvg(size, color)} style={{ flexShrink: 0, ...style }}>
       <circle cx="12" cy="12" r="4" />
       <path d="M12 3v2.5" />
@@ -187,5 +196,35 @@ export function ThemeIcon({ dark, size = 18, color = "currentColor", style }: Ic
       <path d="M5.6 18.4 7.4 16.6" />
       <path d="M16.6 7.4l1.8-1.8" />
     </svg>
+  );
+  if (mode !== "auto") return Glyph;
+  // Auto-läge: lägg en liten terracotta-prick nere höger som indikator.
+  // Storleken på pricken är ~30% av ikonens height, en idé från "status dot"
+  // mönstret på sport-ikonerna i fitness.
+  const dotSize = Math.max(5, Math.round(size * 0.32));
+  return (
+    <span
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        width: size,
+        height: size,
+        flexShrink: 0,
+      }}
+    >
+      {Glyph}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          right: -1,
+          bottom: -1,
+          width: dotSize,
+          height: dotSize,
+          borderRadius: 999,
+          background: "#C96F4A", // ACC — match warm tokens
+        }}
+      />
+    </span>
   );
 }

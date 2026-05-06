@@ -103,7 +103,7 @@ function coachQuote(r: ReadinessResponse | undefined, nextPlan: PlannedWorkout |
 }
 
 export default function WarmFitnessHubPage() {
-  const { t, dark, toggle } = useWarmTheme();
+  const { t } = useWarmTheme();
   // Desktop: toggle bor i sidebar-foten — göm hub-interna varianten.
   const isDesktop = useDesktop();
   useHydrateProfile();
@@ -196,7 +196,7 @@ export default function WarmFitnessHubPage() {
         eyebrow={formatHubEyebrow("FITNESS")}
         title={tagline.title}
         italicTail={tagline.tail}
-        right={<HubThemeToggle dark={dark} onToggle={toggle} isDesktop={isDesktop} />}
+        right={<HubThemeToggle isDesktop={isDesktop} />}
       />
 
       <div style={{ padding: "0 18px 24px", display: "flex", flexDirection: "column", gap: 14 }}>

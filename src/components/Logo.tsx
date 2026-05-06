@@ -5,7 +5,7 @@ type LogoProps = {
 };
 
 /**
- * Boet brand symbol — outline house with center dot.
+ * Björk brand symbol — outline house with center dot.
  * Uses Warm Home accent (terracotta #C96F4A) for both light and dark themes.
  */
 export default function Logo({ size = 24, className, style }: LogoProps) {
@@ -21,7 +21,7 @@ export default function Logo({ size = 24, className, style }: LogoProps) {
       strokeLinejoin="round"
       className={className}
       style={style}
-      aria-label="Boet"
+      aria-label="Björk"
       role="img"
     >
       <path d="M3 11 L12 3 L21 11 L21 20 Q21 21 20 21 L4 21 Q3 21 3 20 Z" />

@@ -122,14 +122,7 @@ const SCENE_ENTRIES: Array<{
 // över Hem/Lab/Fitness/Garden. Tick-mekaniken (klocka i eyebrow) sker här
 // lokalt — andra hubbar har dag-eyebrow utan minutrytm.
 
-function HubHeading({
-  dark,
-  onToggle,
-}: {
-  t: WarmTheme;
-  dark: boolean;
-  onToggle: () => void;
-}) {
+function HubHeading() {
   const [, setTick] = useState(0);
   const isDesktop = useDesktop();
   useEffect(() => {
@@ -142,7 +135,7 @@ function HubHeading({
       eyebrow={formatHubEyebrow("HEM")}
       title={`${svGreeting()},`}
       italicTail="Adam."
-      right={<HubThemeToggle dark={dark} onToggle={onToggle} isDesktop={isDesktop} />}
+      right={<HubThemeToggle isDesktop={isDesktop} />}
     />
   );
 }
@@ -445,7 +438,7 @@ function TibberTile({ t, energy }: { t: WarmTheme; energy: EnergyData | undefine
           justifyContent: "space-between",
         }}
       >
-        <span style={{ ...lab(t), letterSpacing: "0.16em" }}>ENERGI</span>
+        <span style={{ ...lab(t), letterSpacing: "0.16em" }}>ENERGI · NU</span>
         <ChevronRight size={12} color={t.dim} />
       </div>
       <div
@@ -775,7 +768,7 @@ function RoomList({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function WarmHomeHub() {
-  const { t, dark, toggle } = useWarmTheme();
+  const { t } = useWarmTheme();
   const hydrated = useHydrated();
   const [sceneLoading, setSceneLoading] = useState<string | null>(null);
 
@@ -853,7 +846,7 @@ export default function WarmHomeHub() {
 
   return (
     <>
-      <HubHeading t={t} dark={dark} onToggle={toggle} />
+      <HubHeading />
 
       <div
         style={{
@@ -919,6 +912,32 @@ export default function WarmHomeHub() {
           sensors={sensors}
           onToggleArea={handleToggleArea}
         />
+
+        {/* Status-sektion — placeholder. Tänkt att visa hem-händelser (NIBE-
+            larm, värmepump-skiften, scen-aktiveringar, dörrar/fönster m.m.)
+            när stödet finns. Stilen matchar Lab-hubbens STATUS-block. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <span style={lab(t)}>STATUS</span>
+          <div
+            style={{
+              border: `1px dashed ${t.line}`,
+              borderRadius: 14,
+              padding: "20px 16px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+              background: t.paper,
+            }}
+          >
+            <span style={{ ...num(t, 13, 400), color: t.dim }}>
+              Kommer snart
+            </span>
+            <span style={ital(t, 12, t.dim)}>
+              händelser · larm · zon-byten
+            </span>
+          </div>
+        </div>
       </div>
     </>
   );

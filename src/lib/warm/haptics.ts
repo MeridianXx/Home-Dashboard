@@ -1,6 +1,6 @@
 // Haptisk feedback för Warm Home — wrappar `@capacitor/haptics` med
 // platform-check + dynamic import. I vanlig browser/PWA är allt no-op:s.
-// I Boet-appen ger anropen native UIKit-haptics.
+// I Björk-appen ger anropen native UIKit-haptics.
 
 type HapticKind = "tap" | "success" | "warning" | "error" | "select";
 

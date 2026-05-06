@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "cloud.inicio.dashboard",
-  appName: "Boet",
+  appName: "Björk",
   webDir: "out",
   server: {
     url: "https://dash.inicio.cloud",

@@ -114,14 +114,7 @@ type PortainerData = {
 
 // ─── Header — delad HubDisplay + HubThemeToggle (linjerar med Hem/Fit/Garden)
 
-function HubHeading({
-  dark,
-  onToggle,
-}: {
-  t: WarmTheme;
-  dark: boolean;
-  onToggle: () => void;
-}) {
+function HubHeading() {
   const [, setTick] = useState(0);
   const isDesktop = useDesktop();
   useEffect(() => {
@@ -134,7 +127,7 @@ function HubHeading({
       eyebrow={formatHubEyebrow("LAB")}
       title="Homelab,"
       italicTail="allt rullar."
-      right={<HubThemeToggle dark={dark} onToggle={onToggle} isDesktop={isDesktop} />}
+      right={<HubThemeToggle isDesktop={isDesktop} />}
     />
   );
 }
@@ -524,7 +517,7 @@ function ServicesGrid({ t }: { t: WarmTheme }) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function WarmLabHub() {
-  const { t, dark, toggle } = useWarmTheme();
+  const { t } = useWarmTheme();
   const hydrated = useHydrated();
 
   const {
@@ -565,7 +558,7 @@ export default function WarmLabHub() {
 
   return (
     <>
-      <HubHeading t={t} dark={dark} onToggle={toggle} />
+      <HubHeading />
 
       <div
         style={{

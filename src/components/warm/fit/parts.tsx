@@ -16,26 +16,32 @@ import { useRegisterCompactTitle } from "@/lib/warm/topbar";
  * Används inuti `HubDisplay`s `right`-slot på alla 4 hubbar så ikon, storlek,
  * bakgrund och position är identiska över sektioner. Desktop-läget gömmer
  * den (toggle bor i sidebar-foten istället).
+ *
+ * Tre-läges (light → dark → auto → light). Auto-läget visar en liten ACC-prick
+ * på sol/mån-glyfen för att signalera att appen följer `sun.sun` från HA.
  */
 export function HubThemeToggle({
-  dark,
-  onToggle,
   isDesktop,
 }: {
-  dark: boolean;
-  onToggle: () => void;
   isDesktop: boolean;
 }) {
-  const { t } = useWarmTheme();
+  const { t, dark, mode, cycleMode } = useWarmTheme();
   if (isDesktop) return null;
+  const label =
+    mode === "auto"
+      ? `Tema: auto (${dark ? "mörkt" : "ljust"})`
+      : mode === "dark"
+      ? "Tema: mörkt"
+      : "Tema: ljust";
   return (
     <button
       type="button"
       onClick={() => {
         void haptic("tap");
-        onToggle();
+        cycleMode();
       }}
-      aria-label={dark ? "Byt till ljust tema" : "Byt till mörkt tema"}
+      aria-label={label}
+      title={label}
       style={{
         width: 36,
         height: 36,
@@ -50,7 +56,7 @@ export function HubThemeToggle({
         flexShrink: 0,
       }}
     >
-      <ThemeIcon dark={dark} size={16} color={t.ink} />
+      <ThemeIcon dark={dark} mode={mode} size={16} color={t.ink} />
     </button>
   );
 }

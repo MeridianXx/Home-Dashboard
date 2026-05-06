@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Boet — Villa Björkdalen",
-    short_name: "Boet",
+    name: "Björk — Villa Björkdalen",
+    short_name: "Björk",
     description: "Homelab & smarthome dashboard",
     start_url: "/v3/home",
     scope: "/",

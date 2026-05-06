@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Boet</string>
+        <string>Björk</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -48,10 +48,10 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Boet behöver kameran för att kunna ta foton till AI-rådgivaren.</string>
+	<string>Björk behöver kameran för att kunna ta foton till AI-rådgivaren.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Boet behöver bildbiblioteket för att lägga till foton till AI-rådgivaren.</string>
+	<string>Björk behöver bildbiblioteket för att lägga till foton till AI-rådgivaren.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Boet behöver behörighet att spara foton om du väljer det.</string>
+	<string>Björk behöver behörighet att spara foton om du väljer det.</string>
 </dict>
 </plist>
