@@ -298,14 +298,16 @@ export function TabBar({
   onChange,
   iconFor,
   labelFor,
+  tabs,
 }: {
   t: WarmTheme;
   active: TabKey;
   onChange: (key: TabKey) => void;
   iconFor: (key: TabKey, active: boolean) => ReactNode;
   labelFor: (key: TabKey) => string;
+  tabs?: TabKey[];
 }) {
-  const keys: TabKey[] = ["hem", "lab", "fit", "gard"];
+  const keys: TabKey[] = tabs ?? ["hem", "lab", "fit", "gard"];
   return (
     <nav
       style={{
@@ -386,6 +388,7 @@ export function Sidebar({
   iconFor,
   labelFor,
   footer,
+  tabs,
 }: {
   t: WarmTheme;
   active: TabKey;
@@ -393,8 +396,9 @@ export function Sidebar({
   iconFor: (key: TabKey, active: boolean) => ReactNode;
   labelFor: (key: TabKey) => string;
   footer?: ReactNode;
+  tabs?: TabKey[];
 }) {
-  const keys: TabKey[] = ["hem", "lab", "fit", "gard"];
+  const keys: TabKey[] = tabs ?? ["hem", "lab", "fit", "gard"];
   return (
     <aside
       style={{

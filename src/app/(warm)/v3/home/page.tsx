@@ -17,6 +17,7 @@ import {
 } from "@/lib/warm/tokens";
 import { Tile } from "@/components/warm/primitives";
 import { HubDisplay, HubThemeToggle } from "@/components/warm/fit/parts";
+import { useWarmUser } from "@/lib/warm/user";
 import { SceneGlyph } from "@/components/warm/icons";
 import { ChevronRight } from "@/components/warm/icons/extra";
 import { weatherGlyph } from "@/lib/warm/weather";
@@ -125,6 +126,7 @@ const SCENE_ENTRIES: Array<{
 function HubHeading() {
   const [, setTick] = useState(0);
   const isDesktop = useDesktop();
+  const user = useWarmUser();
   useEffect(() => {
     // Tick var 30 min — eyebrow visar dag/vecka, inga minuter att uppdatera.
     const id = window.setInterval(() => setTick((x) => x + 1), 30 * 60_000);
@@ -134,7 +136,7 @@ function HubHeading() {
     <HubDisplay
       eyebrow={formatHubEyebrow("HEM")}
       title={`${svGreeting()},`}
-      italicTail="Adam."
+      italicTail={`${user.name}.`}
       right={<HubThemeToggle isDesktop={isDesktop} />}
     />
   );
