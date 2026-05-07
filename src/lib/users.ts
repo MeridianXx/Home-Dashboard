@@ -13,7 +13,7 @@ export interface UserProfile {
 }
 
 const ADAM: UserProfile = {
-  email: "adam@inicio.cloud",
+  email: "adam@inicio.se",
   name: "Adam",
   tabs: ["hem", "lab", "fit", "gard"],
 };
