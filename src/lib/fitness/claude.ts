@@ -320,7 +320,10 @@ Viktigt:
   const n = getClient();
   const response = await n.messages.create({
     model: MODEL,
-    max_tokens: 2000,
+    // 14-dagarsplaner med alla fält per pass landar lätt på 2200+ tokens; 2000
+    // trunkerar mitt i JSON-arrayen och planen blir tom. 3500 ger marginal för
+    // ~15 pass + commentary.
+    max_tokens: 3500,
     system,
     messages: [{ role: "user", content: prompt }],
   });
@@ -335,6 +338,21 @@ Viktigt:
   const plan: GeneratedPlanItem[] = Array.isArray(jsonArr)
     ? jsonArr.map(sanitizePlanItem).filter((x): x is GeneratedPlanItem => x !== null)
     : [];
+
+  if (plan.length === 0) {
+    console.error(
+      "[fitness/generate] Kunde inte parsa plan ur Claude-svar.\n" +
+      `stop_reason=${response.stop_reason} tokens_out=${response.usage.output_tokens}\n` +
+      `Råtext (${rawText.length} tecken):\n`,
+      rawText,
+    );
+    throw new PlanParseError(
+      response.stop_reason === "max_tokens"
+        ? "Svaret blev för långt och avbröts. Prova en kortare period eller färre pass."
+        : "Claude returnerade ingen giltig plan-JSON. Prova att formulera om.",
+      rawText,
+    );
+  }
 
   // Kommentar = texten innan första `[`. Städa bort trailing whitespace.
   const jsonStart = rawText.indexOf("[");
