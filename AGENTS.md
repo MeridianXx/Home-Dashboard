@@ -223,7 +223,8 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 
 | Secret | Kommentar |
 |---|---|
-| `PROXMOX_TOKEN_ID`, `PROXMOX_TOKEN_SECRET` | Hemlab-servrar |
+| `PROXMOX_TOKEN_ID`, `PROXMOX_TOKEN_SECRET` | Hemlab-servrar. Samma token funkar mot alla kluster-medlemmar. |
+| `PROXMOX_URL`, `PROXMOX_URL_FALLBACK` | **Valfria** — IP/host till primär resp. sekundär kluster-nod. Tomma secrets → defaultar till `https://192.168.1.20:8006` (proxmox01) / `https://192.168.1.21:8006` (proxmox02). Routen health-checkar primär först (`/version`, 2.5 s timeout) och faller över vid network/timeout/5xx. Auth-fel (401/403) hoppar fallback eftersom samma token gäller över klustret. Svaret innehåller `source: "primary" \| "fallback"` — UI visar "reservnod" när fallback används. |
 | `UNRAID_URL`, `UNRAID_API_KEY` | GraphQL-endpoint + API-nyckel |
 | `PORTAINER_URL`, `PORTAINER_API_TOKEN`, `PORTAINER_ENDPOINT_ID` | Container-hantering |
 | `HA_URL`, `HA_TOKEN` | Home Assistant long-lived access token |

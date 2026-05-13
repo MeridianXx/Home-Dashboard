@@ -47,7 +47,24 @@ type PveNode = {
   net_out: string | null;
   vms: PveVm[];
 };
-type ProxmoxData = { nodes: PveNode[]; error?: string };
+type PveCluster = {
+  node_count: number;
+  nodes_online: number;
+  status: "online" | "degraded" | "offline";
+  cpu_pct: number;
+  cpu_cores: number;
+  mem_used_gb: number;
+  mem_total_gb: number;
+  mem_pct: number;
+  disk_used_gb: number;
+  disk_total_gb: number;
+  disk_pct: number;
+  net_in: string | null;
+  net_out: string | null;
+  vms_running: number;
+  vms_stopped: number;
+};
+type ProxmoxData = { cluster?: PveCluster; nodes: PveNode[]; source?: "primary" | "fallback"; error?: string };
 
 type DiskEntry = {
   name: string;
@@ -540,14 +557,16 @@ export default function WarmLabHub() {
     { refreshInterval: 5_000 }
   );
 
-  const proxNode = proxmox?.nodes?.[0];
-  const proxVmsRunning = proxNode?.vms.filter((v) => v.status === "running").length ?? 0;
-  const proxVmsStopped = proxNode?.vms.filter((v) => v.status !== "running").length ?? 0;
+  const cluster = proxmox?.cluster;
+  const proxVmsRunning = cluster?.vms_running ?? 0;
+  const proxVmsStopped = cluster?.vms_stopped ?? 0;
   const proxContainers = portainer?.containers?.length ?? 0;
   const unraidContainers = unraid?.containers?.filter((c) => c.state === "RUNNING").length ?? 0;
   const unraidContainersStopped = unraid?.containers?.filter((c) => c.state !== "RUNNING").length ?? 0;
 
-  const proxOnline = proxNode?.status === "online";
+  const proxOnline = cluster?.status === "online";
+  const proxDegraded = cluster?.status === "degraded";
+  const proxOnFallback = proxmox?.source === "fallback";
   const unraidOnline = unraid?.system != null;
 
   const totalServices = proxVmsRunning + proxContainers + unraidContainers;
@@ -596,18 +615,28 @@ export default function WarmLabHub() {
             href="/v3/lab/host/proxmox"
             webui="https://proxmox.inicio.cloud"
             icon={<ServerIcon size={16} color={ACC} />}
-            title={proxNode?.node ?? "proxmox"}
-            online={proxOnline}
-            uptime={proxNode?.uptime ?? "—"}
-            cpu_pct={proxNode?.cpu_pct ?? 0}
-            mem_pct={proxNode?.mem_pct ?? 0}
-            mem_used_gb={proxNode?.mem_used_gb ?? 0}
-            mem_total_gb={proxNode?.mem_total_gb ?? 0}
+            title="proxmox-kluster"
+            online={proxOnline || proxDegraded}
+            uptime={
+              cluster
+                ? `${cluster.nodes_online}/${cluster.node_count} noder${
+                    proxDegraded
+                      ? " · degraderad"
+                      : proxOnFallback
+                      ? " · reservnod"
+                      : ""
+                  }`
+                : "—"
+            }
+            cpu_pct={cluster?.cpu_pct ?? 0}
+            mem_pct={cluster?.mem_pct ?? 0}
+            mem_used_gb={cluster?.mem_used_gb ?? 0}
+            mem_total_gb={cluster?.mem_total_gb ?? 0}
             storageLabel={null}
             storagePct={null}
             storageOk={null}
             servicesLabel={
-              proxNode
+              cluster
                 ? `${proxVmsRunning} VM/LXC igång${
                     proxVmsStopped > 0 ? ` · ${proxVmsStopped} stoppad` : ""
                   } · ${proxContainers} containrar`

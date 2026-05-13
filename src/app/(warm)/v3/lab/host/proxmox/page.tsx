@@ -27,6 +27,7 @@ import { formatTime } from "@/lib/warm/format";
 type PveVm = {
   vmid: number;
   name: string;
+  node: string;
   type: string;
   status: string;
   cpu_pct: number;
@@ -49,7 +50,24 @@ type PveNode = {
   net_out: string | null;
   vms: PveVm[];
 };
-type ProxmoxData = { nodes: PveNode[]; error?: string };
+type PveCluster = {
+  node_count: number;
+  nodes_online: number;
+  status: "online" | "degraded" | "offline";
+  cpu_pct: number;
+  cpu_cores: number;
+  mem_used_gb: number;
+  mem_total_gb: number;
+  mem_pct: number;
+  disk_used_gb: number;
+  disk_total_gb: number;
+  disk_pct: number;
+  net_in: string | null;
+  net_out: string | null;
+  vms_running: number;
+  vms_stopped: number;
+};
+type ProxmoxData = { cluster?: PveCluster; nodes: PveNode[]; source?: "primary" | "fallback"; error?: string };
 
 type PortainerData = {
   containers: Array<{
@@ -64,28 +82,29 @@ type PortainerData = {
   error?: string;
 };
 
-// ─── Header (back-chevron + LAB · HH:MM + titel) ─────────────────────────────
+// ─── Header ──────────────────────────────────────────────────────────────────
 
 function PageHeading({
   t,
   back,
   title,
   italicTail,
-  online,
-  uptime,
+  status,
+  statusLabel,
 }: {
   t: WarmTheme;
   back: () => void;
   title: string;
   italicTail: string;
-  online: boolean;
-  uptime: string;
+  status: "online" | "degraded" | "offline";
+  statusLabel: string;
 }) {
   const [, forceTick] = useState(0);
   useEffect(() => {
     const id = window.setInterval(() => forceTick((x) => x + 1), 30_000);
     return () => window.clearInterval(id);
   }, []);
+  const statusColor = status === "online" ? SAGE : status === "degraded" ? t.warn : t.bad;
   return (
     <header
       style={{
@@ -154,15 +173,15 @@ function PageHeading({
           style={{
             fontFamily: body,
             fontSize: 12,
-            color: online ? SAGE : t.bad,
+            color: statusColor,
             display: "inline-flex",
             alignItems: "center",
             gap: 5,
             marginTop: 2,
           }}
         >
-          <StatusDot ok={online} color={online ? SAGE : t.bad} size={6} />
-          {online ? `online · ${uptime} uptime` : "offline"}
+          <StatusDot ok={status !== "offline"} color={statusColor} size={6} />
+          {statusLabel}
         </span>
       </div>
     </header>
@@ -338,6 +357,170 @@ function FootRow({
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Per-nod-kort (ringar + uptime + mini-bars) ──────────────────────────────
+
+function NodeCard({
+  t,
+  node,
+}: {
+  t: WarmTheme;
+  node: PveNode;
+}) {
+  const online = node.status === "online";
+  const running = node.vms.filter((v) => v.status === "running").length;
+  const stopped = node.vms.filter((v) => v.status !== "running").length;
+  return (
+    <div
+      style={{
+        background: t.paper,
+        border: `1px solid ${t.line}`,
+        borderRadius: 14,
+        padding: "14px 14px 12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      {/* Header: namn + status + uptime */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <StatusDot ok={online} color={online ? SAGE : t.bad} size={7} />
+          <span
+            style={{
+              fontFamily: serif,
+              fontSize: 16,
+              fontWeight: 500,
+              color: t.ink,
+              letterSpacing: "-0.01em",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {node.node}
+          </span>
+        </div>
+        <span
+          className="warm-tab-nums"
+          style={{
+            fontFamily: body,
+            fontSize: 11,
+            color: t.mute,
+            flexShrink: 0,
+          }}
+        >
+          {online ? `${node.uptime} uptime` : "offline"}
+        </span>
+      </div>
+
+      {/* CPU / RAM / SSD mini-bars */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        <MiniStatRow
+          t={t}
+          label="CPU"
+          value={`${node.cpu_pct}%`}
+          pct={node.cpu_pct}
+          tagline={`${node.cpu_cores} kärnor`}
+        />
+        <MiniStatRow
+          t={t}
+          label="RAM"
+          value={`${node.mem_used_gb.toFixed(1)}/${node.mem_total_gb.toFixed(0)} GB`}
+          pct={node.mem_pct}
+        />
+        <MiniStatRow
+          t={t}
+          label="SSD"
+          value={`${node.disk_used_gb.toFixed(1)}/${node.disk_total_gb.toFixed(0)} GB`}
+          pct={node.disk_pct}
+        />
+      </div>
+
+      {/* Foot: VM/LXC-räknare + net */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          paddingTop: 8,
+          borderTop: `1px solid ${t.line}`,
+        }}
+      >
+        <span style={{ fontFamily: body, fontSize: 11, color: t.mute }}>
+          <span className="warm-tab-nums" style={{ color: t.ink, fontWeight: 500 }}>
+            {running}
+          </span>
+          {stopped > 0 && (
+            <span className="warm-tab-nums" style={{ color: t.dim }}>
+              /{running + stopped}
+            </span>
+          )}{" "}
+          VM/LXC
+        </span>
+        {node.net_in && (
+          <span style={{ fontFamily: body, fontSize: 11, color: t.mute }}>
+            <span className="warm-tab-nums" style={{ color: t.ink, fontWeight: 500 }}>
+              ↓ {node.net_in}
+            </span>
+          </span>
+        )}
+        {node.net_out && (
+          <span style={{ fontFamily: body, fontSize: 11, color: t.mute }}>
+            <span className="warm-tab-nums" style={{ color: t.ink, fontWeight: 500 }}>
+              ↑ {node.net_out}
+            </span>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MiniStatRow({
+  t,
+  label,
+  value,
+  pct,
+  tagline,
+}: {
+  t: WarmTheme;
+  label: string;
+  value: string;
+  pct: number;
+  tagline?: string;
+}) {
+  const color = pct >= 85 ? t.bad : pct >= 70 ? t.warn : ACC;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ ...lab(t), minWidth: 32 }}>{label}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Bar t={t} value={pct} color={color} height={4} />
+      </div>
+      <span
+        className="warm-tab-nums"
+        style={{
+          fontFamily: body,
+          fontSize: 11,
+          fontWeight: 500,
+          color: pct >= 70 ? color : t.mute,
+          minWidth: 92,
+          textAlign: "right" as const,
+        }}
+      >
+        {value}
+        {tagline && <span style={{ color: t.dim, fontWeight: 400 }}> · {tagline}</span>}
+      </span>
     </div>
   );
 }
@@ -533,7 +716,7 @@ function ContainerRow({
   );
 }
 
-// ─── Sektionslåda — bg + label-rad + innehåll ────────────────────────────────
+// ─── Sektionslåda ────────────────────────────────────────────────────────────
 
 function SectionBox({
   t,
@@ -621,6 +804,27 @@ function ActionButton({
   );
 }
 
+// ─── Empty-nod-platshållare ──────────────────────────────────────────────────
+
+function EmptyNodeNote({ t, node }: { t: WarmTheme; node: string }) {
+  return (
+    <div
+      style={{
+        padding: "14px",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        color: t.dim,
+      }}
+    >
+      <ServerIcon size={14} color={t.dim} />
+      <span style={ital(t, 12, t.dim)}>
+        Inga VM eller LXC på {node} än.
+      </span>
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function WarmProxmoxDetail() {
@@ -643,15 +847,27 @@ export default function WarmProxmoxDetail() {
     { refreshInterval: 5_000 }
   );
 
-  const node = proxmox?.nodes?.[0];
-  const online = node?.status === "online";
+  const cluster = proxmox?.cluster;
+  const nodes = proxmox?.nodes ?? [];
+  const onFallback = proxmox?.source === "fallback";
+  // Stabil sortering — så raderna inte hoppar mellan refresh.
+  const sortedNodes = [...nodes].sort((a, b) => a.node.localeCompare(b.node));
   const containers = portainer?.containers ?? [];
-  const vmsRunning = node?.vms.filter((v) => v.status === "running").length ?? 0;
-  const vmsStopped = node?.vms.filter((v) => v.status !== "running").length ?? 0;
   const containersRunning = containers.filter((c) => c.state === "running").length;
 
-  const tagline = online
-    ? `${vmsRunning} VM/LXC + ${containersRunning} containrar.`
+  const status = cluster?.status ?? "offline";
+  const statusLabel = cluster
+    ? status === "online"
+      ? `${cluster.nodes_online}/${cluster.node_count} noder online${
+          onFallback ? " · via reservnod" : ""
+        }`
+      : status === "degraded"
+      ? `${cluster.nodes_online}/${cluster.node_count} online · degraderad`
+      : "alla noder offline"
+    : "—";
+
+  const tagline = cluster
+    ? `${cluster.node_count} noder, ${cluster.vms_running} VM/LXC + ${containersRunning} containrar.`
     : "host nere.";
 
   return (
@@ -659,10 +875,10 @@ export default function WarmProxmoxDetail() {
       <PageHeading
         t={t}
         back={() => router.push("/v3/lab")}
-        title={node?.node ?? "proxmox"}
+        title="proxmox-kluster"
         italicTail={tagline}
-        online={online}
-        uptime={node?.uptime ?? "—"}
+        status={status}
+        statusLabel={statusLabel}
       />
 
       <div
@@ -681,29 +897,30 @@ export default function WarmProxmoxDetail() {
           />
         )}
 
-        {node && (
+        {cluster && (
           <>
+            {/* Kluster-overview */}
             <RingTrio
               t={t}
-              cpu={node.cpu_pct}
-              ram={node.mem_pct}
-              ramLabel={`${node.mem_used_gb.toFixed(1)}/${node.mem_total_gb.toFixed(0)} GB`}
-              cores={node.cpu_cores}
-              disk={node.disk_pct}
-              diskLabel={`${node.disk_used_gb.toFixed(1)}/${node.disk_total_gb.toFixed(0)} GB`}
+              cpu={cluster.cpu_pct}
+              ram={cluster.mem_pct}
+              ramLabel={`${cluster.mem_used_gb.toFixed(1)}/${cluster.mem_total_gb.toFixed(0)} GB`}
+              cores={cluster.cpu_cores}
+              disk={cluster.disk_pct}
+              diskLabel={`${cluster.disk_used_gb.toFixed(1)}/${cluster.disk_total_gb.toFixed(0)} GB`}
             />
 
             <FootRow
               t={t}
               items={[
-                { label: "NÄT IN", value: node.net_in ?? "—" },
-                { label: "NÄT UT", value: node.net_out ?? "—" },
+                { label: "NÄT IN", value: cluster.net_in ?? "—" },
+                { label: "NÄT UT", value: cluster.net_out ?? "—" },
                 {
                   label: "VM/LXC",
                   value:
-                    vmsStopped > 0
-                      ? `${vmsRunning}/${vmsRunning + vmsStopped}`
-                      : `${vmsRunning}`,
+                    cluster.vms_stopped > 0
+                      ? `${cluster.vms_running}/${cluster.vms_running + cluster.vms_stopped}`
+                      : `${cluster.vms_running}`,
                 },
                 {
                   label: "DOCKER",
@@ -712,20 +929,43 @@ export default function WarmProxmoxDetail() {
               ]}
             />
 
-            {/* VMs & LXC */}
-            <SectionBox
-              t={t}
-              label="VIRTUELLA MASKINER"
-              countLabel={
-                vmsStopped > 0
-                  ? `${vmsRunning} igång · ${vmsStopped} stoppad`
-                  : `${vmsRunning} igång`
-              }
-            >
-              {node.vms.map((v, i) => (
-                <VmRow key={v.vmid} t={t} vm={v} isFirst={i === 0} />
-              ))}
-            </SectionBox>
+            {/* Per-nod-kort */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <span style={lab(t)}>NODER</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {sortedNodes.map((n) => (
+                  <NodeCard key={n.node} t={t} node={n} />
+                ))}
+              </div>
+            </div>
+
+            {/* VMs per nod */}
+            {sortedNodes.map((n) => {
+              const running = n.vms.filter((v) => v.status === "running").length;
+              const stopped = n.vms.filter((v) => v.status !== "running").length;
+              return (
+                <SectionBox
+                  key={`vms-${n.node}`}
+                  t={t}
+                  label={`VM/LXC · ${n.node.toUpperCase()}`}
+                  countLabel={
+                    n.vms.length === 0
+                      ? "tomt"
+                      : stopped > 0
+                      ? `${running} igång · ${stopped} stoppad`
+                      : `${running} igång`
+                  }
+                >
+                  {n.vms.length === 0 ? (
+                    <EmptyNodeNote t={t} node={n.node} />
+                  ) : (
+                    n.vms.map((v, i) => (
+                      <VmRow key={v.vmid} t={t} vm={v} isFirst={i === 0} />
+                    ))
+                  )}
+                </SectionBox>
+              );
+            })}
 
             {/* Containers via Portainer */}
             {containers.length > 0 && (
@@ -762,7 +1002,7 @@ export default function WarmProxmoxDetail() {
           </>
         )}
 
-        {!node && !error && (
+        {!cluster && !error && (
           <div
             style={{
               background: t.paper,

@@ -56,6 +56,8 @@ jobs:
             -p 3457:3000 \
             -e NODE_ENV=production \
             -e NEXT_TELEMETRY_DISABLED=1 \
+            -e PROXMOX_URL="${{ secrets.PROXMOX_URL }}" \
+            -e PROXMOX_URL_FALLBACK="${{ secrets.PROXMOX_URL_FALLBACK }}" \
             -e PROXMOX_TOKEN_ID="${{ secrets.PROXMOX_TOKEN_ID }}" \
             -e PROXMOX_TOKEN_SECRET="${{ secrets.PROXMOX_TOKEN_SECRET }}" \
             -e UNRAID_URL="${{ secrets.UNRAID_URL }}" \
