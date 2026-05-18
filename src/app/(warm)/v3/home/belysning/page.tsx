@@ -18,10 +18,12 @@ import {
 import { DetailHeader, Pill } from "@/components/warm/primitives";
 import { SceneGlyph } from "@/components/warm/icons";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
+import WarmSwitch from "@/components/warm/Switch";
 import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { RoomLightRow, type LightArea, type LightEntry } from "@/components/warm/RoomLights";
 import { NEDERVANING, OVERVANING, UTOMHUS } from "@/lib/warm/rooms";
 import { formatTime, lastDarkenedAt, sceneLabel } from "@/lib/warm/format";
+import type { AwayPayload } from "@/app/api/homeassistant/away/route";
 
 type LightsData = { areas: LightArea[] };
 
@@ -231,6 +233,147 @@ function FloorSection({
   );
 }
 
+function SuitcaseIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0 }}
+    >
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      <path d="M3 12h18" />
+    </svg>
+  );
+}
+
+function AwayModeTile({ t }: { t: WarmTheme }) {
+  const hydrated = useHydrated();
+  const { data, mutate, error } = useSWR<AwayPayload>(
+    hydrated ? "/api/homeassistant/away" : null,
+    fetcher,
+    { refreshInterval: 10_000 }
+  );
+  const [pending, setPending] = useState(false);
+  const active = data?.active ?? false;
+  const disabled = !data && !error;
+
+  async function toggle() {
+    if (pending) return;
+    setPending(true);
+    const next = !active;
+    // Optimistic update så pillens visuella state svarar omedelbart.
+    void mutate(
+      data ? { ...data, active: next } : { active: next, lastChanged: null },
+      { revalidate: false }
+    );
+    try {
+      await fetch("/api/homeassistant/away", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: next }),
+      });
+      await new Promise((r) => setTimeout(r, 400));
+      await mutate();
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <span style={lab(t)}>FRÅNVARO</span>
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-pressed={active}
+        onClick={() => {
+          if (disabled || pending) return;
+          void haptic("tap");
+          void toggle();
+        }}
+        onKeyDown={(e) => {
+          if (disabled || pending) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            void haptic("tap");
+            void toggle();
+          }
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          width: "100%",
+          padding: "14px 16px",
+          borderRadius: 14,
+          background: active ? t.tint : t.paper,
+          border: `1px solid ${active ? ACC : t.line}`,
+          color: t.ink,
+          cursor: disabled ? "default" : "pointer",
+          opacity: pending ? 0.7 : 1,
+          transition: "background 160ms, border-color 160ms",
+        }}
+      >
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 38,
+            height: 38,
+            borderRadius: 999,
+            background: active ? ACC : t.paperHi,
+            border: `1px solid ${active ? ACC : t.line}`,
+            flexShrink: 0,
+          }}
+        >
+          <SuitcaseIcon color={active ? "#FFFBF0" : t.mute} size={18} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: body,
+              fontSize: 14,
+              fontWeight: 600,
+              color: t.ink,
+              lineHeight: 1.2,
+            }}
+          >
+            Semesterläge
+          </div>
+          <div
+            style={{
+              ...ital(t, 12, active ? t.mute : t.dim),
+              lineHeight: 1.3,
+              marginTop: 2,
+            }}
+          >
+            {active
+              ? "simulering aktiv · släcks 23:00"
+              : "slumpat läge när ingen är hemma"}
+          </div>
+        </div>
+        <WarmSwitch
+          on={active}
+          onChange={() => {
+            void haptic("tap");
+            void toggle();
+          }}
+          t={t}
+          ariaLabel="Semesterläge"
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function WarmLightingPage() {
   const router = useRouter();
   const { t } = useWarmTheme();
@@ -407,6 +550,8 @@ export default function WarmLightingPage() {
           loading={sceneLoading}
           onActivate={handleScene}
         />
+
+        <AwayModeTile t={t} />
 
         {areas.length === 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
