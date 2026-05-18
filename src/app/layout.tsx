@@ -35,13 +35,22 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    // `black-translucent` gör att page-bakgrunden flyter hela vägen upp förbi
+    // notchen i iOS PWA standalone-läget. Innehållet får `safe-area-inset-top`
+    // i (warm)/v3-layouten så UI:t inte hamnar under statusikonerna.
+    statusBarStyle: "black-translucent",
     title: "Björk",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#C96F4A",
+  // Warm-bg som theme-color — påverkar Safari (icke-standalone) toolbar-tint +
+  // splash-screen-bakgrund. `WarmThemeProvider` muterar denna dynamiskt när
+  // användaren togglar mellan light/dark/auto i PWA:n så zonen alltid matchar.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F5EEDE" },
+    { media: "(prefers-color-scheme: dark)", color: "#1A1712" },
+  ],
   width: "device-width",
   initialScale: 1,
   // Lås zoom — annars auto-zoomar iOS in när man fokuserar en text-input

@@ -170,6 +170,21 @@ export function WarmThemeProvider({ children }: { children: ReactNode }) {
 
   const dark = mode === "dark" ? true : mode === "light" ? false : autoIsDark;
 
+  // iOS PWA standalone (`apple-mobile-web-app-status-bar-style: black-translucent`)
+  // tänker page-content går hela vägen upp förbi statusikonerna. För att zonen
+  // visuellt ska smälta in med Warm-bg sätter vi `<html>` + `<body>` bakgrund
+  // dynamiskt här — annars syns v2:s `--color-surface` (vit) under första
+  // paint innan WarmV3Chrome-root-div:en hinner ritas. Samtidigt synkar vi
+  // `<meta name="theme-color">` så Safari-toolbar och splash-screen följer.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const bg = dark ? darkT.bg : lightT.bg;
+    document.documentElement.style.background = bg;
+    document.body.style.background = bg;
+    const metas = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
+    metas.forEach((m) => m.setAttribute("content", bg));
+  }, [dark]);
+
   const setMode = useCallback((next: ThemeMode) => {
     setModeState(next);
     if (typeof window !== "undefined") {
