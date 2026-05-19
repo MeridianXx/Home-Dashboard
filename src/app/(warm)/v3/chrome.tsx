@@ -9,14 +9,14 @@ import {
   TabBar,
   type TabKey,
 } from "@/components/warm/primitives";
-import { FitIcon, GardIcon, HemIcon, LabIcon, ThemeIcon } from "@/components/warm/icons";
+import { FitIcon, GardIcon, HemIcon, LabIcon, MatIcon, ThemeIcon } from "@/components/warm/icons";
 import {
   DESKTOP_BREAKPOINT,
   useDesktop,
   useWarmTheme,
   WarmThemeProvider,
 } from "@/lib/warm/theme";
-import { ACC, SAGE, body, serif } from "@/lib/warm/tokens";
+import { ACC, AMBER, SAGE, body, serif } from "@/lib/warm/tokens";
 import { CheckIcon } from "@/components/warm/icons/extra";
 import { haptic } from "@/lib/warm/haptics";
 import {
@@ -31,6 +31,7 @@ const TAB_LABELS: Record<TabKey, string> = {
   lab: "Lab",
   fit: "Fitness",
   gard: "Trädgård",
+  mat: "Mat",
 };
 
 const TAB_ROUTES: Record<TabKey, string> = {
@@ -38,12 +39,14 @@ const TAB_ROUTES: Record<TabKey, string> = {
   lab: "/v3/lab",
   fit: "/v3/fitness",
   gard: "/v3/garden",
+  mat: "/v3/mat",
 };
 
 function activeTab(pathname: string): TabKey {
   if (pathname.startsWith("/v3/lab")) return "lab";
   if (pathname.startsWith("/v3/fitness")) return "fit";
   if (pathname.startsWith("/v3/garden")) return "gard";
+  if (pathname.startsWith("/v3/mat")) return "mat";
   return "hem";
 }
 
@@ -52,7 +55,14 @@ function tabIcon(key: TabKey, color: string, size = 20) {
   if (key === "hem") return <HemIcon {...props} />;
   if (key === "lab") return <LabIcon {...props} />;
   if (key === "fit") return <FitIcon {...props} />;
+  if (key === "mat") return <MatIcon {...props} />;
   return <GardIcon {...props} />;
+}
+
+/** Mat-sektionen flippar pill-accenten till AMBER för sektionsidentitet —
+ *  samma princip som ACC är "default Warm Home"-accent. */
+function tabAccent(tab: TabKey): string {
+  return tab === "mat" ? AMBER : ACC;
 }
 
 const PULL_THRESHOLD = 80;
@@ -432,6 +442,7 @@ function WarmV3ChromeInner({ children }: { children: ReactNode }) {
           t={t}
           active={tab}
           tabs={allowedTabs}
+          activeColor={tabAccent(tab)}
           onChange={(key) => router.push(TAB_ROUTES[key])}
           labelFor={(key) => TAB_LABELS[key]}
           iconFor={(key, isActive) => tabIcon(key, isActive ? "#FFFBF0" : t.mute, 22)}
@@ -516,6 +527,7 @@ function WarmV3ChromeInner({ children }: { children: ReactNode }) {
           t={t}
           active={tab}
           tabs={allowedTabs}
+          activeColor={tabAccent(tab)}
           onChange={(key) => router.push(TAB_ROUTES[key])}
           labelFor={(key) => TAB_LABELS[key]}
           iconFor={(key, isActive) => tabIcon(key, isActive ? "#FFFBF0" : t.mute)}

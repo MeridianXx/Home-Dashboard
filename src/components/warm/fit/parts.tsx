@@ -69,6 +69,7 @@ export function HubThemeToggle({
  */
 export function HubDisplay({
   eyebrow,
+  eyebrowColor,
   title,
   italicTail,
   subtitle,
@@ -76,6 +77,9 @@ export function HubDisplay({
   compactTitle,
 }: {
   eyebrow: string;
+  /** Färg på eyebrow-labeln. Default ACC. Sektioner med egen accent
+   *  (Mat → AMBER) sätter denna för att matcha tab-pill-färgen. */
+  eyebrowColor?: string;
   title: string;
   italicTail?: string;
   subtitle?: string;
@@ -95,7 +99,7 @@ export function HubDisplay({
   return (
     <header style={{ padding: "20px 18px 12px", display: "flex", alignItems: "flex-start", gap: 12 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ ...lab(t, { color: ACC, marginBottom: 8 }) }}>{eyebrow}</div>
+        <div style={{ ...lab(t, { color: eyebrowColor ?? ACC, marginBottom: 8 }) }}>{eyebrow}</div>
         <h1
           style={{
             ...num(t, 30, 400),

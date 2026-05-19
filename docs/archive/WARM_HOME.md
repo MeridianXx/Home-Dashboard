@@ -563,21 +563,32 @@ M0–M4. Samma format som W0–W6 — en egen chatt per session, eget commit-til
 **Mål:** 5:e tab på plats. `/v3/mat` renderar hub-skelett med 3 dörr-tiles + 501-gate när Notion-secrets saknas. Init-skript för Recept- + Veckoplan-DBs.
 
 **Levererar:**
-- [ ] Verifierar att arbetstreet är på `main` med rent läge (`git status` clean, `git pull origin main` först)
-- [ ] `src/components/warm/icons/mat.tsx` — `MatIcon` (gryta-glyf, 1.6 px outline). Ev. `ImportIcon`, `PortionMinusIcon`/`PortionPlusIcon`, `WineIcon`, `ChefIcon` om M1–M3 visar att de behövs (annars lyft då)
-- [ ] `TabBar` + `WarmSidebar` utökade med 5:e tab `Mat`. Verifierat att alla 5 tabs får plats i 393 px viewport (Trädgård är längsta label idag — Mat är kortare så inga storleksbekymmer)
-- [ ] `TabBar` `activeColor`-logik: AMBER när `Mat` är aktiv, ACC annars. Sidebar-active-state samma princip
-- [ ] `src/lib/mat/types.ts` — `Recipe`, `RecipeInput`, `MealPlanSlot`, `MealPlanInput`, `ImportedRecipe` (raw från AI innan spara), `ShoppingItem` (computed)
-- [ ] `src/lib/mat/notion.ts` — CRUD mot Recept + Veckoplan via Notion SDK v5 (data-source-modellen). `isMatReady()`-gate (alla 3 env-vars satta + non-empty)
-- [ ] `scripts/create-mat-notion-dbs.mjs` — idempotent (samma mönster som `create-fitness-notion-dbs.mjs`). **Recept-schema:** Namn (title), Lede (rich_text), Ingredienser (rich_text — JSON-blob `[{v,u,n}]`), Steg (rich_text — newline-separated), MinTotal (number), Svårighet (number 1–3), BasPortioner (number, default 4), Taggar (multi_select), Vintips (rich_text), BildURL (url), KällURL (url), Källa (rich_text — domännamn), AISkapad (checkbox), Skapad (created_time). **Veckoplan-schema:** Datum (date), Slot (select: Lunch/Middag), Recept (relation → Recept), EgetNamn (rich_text — fritext för "Rester från igår"), TidMin (number)
-- [ ] Env-vars i `.github/workflows/deploy.yml`: `NOTION_MAT_RECIPES_DB`, `NOTION_MAT_PLAN_DB`, `NOTION_MAT_COACH_PAGE`. Alla får vara tomma initialt — `isMatReady()` gate:ar UI
-- [ ] Coach-persona-sidan skapas manuellt i Notion av användaren och delas med integrationen; sid-id sätts i `NOTION_MAT_COACH_PAGE`. M0 verifierar bara existens via `pages.retrieve()` om secreten finns
-- [ ] `(warm)/v3/mat/page.tsx` — HubDisplay `MAT · {dag}` + display `Vad äter vi *ikväll?*`, 3 dörr-tiles (Bibliotek/Planering/Laga) med stats ("0 recept · importera ditt första", "0 av 14 slottar planerade", "fråga kökschefen"). 501-banner när `!isMatReady()`. AI-briefing-hero plats reserverad (renderas i M3)
-- [ ] Verifiera i `preview_start("home-dashboard")`: `/v3/mat` 200, tab fungerar, övriga 4 sektioner orörda
+- [x] Verifierar att arbetstreet är på `main` med rent läge (`git status` clean, `git pull origin main` först)
+- [x] `MatIcon` (gryta-glyf, 1.6 px outline) — lagd i befintliga `src/components/warm/icons/index.tsx` (samma fil som HemIcon/LabIcon/FitIcon/GardIcon, inte ny `mat.tsx`-fil). Övriga ikoner (`ImportIcon`, `PortionStepper`, `WineIcon`, `ChefIcon`) lyftes till sina respektive sessioner — inget behov i M0
+- [x] `TabBar` + `Sidebar` utökade med 5:e tab `Mat`. Bottom-pill håller ihop i 393 px (kontrollerat, totalbredd 393 px med 5×70 px-tabs + 4 gap = 370 + padding 16 = ryms i pillen)
+- [x] `TabBar` `activeColor`-prop: AMBER när `Mat` är aktiv, ACC annars. Sidebar samma princip. Implementationen lyfte färgvalet till föräldern (`chrome.tsx::tabAccent`) istället för att special-case:a `mat` inuti primitives — primitive vet inget om sektionsidentitet, bara att den får en aktiv färg
+- [x] `src/lib/mat/types.ts` — `Recipe`, `RecipeInput`, `MealPlanSlot`, `MealPlanInput`, `ImportedRecipe`, `ShoppingItem`, `Ingredient` (för JSON-blob-serialisering), `MatReadyResponse`
+- [x] `src/lib/mat/notion.ts` — lazy-klient + data_source_id-cache + `isMatReady()` + `missingMatEnv()` + `serializeIngredients`/`parseIngredients` + `domainFromUrl`. **CRUD-funktionerna själva sparas till M1** — M0 levererar bara byggstenar + gate, så API-routes kan implementeras stegvis i M1
+- [x] `scripts/create-mat-notion-dbs.mjs` — idempotent, parent = `NOTION_MAT_COACH_PAGE`-sidan (dubbel funktion: persona-källa + DB-parent). Båda DB-schema matchar bullet-listan exakt, inkl. `BildURL` som url-property (per användarens val 2026-05-19)
+- [x] Env-vars i `.github/workflows/deploy.yml`: `NOTION_MAT_RECIPES_DB`, `NOTION_MAT_PLAN_DB`, `NOTION_MAT_COACH_PAGE` — alla får vara tomma, `isMatReady()` gate:ar UI
+- [x] Coach-persona-sidan — användaren skapar manuellt i Notion och sätter `NOTION_MAT_COACH_PAGE`. M0 körde inte skriptet (acceptance säger "skapar … när det körs"), så sid-id behövs inte ännu — det efterfrågas i M3 första gången persona-läsning behövs eller när användaren vill köra init-skriptet
+- [x] `(warm)/v3/mat/page.tsx` — `HubDisplay` med AMBER eyebrow `MAT · TISDAG · V.21` + display `Vad äter vi *ikväll?*`, 3 dörr-tiles med stats, 501-banner med saknade env-vars listade. AI-briefing-hero-plats reserverad via kommentar (renderas i M3)
+- [x] Verifierat i preview (393 + 1440 px viewport): `/v3/mat` returnerar 200, AMBER-flippen syns (`#D9954B` på Mat-pill, `#C96F4A` när vi byter till Trädgård), Hem/Lab/Fitness/Trädgård renderar `<h1>` oförändrat. Inga server- eller console-fel
 
-**Acceptance:** Tab `Mat` på plats i bottom-pill (mobil) + sidebar (desktop). `/v3/mat` visar hub-skelett. Notion init-skript skapar två tomma DBs när det körs mot en page-id med integrationen delad.
+**Acceptance:** Tab `Mat` på plats i bottom-pill (mobil) + sidebar (desktop). `/v3/mat` visar hub-skelett. Notion init-skript skapar två tomma DBs när det körs mot en page-id med integrationen delad. ✅
 
-**Status / Observera / Öppna frågor:** *(fylls under sessionen)*
+**Status / Observera / Öppna frågor:**
+
+- **Eyebrow-formatet följde `formatHubEyebrow("MAT")` (tre-segment "MAT · TISDAG · V.21") i stället för bullet-textens "MAT · {dag}".** Bullet-texten var en förkortning — `formatHubEyebrow` är single source of truth för alla 4 (nu 5) hub-eyebrows och konsekvens trumfar bokstavlig läsning här. Om det blir fel i UI flippar M4 till två-segment.
+- **AMBER-flippen lyftes till `chrome.tsx::tabAccent(tab)` i stället för att låta primitiven (`TabBar`/`Sidebar`) ha sektionskunskap.** Primitiven fick istället en `activeColor`-prop (default ACC). Renare separation: primitive vet inget om "mat", föräldern bestämmer accent per aktiv tab.
+- **`HubDisplay` fick en `eyebrowColor`-prop (default ACC).** Hub-eyebrow i Mat ska matcha tab-pill-färgen — utan denna prop kläms AMBER-eyebrow in på ett annat ställe. Övriga 4 hubbar är opåverkade (default-värdet).
+- **Receptbild-fältet: `BildURL` som url-property.** Användaren bekräftade 2026-05-19. Notion-files-property ratades p.g.a. pre-signed-URL-utgångstid (1 h) + extra import-steg. Risk: brutna OG-bild-URL:er när källsidor tar bort bilder — accepterat trade-off för M0–M1.
+- **CRUD-funktioner är medvetet ofärdiga i `src/lib/mat/notion.ts`.** Bara klient + gate + helpers. Anledning: M0:s acceptance kräver inga skarpa API-anrop (hub-skelettet är statiskt) och M1 äger import-/recept-CRUD-pipelinen end-to-end. Att lägga halva CRUD-skiktet här skulle bara vara dödkod tills M1 ändrar formen på det.
+- **`isMatReady()` gate:ar alla tre env-vars (inkl. `NOTION_MAT_COACH_PAGE`)** — inte bara recept+plan. Förenklar M3: en gate, inte tre. Konsekvens: hubben visar 501-banner tills coach-persona-sidan är satt, även om DB:erna finns.
+- **Init-skriptet kräver `NOTION_MAT_COACH_PAGE` som parent-sida.** Skriptet bailar med tydlig instruktion om secreten saknas — det är när användaren behöver skapa sidan och dela med integrationen. Ingen körning gjordes i M0 (väntar tills användaren har sid-id:t).
+- **Pre-push-disciplin:** preview grön (200, console-fri, alla 4 övriga sektioner orörda) — OK att pusha till `origin/main`.
+
+**Öppna frågor inför M3:** vill vi att kökschefen ska ha en *snabb*-läges-prompt-mall ("vad finns hemma idag?") vid sidan av de 6 inspirations-kategorierna, eller ska den semantiken bo i `Restplanering`-toggle på `/laga`? Lyfter beslutet till M3 när vi designar prompt-tile-layouten.
 
 ---
 

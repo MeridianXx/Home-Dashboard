@@ -72,6 +72,22 @@ export function GardIcon({ size = 20, color = "currentColor", style }: IconProps
   );
 }
 
+export function MatIcon({ size = 20, color = "currentColor", style }: IconProps) {
+  // Gryta sedd snett uppifrån: oval kant, kropp med två handtag, ångvirvel.
+  // Två svaga ång-svingar ovanför signalerar "lagad mat" utan att bli trångt
+  // i 20 px — håller stroke-vikten 1.6 konsekvent med systrarna.
+  return (
+    <svg {...baseSvg(size, color)} style={{ flexShrink: 0, ...style }}>
+      <path d="M5.5 10h13" />
+      <path d="M6.5 10v6a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-6" />
+      <path d="M4 11.5h1.5" />
+      <path d="M18.5 11.5H20" />
+      <path d="M10 7c0-1 1-1.5 0-3" />
+      <path d="M14 7c0-1 1-1.5 0-3" />
+    </svg>
+  );
+}
+
 /* ---------- Scen-glyfer (sex scener) ---------- */
 
 export function SceneGlyph({

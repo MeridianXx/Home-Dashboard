@@ -288,9 +288,9 @@ export function DetailHeader({
   );
 }
 
-/* ---------- TabBar (floating bottom-pill, 4 tabs) ---------- */
+/* ---------- TabBar (floating bottom-pill, 4–5 tabs) ---------- */
 
-export type TabKey = "hem" | "lab" | "fit" | "gard";
+export type TabKey = "hem" | "lab" | "fit" | "gard" | "mat";
 
 export function TabBar({
   t,
@@ -299,6 +299,7 @@ export function TabBar({
   iconFor,
   labelFor,
   tabs,
+  activeColor = ACC,
 }: {
   t: WarmTheme;
   active: TabKey;
@@ -306,6 +307,10 @@ export function TabBar({
   iconFor: (key: TabKey, active: boolean) => ReactNode;
   labelFor: (key: TabKey) => string;
   tabs?: TabKey[];
+  /** Bakgrund för aktiv tab-pill. Default ACC (terracotta). Sektioner med
+   *  egen accent (t.ex. Mat → AMBER) kan flippa hela pill-färgen genom att
+   *  beräkna den i föräldern utifrån `active`. */
+  activeColor?: string;
 }) {
   const keys: TabKey[] = tabs ?? ["hem", "lab", "fit", "gard"];
   return (
@@ -354,7 +359,7 @@ export function TabBar({
                 minWidth: 70,
                 padding: "10px 6px",
                 borderRadius: 18,
-                background: isActive ? ACC : "transparent",
+                background: isActive ? activeColor : "transparent",
                 color: isActive ? "#FFFBF0" : t.mute,
                 cursor: "pointer",
                 transition: "background 160ms ease, color 160ms ease",
@@ -389,6 +394,7 @@ export function Sidebar({
   labelFor,
   footer,
   tabs,
+  activeColor = ACC,
 }: {
   t: WarmTheme;
   active: TabKey;
@@ -397,6 +403,8 @@ export function Sidebar({
   labelFor: (key: TabKey) => string;
   footer?: ReactNode;
   tabs?: TabKey[];
+  /** Se TabBar — samma princip för desktop-sidebar. */
+  activeColor?: string;
 }) {
   const keys: TabKey[] = tabs ?? ["hem", "lab", "fit", "gard"];
   return (
@@ -445,7 +453,7 @@ export function Sidebar({
                 gap: 4,
                 padding: "12px 4px",
                 borderRadius: 16,
-                background: isActive ? ACC : "transparent",
+                background: isActive ? activeColor : "transparent",
                 color: isActive ? "#FFFBF0" : t.mute,
                 cursor: "pointer",
                 transition: "background 160ms ease, color 160ms ease",

@@ -15,7 +15,7 @@ export interface UserProfile {
 const ADAM: UserProfile = {
   email: "adam@inicio.se",
   name: "Adam",
-  tabs: ["hem", "lab", "fit", "gard"],
+  tabs: ["hem", "lab", "fit", "gard", "mat"],
 };
 
 const USERS: Record<string, UserProfile> = {
