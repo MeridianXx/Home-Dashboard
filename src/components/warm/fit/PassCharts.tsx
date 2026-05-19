@@ -12,7 +12,7 @@ import { formatSec, zoneColor, zoneLabel } from "@/lib/warm/fit";
 import { hrZone } from "@/lib/fitness/profile";
 import type { FitTrackPoint, FitLap } from "@/lib/fitness/fit-parser";
 import type { FitnessProfile } from "@/lib/fitness/types";
-import { categorizeLaps as v2CategorizeLaps } from "@/components/fitness/PassCharts";
+import { categorizeLaps } from "@/lib/fitness/laps";
 
 /* ───── Hook: ResizeObserver-driven width/height ────────────────────── */
 
@@ -298,10 +298,10 @@ function lapColor(kind: keyof typeof LAP_LABELS, t: WarmTheme): string {
   }
 }
 
-export function LapsList({ laps, zones }: { laps: FitLap[]; zones: FitnessProfile["zones"] }) {
+export function LapsList({ laps }: { laps: FitLap[] }) {
   const { t } = useWarmTheme();
   if (laps.length <= 1) return null;
-  const cats = v2CategorizeLaps(laps, zones);
+  const cats = categorizeLaps(laps);
   return (
     <div style={{ background: t.paper, border: `1px solid ${t.line}`, borderRadius: 14, overflow: "hidden" }}>
       {cats.map(({ lap, kind }, i) => {

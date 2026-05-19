@@ -230,7 +230,7 @@ export default function WarmPassDetailPage({ params }: { params: Promise<{ slug:
         {fitData && fitData.laps.length > 1 ? (
           <div>
             <SectionLabel>Intervaller</SectionLabel>
-            <LapsList laps={fitData.laps} zones={profile.zones} />
+            <LapsList laps={fitData.laps} />
           </div>
         ) : null}
 
