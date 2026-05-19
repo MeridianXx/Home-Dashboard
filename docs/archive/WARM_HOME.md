@@ -517,3 +517,193 @@ Pragmatisk konsekvens: på desktop tappar man inte hub-kontexten visuellt, men m
 ## Lessons learned (skrivs här när de uppstår)
 
 *tomt — fylls per session ovan*
+
+---
+
+# MAT — Mat & Recept-sektion (maj 2026 →)
+
+> Ny sektion ovanpå Warm Home v3, baserad på `Warm Home - Mat & Recept.html`-prototypen från Claude Design (maj 2026). Lever som **5:e tab**. Egen accent: **AMBER** (`#D9954B`) — saffran/honung, kompletterar terracotta-ACC utan att krocka. Resten av Warm-grammatiken (Fraunces+DM Sans, hub-och-detalj, inga sub-tabs, flytande pill, inline-style) gäller oförändrad.
+>
+> **Utvecklas direkt på `main`** (produktionsbranchen, renamead från `v2` 2026-05-19) — ingen feature-branch. Varje session-commit auto-deployar via GitHub Actions till `dash.inicio.cloud`. **Konsekvens:** pusha först när varje delsteg verifierats grönt lokalt (preview-server 200, console-fri). Allt UI gate:as bakom `isMatReady()` så hubben renderar 501-banner tills Notion-secrets är satta i prod — ofärdiga sidor stör inte daglig användning.
+
+---
+
+## Route- + commit-strategi (MAT)
+
+- **Branch:** ingen — allt commitas till `main`. Varje commit auto-deployar via GitHub Actions.
+- **Commit-hygien:** logiska enheter per commit (inte per session-stor klump), så att rollback blir kirurgiskt om en delfunktion skär.
+- **Routes:** `(warm)/v3/mat/...` följer befintlig v3-route-grupp. Inga separata layouts behövs — ärver `(warm)/v3/layout.tsx` (TabBar, pull-to-refresh, WarmThemeProvider).
+- **TabBar/Sidebar:** lägg till 5:e tab `Mat` med MatIcon (stiliserad gryta, 1.6 px outline). Active-färgen flippar till AMBER när Mat är aktiv — sektionsidentitet via tab-färg, samma mönster som designens prototyp.
+- **Notion-DBs:** två nya — `Recept` + `Veckoplan`. Ingen Inköpslista-DB (computed aggregat på Planering-sidan, ingen persistence).
+- **AI:** Kökschefen via SSE + tool-use, persona-sida i Notion (`NOTION_MAT_COACH_PAGE`). 6 inspirations-kategorier som promptmallar.
+- **Deploy:** samma image, samma `dash.inicio.cloud`, samma GitHub Actions. Tre nya env-vars i `deploy.yml`. Alla `isMatReady()`-gate:ade så hubben renderar 501-banner i prod tills secrets är satta — användaren ser ny tab + tom hub, ingenting går sönder.
+- **Pre-push-disciplin:** preview-server 200 + inga console-fel + alla 4 övriga sektioner orörda. Vid tveksamhet — pausa och fråga innan push.
+
+---
+
+## Designprinciper-tillägg (MAT)
+
+Allt från Warm Home v3 (princip 1–8) gäller, plus:
+
+9. **AMBER är Mat-accent — inte ACC.** Tab-pill, hub-eyebrow, primary-CTA, AI-tile, sparkle-badge på AI-importerade recept. Vintips-tile är LINGON (matchar designens markering av "viktig avvikelse").
+10. **Receptbilder = OG-/schema.org-bild från importerad URL.** Finns URL → render hero-/kort-image. Saknas → inget bildblock. **Aldrig emoji-fallback, aldrig glyph-bg** — designens emoji-mockup var en prototyp-genväg, inte intention.
+11. **Importera är primär dataingång, inte polish.** Bibliotek börjar tomt; fylls genom URL-import (Claude-parsar HTML → strukturerat recept → review-modal → spara). Användaren kommer inte att skriva in recept manuellt regelbundet.
+12. **Inköpslista är read-only computed**, panel under vecka-grid på `/v3/mat/planering`. Ingen separat route, inga checkboxes (ICA-appen sköter avbockning via självscanning), "Kopiera lista"-knapp till urklipp.
+13. **Hub = dörrar.** `/v3/mat` är hub-tiles (Bibliotek/Planering/Laga) + AI-briefing-hero, inte underline-nav-mellan-lägen som designen skissade. Korten är dörrarna — samma princip som Hem/Trädgård (Warm-princip 1).
+14. **Ingen multi-user-logik.** Allt under samma Notion-integration. Båda boende läser/skriver mot samma DBs.
+15. **Inget separat tillagningsläge.** Designens helskärms-"Tillagningsläge" är droppat — "Börja laga" leder bara till första steget i normal detaljvy.
+
+---
+
+## Sessionsplan (MAT)
+
+M0–M4. Samma format som W0–W6 — en egen chatt per session, eget commit-tillfälle, observera-block skrivs tillbaka in i denna fil.
+
+### Session M0 — Setup (branch, tab, Notion-DBs, hub-skelett)
+**Mål:** 5:e tab på plats. `/v3/mat` renderar hub-skelett med 3 dörr-tiles + 501-gate när Notion-secrets saknas. Init-skript för Recept- + Veckoplan-DBs.
+
+**Levererar:**
+- [ ] Verifierar att arbetstreet är på `main` med rent läge (`git status` clean, `git pull origin main` först)
+- [ ] `src/components/warm/icons/mat.tsx` — `MatIcon` (gryta-glyf, 1.6 px outline). Ev. `ImportIcon`, `PortionMinusIcon`/`PortionPlusIcon`, `WineIcon`, `ChefIcon` om M1–M3 visar att de behövs (annars lyft då)
+- [ ] `TabBar` + `WarmSidebar` utökade med 5:e tab `Mat`. Verifierat att alla 5 tabs får plats i 393 px viewport (Trädgård är längsta label idag — Mat är kortare så inga storleksbekymmer)
+- [ ] `TabBar` `activeColor`-logik: AMBER när `Mat` är aktiv, ACC annars. Sidebar-active-state samma princip
+- [ ] `src/lib/mat/types.ts` — `Recipe`, `RecipeInput`, `MealPlanSlot`, `MealPlanInput`, `ImportedRecipe` (raw från AI innan spara), `ShoppingItem` (computed)
+- [ ] `src/lib/mat/notion.ts` — CRUD mot Recept + Veckoplan via Notion SDK v5 (data-source-modellen). `isMatReady()`-gate (alla 3 env-vars satta + non-empty)
+- [ ] `scripts/create-mat-notion-dbs.mjs` — idempotent (samma mönster som `create-fitness-notion-dbs.mjs`). **Recept-schema:** Namn (title), Lede (rich_text), Ingredienser (rich_text — JSON-blob `[{v,u,n}]`), Steg (rich_text — newline-separated), MinTotal (number), Svårighet (number 1–3), BasPortioner (number, default 4), Taggar (multi_select), Vintips (rich_text), BildURL (url), KällURL (url), Källa (rich_text — domännamn), AISkapad (checkbox), Skapad (created_time). **Veckoplan-schema:** Datum (date), Slot (select: Lunch/Middag), Recept (relation → Recept), EgetNamn (rich_text — fritext för "Rester från igår"), TidMin (number)
+- [ ] Env-vars i `.github/workflows/deploy.yml`: `NOTION_MAT_RECIPES_DB`, `NOTION_MAT_PLAN_DB`, `NOTION_MAT_COACH_PAGE`. Alla får vara tomma initialt — `isMatReady()` gate:ar UI
+- [ ] Coach-persona-sidan skapas manuellt i Notion av användaren och delas med integrationen; sid-id sätts i `NOTION_MAT_COACH_PAGE`. M0 verifierar bara existens via `pages.retrieve()` om secreten finns
+- [ ] `(warm)/v3/mat/page.tsx` — HubDisplay `MAT · {dag}` + display `Vad äter vi *ikväll?*`, 3 dörr-tiles (Bibliotek/Planering/Laga) med stats ("0 recept · importera ditt första", "0 av 14 slottar planerade", "fråga kökschefen"). 501-banner när `!isMatReady()`. AI-briefing-hero plats reserverad (renderas i M3)
+- [ ] Verifiera i `preview_start("home-dashboard")`: `/v3/mat` 200, tab fungerar, övriga 4 sektioner orörda
+
+**Acceptance:** Tab `Mat` på plats i bottom-pill (mobil) + sidebar (desktop). `/v3/mat` visar hub-skelett. Notion init-skript skapar två tomma DBs när det körs mot en page-id med integrationen delad.
+
+**Status / Observera / Öppna frågor:** *(fylls under sessionen)*
+
+---
+
+### Session M1 — Importera + Bibliotek + Recept-detalj
+**Mål:** Hela "fyll biblioteket"-flödet end-to-end. Importera URL → spara → bläddra i bibliotek → öppna recept-detalj.
+
+**Levererar:**
+- [ ] `/api/mat/import` — POST `{url}` → server fetchar HTML (UA-header + `AbortSignal.timeout(8000)`) → Claude Sonnet 4.6 extraherar strukturerat recept (`name, lede, ingredients[], steps[], minutes, basePortions, difficulty 1–3, tags, imageUrl, wineNote, sourceLabel`). Bild via `og:image`/`schema.org/Recipe.image`, fallback null. Returnerar JSON för review (sparar inte direkt)
+- [ ] `/api/mat/recipes` — GET (list, paginerad om >50), POST (skapa från review), PATCH (uppdatera), DELETE (mjuk via Notion `archive`)
+- [ ] `/api/mat/recipes/[id]` — GET enstaka recept
+- [ ] `(warm)/v3/mat/bibliotek/page.tsx` — chip-filter (Alla + tag-pills som finns i biblioteket), Importera-knapp (AMBER, högerställd), magazine-stil grid (1 col mobile, 2 col tablet+). Recept-kort: **villkorad image-block** (om `BildURL`), namn i Fraunces 18 px, kursiv lede, meta-rad (min + svårighet-dots i AMBER + tag-pills i AMBER-tint). Tom-tillstånd: "0 recept · importera ditt första"
+- [ ] Importera-flödet: knapp → URL-modal (WarmModal med text-input + "Hämta") → spinner medan `/api/mat/import` kör → review-modal med alla fält editbara (inkl. bild-preview, ingredienslista som textarea, steg som textarea) → "Spara" persisterar via `/api/mat/recipes` POST → redirect till `/v3/mat/recept/[id]`. `AISkapad: true` sätts automatiskt
+- [ ] Manuell create-modal: "+ Skapa manuellt"-länk i bibliotek-headern → samma review-modal-form, tomma fält
+- [ ] `(warm)/v3/mat/recept/[id]/page.tsx` — DetailHero (`{TAG} · {min} min` eyebrow + namn + ev. kursiv tail), villkorad hero-bild (200 px om `BildURL`, annars skippas helt — ingen platshållare), källa-rad ("från {Källa} →" om `KällURL` finns), kursiv lede, **PortionStepper 1–8** (default = `basePortions` eller 4, `scale = portions / basePortions`, `fmt(v, unit)` med smart-rounding identisk med designens prototyp), ingredienslista i Tile (mängd i AMBER mono / namn), steg-kort numrerade med italic-cirkel i AMBER-tint, vintips-tile (LINGON-tonad, visas om `Vintips` non-empty), sticky bottom-bar ("Lägg på veckan" — disablad tills M2 klar; "Börja laga" — länkar till första steget med `?step=0`)
+- [ ] Redigera-knapp i detaljheadern → samma review-modal som create, pre-fyllt
+- [ ] Verifiera importflödet end-to-end mot riktig URL (be användaren om länk till svenskt recept — ICA/koket/arla)
+
+**Acceptance:** Bibliotek funkar. Importera-flödet hämtar OG-bild + parsa minst 3 olika svenska recept-sajter med rimlig struktur. Portion-stepper skalar live. Sticky bottom funkar.
+
+**Status / Observera:** *(fylls under sessionen)*
+
+---
+
+### Session M2 — Planering + Inköpslista-panel
+**Mål:** Vecka-grid med Lunch + Middag-slot per dag. "Lägg på veckan" från recept-detalj fungerar. Inköpslista som expand-panel.
+
+**Levererar:**
+- [ ] `/api/mat/plan` — GET (`?weekStart=YYYY-MM-DD`), POST (skapa slot), PATCH, DELETE
+- [ ] `(warm)/v3/mat/planering/page.tsx` — vecka-grid (Mån–Sön × Lunch + Middag, **ingen frukost**), period-nav (←/→/Idag-titel-klick — samma mönster som fitness coach), AMBER border + tint på dagens dag, slot-tiles: fyllda visar recept-namn + min, tomma visar "lägg till" med dashed border
+- [ ] Slot-väljar-modal (WarmModal): två-läges-toggle "Välj recept" / "Fritext". Recept-läget = sökbar lista från bibliotek (samma mönster som garden PlantPicker). Fritext-läget = namn + min-input. Sparar till `/api/mat/plan`
+- [ ] "Lägg på veckan"-knapp i recept-detalj → samma modal, recept förvalt, användaren väljer datum + slot
+- [ ] **Inköpslista-expand-panel** under vecka-grid: aggregera ingredienser från alla planerade recept inom veckan (skala via `portions / basePortions`), normalisera trivialt (`1 dl + 2 dl → 3 dl`, blandade enheter listas separat under samma namn), gruppera per butikskategori (Grönt/Mejeri/Kött & fisk/Skafferi/Övrigt — heuristisk via keyword-match i `src/lib/mat/shopping.ts`)
+- [ ] "Kopiera lista"-knapp (AMBER) — klistrar formaterad plaintext till urklipp (`navigator.clipboard.writeText`), bock + "Kopierat" 800 ms feedback
+- [ ] Ingen persistens på inköpslista — regenereras varje render. Senare add (om användaren vill): `localStorage["mat:hidden:{ingredient}"]`-flagga per rad för "redan i skafferiet"
+
+**Acceptance:** Lägga till från recept-detalj + från slot-tile + ändra + ta bort fungerar. Inköpslistan regenereras när planen ändras. Kopiera-knappen lägger en läsbar lista i urklipp.
+
+**Status / Observera:** *(fylls under sessionen)*
+
+---
+
+### Session M3 — AI Kökschefen + briefing-hero + inspirations
+**Mål:** AI-flödet komplett. Kökschefen kör med tools, briefing renderas på hubben, 6 inspirations-tiles triggar promptmallar.
+
+**Levererar:**
+- [ ] `src/lib/mat/coach-persona.ts` — läser `NOTION_MAT_COACH_PAGE`, 5 min cache, `MAT_COACH_FORMAT_RULES` hårdkodade (svenska, du-tilltal, ren prosa utan Markdown, inga rubriker, max 2–4 stycken). `INSPIRATION_PROMPTS`-konstant med 6 system-prefix för Vardag/Barnfamilj/Vuxenkväll/Gäster/Grillkväll/20-minuters
+- [ ] `src/lib/mat/ai-context.ts` (server-only) — recept-summering (namn + tags + min + ingrediens-headers), veckoplan ±14 dagar, säsong (vecka + månad), ingredienser från senaste 3 importerade recept (för "vad har du i kylen"-kontext)
+- [ ] `src/lib/mat/ai-tools.ts` — factory `matToolRegistry({...})` med `search_recipes` (free-text mot bibliotek), `get_recipe` (full struct), `add_recipe` (skapar direkt mot Notion — minst name + ingredients + steps), `add_to_plan` (datum + slot + recept-ref eller fritext)
+- [ ] `/api/mat/chef` — SSE-stream via `runWithTools` från `src/lib/ai/tools.ts` (samma mönster som `/api/garden/chat`). Bilduppladdning stöds (base64, max 5 MB) — "vad kan jag göra av detta i kylen?"-foton
+- [ ] `/api/mat/briefing` — 6 h in-memory cache, `?refresh=1`-bypass (mönster från `/api/garden/briefing`). Föreslår kvällsmaten baserat på veckoplan-luckor + bibliotek + säsong + ev. nyligen importerat
+- [ ] `(warm)/v3/mat/laga/page.tsx` — AMBER prompt-tile (stort textfält + shortcut-chips +Ägg/+Pasta/+Lök/+Vitlök/+Grädde/+Bacon/+Citron + Nytt-recept/Restplanering-toggle), under: 2×3-grid med 6 inspirations-tiles (Vardag AMBER · Barnfamilj SAGE · Vuxenkväll LINGON · Gäster ACC · Grillkväll LINGON · 20-minuters SKY). Varje tile triggar `/api/mat/chef` med matchande system-prefix
+- [ ] AI-briefing-hero på `(warm)/v3/mat/page.tsx` (AMBER-tinted, "Generera ny" + "Öppna kökschefen"-länk — samma layout som garden briefing)
+- [ ] Verifiera SSE-stream end-to-end mot prompt som triggar tool-anrop (`search_recipes` synligt i tool-chip-raden)
+
+**Acceptance:** Kökschefen svarar med tool-användning. Inspirations-tiles fungerar. Briefing-hero renderas och kan refreshas.
+
+**Status / Observera:** *(fylls under sessionen)*
+
+---
+
+### Session M4 — Polish + PR
+**Mål:** AI-sparkle, tom-tillstånd, audit av alla mat-sidor, iPhone-test, PR till main.
+
+**Levererar:**
+- [ ] AI-sparkle-badge (AMBER-fylld, 11 px) i nedre högra hörnet av recept-kort-ikon — alla recept med `AISkapad: true`
+- [ ] Tom-tillstånd polished: bibliotek ("0 recept · importera från en URL"), planering ("0 slottar denna vecka")
+- [ ] WarmModal-grammatik-audit: backdrop `rgba(20,14,8,0.55)` + blur 6 px. Mat-modaler — *bekräfta med användaren innan flipp* från ACC- till AMBER-primary för konsekvens med sektionsidentitet
+- [ ] Pull-to-refresh-spinner-audit: AMBER på mat-sidor eller behåll ACC globalt — *bekräfta innan ändring*
+- [ ] Kursiv-svans-rytm-audit i HubDisplay/DetailHero ("Vad äter vi *ikväll?*", "Vad har vi *hemma idag?*", "Veckan *framför.*", "Pannbiff *med löksås.*")
+- [ ] Verifiera 393 px / 1024 px / 1440 px viewports, light + dark
+- [ ] **Manuell test på iPhone — pausa och be mig verifiera på riktig hårdvara innan PR**
+
+**Acceptance:** Alla 4 sidor + recept-detalj funkar i hela viewport-spektrumet, båda teman. iPhone-touch-edge-cases verifierade (slot-tile-tap, importera-flödet, AI-chat-textarea-fokus, PortionStepper-touch-target ≥ 44 px, hero-bild-aspekt).
+
+**Status / Observera:** *(fylls under sessionen)*
+
+---
+
+## Start-/avslutsprompter per session (MAT)
+
+**Format:** kopiera prompten in i en ny chatt. **Allt commitas direkt på `main` med auto-deploy** — ingen feature-branch. Pusha först när delsteget verifierats grönt lokalt (preview 200 + console-fri + övriga 4 sektioner orörda).
+
+### M0 Setup
+
+**Start:**
+> Kör Session M0 enligt MAT-blocket i `docs/archive/WARM_HOME.md`. Verifiera att vi är på `main` med rent läge (`git status` + `git pull origin main`). **Allt commitas direkt på main, ingen feature-branch.** Leverera alla bullets i M0-blocket: 5:e tab `Mat` (MatIcon = gryta, 1.6 px outline) i `TabBar` + `WarmSidebar` med AMBER-flipp av active-färgen, `src/lib/mat/{types,notion}.ts` med `isMatReady()`, `scripts/create-mat-notion-dbs.mjs` (idempotent, Recept + Veckoplan-schema enligt M0-bullets), env-vars i `.github/workflows/deploy.yml` (`NOTION_MAT_RECIPES_DB`, `NOTION_MAT_PLAN_DB`, `NOTION_MAT_COACH_PAGE`), och `(warm)/v3/mat/page.tsx` med HubDisplay + 3 dörr-tiles + 501-gate. Coach-persona-sidan skapar jag manuellt i Notion och delar med integrationen — be mig om sid-id:t när du behöver det. Verifiera i `preview_start("home-dashboard")` att `/v3/mat` 200, tab fungerar i både 393 px + 1440 px viewport, **och att övriga 4 sektioner (Hem/Lab/Fitness/Trädgård) renderar oförändrat**. Fråga innan du löser receptbild-fält-schemat (default: `url`-property `BildURL`) — markera förslag i M0-blocket och vänta.
+
+**Avslut:**
+> Skriv tillbaka observera-blocket under M0 i `docs/archive/WARM_HOME.md` (lessons learned + öppna frågor + status på alla bullets). Commit `feat(mat): M0 — setup tab + Notion + hub-skelett` (en commit räcker för M0). Pusha till `origin/main` först när preview är grön. Sammanfatta i 3 meningar vad som är gjort, att det auto-deployats, och vad som väntar M1.
+
+---
+
+### M1 Importera + Bibliotek + Recept-detalj
+
+**Start:**
+> Kör Session M1 enligt MAT-blocket i `docs/archive/WARM_HOME.md`. Verifiera `main` + rent läge (`git status`, `git pull origin main`). **Commitar direkt på main per delsteg — pusha bara grönt.** Bygg hela "fyll biblioteket"-flödet end-to-end enligt M1-bullets: `/api/mat/import` (POST URL → fetcha HTML → Claude Sonnet 4.6 extraherar strukturerat recept med `og:image`-bild, returnerar JSON för review), `/api/mat/recipes` CRUD, `(warm)/v3/mat/bibliotek/page.tsx` (chip-filter, Importera-knapp i AMBER, magazine-grid med **villkorade bilder** — ingen emoji-fallback, ingen glyph-bg), Importera-flödet (URL-modal → review-modal → spara), manuell create-modal, `(warm)/v3/mat/recept/[id]/page.tsx` (DetailHero + villkorad hero-bild + källa-rad + lede + PortionStepper 1–8 som skalar ingredienser live + ingredienslista i Tile + steg-kort + vintips-tile + sticky bottom). Verifiera importflödet end-to-end — be mig om en URL till svenskt recept att testa mot.
+
+**Avslut:**
+> Observera-block under M1. Commits per logisk enhet (push var och en bara om preview är grön): `feat(mat): M1 — import-pipeline`, `feat(mat): M1 — bibliotek-grid`, `feat(mat): M1 — recept-detalj`. Skärmdumpar (max 1800 px längsta sida, mobil 393 px): bibliotek-grid, importera-review-modal, recept-detalj. Sammanfatta i 3 meningar.
+
+---
+
+### M2 Planering + Inköpslista
+
+**Start:**
+> Kör Session M2 enligt MAT-blocket i `docs/archive/WARM_HOME.md`. Verifiera `main` + rent läge. **Commitar direkt på main per delsteg.** Bygg `(warm)/v3/mat/planering/page.tsx`: vecka-grid (Mån–Sön × Lunch + Middag, **ingen frukost**), period-nav, AMBER på dagens dag, slot-väljar-modal (välj recept eller fritext). "Lägg på veckan" från recept-detalj öppnar samma modal. **Inköpslista som expand-panel på samma sida** — ingen separat route, ingen Notion-DB, ingen checkbox-state. Aggregera ingredienser från veckans planerade recept (skalade till recept-portioner), normalisera enheter där trivialt, gruppera per butikskategori (Grönt/Mejeri/Kött & fisk/Skafferi/Övrigt) via `src/lib/mat/shopping.ts`. "Kopiera lista"-knapp till urklipp. CRUD mot `/api/mat/plan`.
+
+**Avslut:**
+> Observera-block under M2. Commits: `feat(mat): M2 — veckoplanering`, `feat(mat): M2 — inköpslista-aggregat`. Pusha. Skärmdump på planering med inköpslistan expanderad. Sammanfatta i 3 meningar.
+
+---
+
+### M3 AI Kökschefen + briefing + inspirations
+
+**Start:**
+> Kör Session M3 enligt MAT-blocket i `docs/archive/WARM_HOME.md`. Verifiera `main` + rent läge. **Commitar direkt på main per delsteg.** Bygg AI-pipelinen enligt M3-bullets med samma mönster som garden (Sprint 2): `src/lib/mat/coach-persona.ts` (persona från Notion-sida, 5 min cache, `MAT_COACH_FORMAT_RULES`, `INSPIRATION_PROMPTS`), `src/lib/mat/ai-context.ts` (recept + veckoplan ±14 dagar + säsong + senaste importerade ingredienser), `src/lib/mat/ai-tools.ts` (`matToolRegistry()` med search_recipes/get_recipe/add_recipe/add_to_plan), `/api/mat/chef` SSE (`runWithTools`), `/api/mat/briefing` 6 h cache + `?refresh=1`. `(warm)/v3/mat/laga/page.tsx` med AMBER prompt-tile + chips + Nytt/Rest-toggle + 6 inspirations-tiles (Vardag/Barnfamilj/Vuxenkväll/Gäster/Grillkväll/20-minuters) som triggar chef med olika system-prefix. AI-briefing-hero på `/v3/mat`-hubben. Verifiera SSE end-to-end mot prompt som triggar tool-anrop.
+
+**Avslut:**
+> Observera-block under M3. Commits: `feat(mat): M3 — AI-pipeline + persona`, `feat(mat): M3 — laga-sida + inspirations`, `feat(mat): M3 — briefing-hero`. Pusha. Skärmdumpar: laga-sidan med tom prompt, en aktiv chef-konversation med tool-chip synlig, briefing-hero på hubben. Sammanfatta i 3 meningar.
+
+---
+
+### M4 Polish
+
+**Start:**
+> Kör Session M4 enligt MAT-blocket i `docs/archive/WARM_HOME.md`. Verifiera `main` + rent läge. **Commitar direkt på main per delsteg.** Polish-pass enligt M4-bullets: AI-sparkle-badge (AMBER, 11 px) på recept med `AISkapad: true`, tom-tillstånd för bibliotek + planering, WarmModal-grammatik-audit (**bekräfta innan du flippar** mat-modaler från ACC- till AMBER-primary), pull-to-refresh-spinner-audit (AMBER eller behåll ACC globalt — **bekräfta**), kursiv-svans-rytm-audit i HubDisplay/DetailHero. Verifiera 393 px / 1024 px / 1440 px viewports, light + dark. **Manuell test på iPhone — pausa och be mig verifiera på riktig hårdvara innan sista commit pushas.**
+
+**Avslut:**
+> Slutligt observera-block under M4. Final commit `feat(mat): M4 — polish + tom-tillstånd + sparkle-badges`. Pusha först när iPhone-test är OK. Sammanfatta totalförändringen för hela M0–M4 (antal nya routes, nya filer, LOC, nya beroenden — ingen ny dependency förväntas).
