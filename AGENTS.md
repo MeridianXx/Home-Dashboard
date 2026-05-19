@@ -209,7 +209,7 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 
 ## Projektläge
 
-**Aktiv branch:** `v2` (origin/v2 — detta är den enda aktiva branchen, main är övergiven)  
+**Aktiv branch:** `main` (origin/main — enda aktiva branchen, deploy triggas härifrån. Hette `v2` fram till 2026-05-19 då den rename:ades till `main`.)  
 **Preview-server:** konfigurerad i `.claude/launch.json`, starta med `preview_start("home-dashboard")`  
 **Färdiga sektioner:** Hem/Översikt (med grafer), Hem/Belysning (med våningsplan + scener), Hem/Media (Sonos + Apple TV), Homelab (Servrar/Containers/Media/Nätverk), **Fitness/Dashboard (Session A+B+C+E — Dagsform-kort (HRV/sömn/TSB × 1/3 var) + målkort med tidsprogress, nästa pass, passhistorik med Apple Fitness-stil detaljvy inkl. färgkodad GPS-karta per HR-zon, spetsig elevationsprofil, HR-tidsserie med zon-band, tempo-baserad intervalluppdelning, zondistribution, RPE-baserad färgskala för ansträngning), Notion-synkad profil (inkl. heightCm) + Träningslogg (idempotent, med AI-analys-kolumn), PMC-metriker (CTL/ATL/TSB/TLR HealthFit-kompatibla med pandas-EMA och yesterday-TSB), AI-analys av pass via Claude Sonnet 4.6 med Notion-sida som system-prompt/coach-persona + valfritt kommentarsfält (ephemeral) som viktas in i prompten, paginerad `/fitness/history` med typ-filter (7 kategorier som wrappar) + månadsgruppering, AI-analys-stjärna på pass-ikoner som analyserats**, **Fitness/Coach (Session D+E — vecko-/månadskalender med både planerade pass från Notion och genomförda pass från HealthFit parallellt, CRUD mot Planerade pass-DB via portal-renderad modal, AI-planering via Claude med iterativa verktyg: regen per enskilt pass + feedback-textruta som reviderar hela planen ("fortsätt chatten") + enskilt AI-pass för ett specifikt datum, "spara = visa" så inget regenereras mellan granskning och save)**, **Trädgård (Session 1+2 — översikt med daglig AI-briefing + aggregerade räknare, växtregister-grid med typ/plats-filter och detaljsida med kopplade säsongsåtgärder + per-växt "Fråga AI"-deep-link. Säsongsplan med Kalender/Lista/Per växt-vyer + CRUD-modal med växt-multi-select. Projekt som kanban-board (7 kolumner) med `@dnd-kit` + budget-summering + filter på tidsram/område/prioritet. AI-rådgivare med streaming-chat, tool-use (create_task / update_task / list_plants / search_tasks / create_project / get_weather_forecast / get_plant), bilduppladdning, Notion-persona och Open-Meteo-väderkontext. CRUD-API + AI-API mot tre Notion-DBs: Växtregister, Säsongsplan, Utomhusprojekt.)**
 
@@ -217,7 +217,7 @@ binary_sensor.hoger_laddning      Höger laddbox — laddar
 
 ## Deploy & GitHub-secrets
 
-**Deploy-flöde:** push till `v2` → GitHub Actions (`.github/workflows/deploy.yml`) → bygger Docker-image till `ghcr.io/meridianxx/home-dashboard:latest` → self-hosted runner gör `docker pull` + `docker run` med secrets injicerade som `-e VAR="…"`. `.env.local` läses **bara** av `next dev` lokalt — inte i produktion.
+**Deploy-flöde:** push till `main` → GitHub Actions (`.github/workflows/deploy.yml`) → bygger Docker-image till `ghcr.io/meridianxx/home-dashboard:latest` → self-hosted runner gör `docker pull` + `docker run` med secrets injicerade som `-e VAR="…"`. `.env.local` läses **bara** av `next dev` lokalt — inte i produktion.
 
 **Alla secrets måste finnas under Repo → Settings → Secrets and variables → Actions innan deploy:**
 
