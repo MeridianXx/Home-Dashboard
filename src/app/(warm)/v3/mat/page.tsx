@@ -14,7 +14,7 @@ import { Tile } from "@/components/warm/primitives";
 import { fetcher } from "@/lib/fetcher";
 import { useDesktop, useWarmTheme } from "@/lib/warm/theme";
 import { formatHubEyebrow } from "@/lib/warm/format";
-import { AMBER, body, lab, num } from "@/lib/warm/tokens";
+import { ACC, body, lab, num } from "@/lib/warm/tokens";
 import type { MatReadyResponse } from "@/lib/mat/types";
 
 export default function MatHubPage() {
@@ -33,7 +33,6 @@ export default function MatHubPage() {
     <div style={{ paddingBottom: 24 }}>
       <HubDisplay
         eyebrow={formatHubEyebrow("MAT")}
-        eyebrowColor={AMBER}
         title="Vad äter vi"
         italicTail="ikväll?"
         right={<HubThemeToggle isDesktop={isDesktop} />}
@@ -42,7 +41,7 @@ export default function MatHubPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "0 18px" }}>
         {notReady ? (
           <Tile t={t}>
-            <div style={{ ...lab(t, { color: AMBER, marginBottom: 6 }) }}>NOTION INTE KONFIGURERAT</div>
+            <div style={{ ...lab(t, { color: ACC, marginBottom: 6 }) }}>NOTION INTE KONFIGURERAT</div>
             <p style={{ fontFamily: body, fontSize: 13, color: t.mute, lineHeight: 1.55, marginBottom: 8 }}>
               Mat-DB:erna är inte konfigurerade än. Skapa en föräldra-sida i Notion
               (t.ex. <em>🥘 Mat &amp; Recept</em>), dela den med integrationen och
@@ -138,7 +137,7 @@ function DoorTile({
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ ...lab(t), color: AMBER, marginBottom: 4 }}>{eyebrow}</div>
+        <div style={{ ...lab(t), color: ACC, marginBottom: 4 }}>{eyebrow}</div>
         <div style={{ ...num(t, 18, 500), lineHeight: 1.15, marginBottom: 4 }}>
           {title}
           <span style={{ fontStyle: "italic", color: t.dim }}> {tail}</span>

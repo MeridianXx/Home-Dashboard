@@ -522,7 +522,7 @@ Pragmatisk konsekvens: på desktop tappar man inte hub-kontexten visuellt, men m
 
 # MAT — Mat & Recept-sektion (maj 2026 →)
 
-> Ny sektion ovanpå Warm Home v3, baserad på `Warm Home - Mat & Recept.html`-prototypen från Claude Design (maj 2026). Lever som **5:e tab**. Egen accent: **AMBER** (`#D9954B`) — saffran/honung, kompletterar terracotta-ACC utan att krocka. Resten av Warm-grammatiken (Fraunces+DM Sans, hub-och-detalj, inga sub-tabs, flytande pill, inline-style) gäller oförändrad.
+> Ny sektion ovanpå Warm Home v3, baserad på `Warm Home - Mat & Recept.html`-prototypen från Claude Design (maj 2026). Lever som **5:e tab**. **Använder ACC (terracotta `#C96F4A`) som accent — samma som övriga sektioner.** Tidig version hade AMBER (`#D9954B`) som egen accent men flippades till ACC 2026-05-19 efter en visual-konsekvens-genomgång (alla 5 sektioner ska se enhetliga ut). AMBER reserveras för observera/coach-detaljer per token-namnet. Resten av Warm-grammatiken (Fraunces+DM Sans, hub-och-detalj, inga sub-tabs, flytande pill, inline-style) gäller oförändrad.
 >
 > **Utvecklas direkt på `main`** (produktionsbranchen, renamead från `v2` 2026-05-19) — ingen feature-branch. Varje session-commit auto-deployar via GitHub Actions till `dash.inicio.cloud`. **Konsekvens:** pusha först när varje delsteg verifierats grönt lokalt (preview-server 200, console-fri). Allt UI gate:as bakom `isMatReady()` så hubben renderar 501-banner tills Notion-secrets är satta i prod — ofärdiga sidor stör inte daglig användning.
 
@@ -545,7 +545,7 @@ Pragmatisk konsekvens: på desktop tappar man inte hub-kontexten visuellt, men m
 
 Allt från Warm Home v3 (princip 1–8) gäller, plus:
 
-9. **AMBER är Mat-accent — inte ACC.** Tab-pill, hub-eyebrow, primary-CTA, AI-tile, sparkle-badge på AI-importerade recept. Vintips-tile är LINGON (matchar designens markering av "viktig avvikelse").
+9. **ACC är Mat-accent — samma som övriga sektioner.** ⚠️ *Reviderad 2026-05-19* — tidig plan var AMBER för sektionsidentitet, men en visual-konsekvens-genomgång under M0 visade att 5 sektioner med 5 olika tab-färger bryter app-grammatiken. Allt mat-accent-content (tab-pill, hub-eyebrow, dörr-tile-eyebrow, 501-banner-label, framtida primary-CTA i M1+) använder ACC. AMBER används bara där design-tokenet säger "coach/observera" (t.ex. ev. AI-sparkle-badge i M4 — *bekräfta innan*). Vintips-tile förblir LINGON.
 10. **Receptbilder = OG-/schema.org-bild från importerad URL.** Finns URL → render hero-/kort-image. Saknas → inget bildblock. **Aldrig emoji-fallback, aldrig glyph-bg** — designens emoji-mockup var en prototyp-genväg, inte intention.
 11. **Importera är primär dataingång, inte polish.** Bibliotek börjar tomt; fylls genom URL-import (Claude-parsar HTML → strukturerat recept → review-modal → spara). Användaren kommer inte att skriva in recept manuellt regelbundet.
 12. **Inköpslista är read-only computed**, panel under vecka-grid på `/v3/mat/planering`. Ingen separat route, inga checkboxes (ICA-appen sköter avbockning via självscanning), "Kopiera lista"-knapp till urklipp.
@@ -580,8 +580,8 @@ M0–M4. Samma format som W0–W6 — en egen chatt per session, eget commit-til
 **Status / Observera / Öppna frågor:**
 
 - **Eyebrow-formatet följde `formatHubEyebrow("MAT")` (tre-segment "MAT · TISDAG · V.21") i stället för bullet-textens "MAT · {dag}".** Bullet-texten var en förkortning — `formatHubEyebrow` är single source of truth för alla 4 (nu 5) hub-eyebrows och konsekvens trumfar bokstavlig läsning här. Om det blir fel i UI flippar M4 till två-segment.
-- **AMBER-flippen lyftes till `chrome.tsx::tabAccent(tab)` i stället för att låta primitiven (`TabBar`/`Sidebar`) ha sektionskunskap.** Primitiven fick istället en `activeColor`-prop (default ACC). Renare separation: primitive vet inget om "mat", föräldern bestämmer accent per aktiv tab.
-- **`HubDisplay` fick en `eyebrowColor`-prop (default ACC).** Hub-eyebrow i Mat ska matcha tab-pill-färgen — utan denna prop kläms AMBER-eyebrow in på ett annat ställe. Övriga 4 hubbar är opåverkade (default-värdet).
+- **AMBER-flippen revs samma dag (2026-05-19) efter användarfeedback** — alla 5 sektioner ska se enhetliga ut. `tabAccent()` i chrome, `activeColor`-prop på TabBar/Sidebar och `eyebrowColor`-prop på HubDisplay togs bort. Mat använder ACC överallt, samma som Hem/Lab/Fitness/Trädgård. Princip 9 reviderad ovan.
+- **TabBar-pillen tightades 70/6 → 58/4** (minWidth/padding) eftersom den 5:e tab:en pressade pillen till 384 px i 393 px-viewport (4.5 px luft per sida). Efter justering: 324 px / 34.5 px luft per sida, "Trädgård"-text 47 px i 58 px-container = ingen klippning.
 - **Receptbild-fältet: `BildURL` som url-property.** Användaren bekräftade 2026-05-19. Notion-files-property ratades p.g.a. pre-signed-URL-utgångstid (1 h) + extra import-steg. Risk: brutna OG-bild-URL:er när källsidor tar bort bilder — accepterat trade-off för M0–M1.
 - **CRUD-funktioner är medvetet ofärdiga i `src/lib/mat/notion.ts`.** Bara klient + gate + helpers. Anledning: M0:s acceptance kräver inga skarpa API-anrop (hub-skelettet är statiskt) och M1 äger import-/recept-CRUD-pipelinen end-to-end. Att lägga halva CRUD-skiktet här skulle bara vara dödkod tills M1 ändrar formen på det.
 - **`isMatReady()` gate:ar alla tre env-vars (inkl. `NOTION_MAT_COACH_PAGE`)** — inte bara recept+plan. Förenklar M3: en gate, inte tre. Konsekvens: hubben visar 501-banner tills coach-persona-sidan är satt, även om DB:erna finns.
