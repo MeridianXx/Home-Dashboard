@@ -46,6 +46,9 @@ type LightEntry = {
   brightness_pct: number | null;
   dimmable: boolean;
   color_temp_kelvin: number | null;
+  supports_kelvin?: boolean;
+  min_kelvin?: number | null;
+  max_kelvin?: number | null;
 };
 type LightArea = {
   area_id: string;
@@ -413,7 +416,10 @@ function LampRow({
               fontSize: 17,
               fontWeight: 500,
               letterSpacing: "-0.01em",
-              lineHeight: 1.1,
+              // lineHeight 1.3 ger plats åt descender på "g"/"y"/"p" — 1.1
+              // klippte botten på t.ex. "Sänggavel" eftersom overflow:hidden
+              // skär exakt vid line-box-kanten.
+              lineHeight: 1.3,
               overflow: "hidden",
               whiteSpace: "nowrap",
             }}
@@ -440,7 +446,11 @@ function LampRow({
               {light.name}
             </span>
           </button>
-          {lon && displayK != null && hasAdaptiveLighting(light.entity_id) && (
+          {/* K-pillen visas för alla lampor som stödjer color_temp-mode (även
+              utan Adaptive Lighting). När lampan är off eller kör i xy/hs-mode
+              rapporterar HA color_temp_kelvin: null — då visar vi "—" istället
+              för att gömma pillen, så användaren ändå kan öppna sheet:en. */}
+          {lon && light.supports_kelvin && (
             <button
               type="button"
               onClick={() => {
@@ -465,7 +475,7 @@ function LampRow({
               }}
               className="warm-tab-nums"
             >
-              {displayK} K
+              {displayK != null ? `${displayK} K` : "K"}
             </button>
           )}
         </div>

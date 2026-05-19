@@ -14,6 +14,9 @@ type LightEntry = {
   brightness_pct: number | null;
   dimmable: boolean;
   color_temp_kelvin?: number | null;
+  supports_kelvin?: boolean;
+  min_kelvin?: number | null;
+  max_kelvin?: number | null;
   last_changed?: string | null;
 };
 type LightArea = {

@@ -18,6 +18,9 @@ export async function GET() {
       entity_id: string; name: string; state: string;
       brightness_pct: number | null; dimmable: boolean;
       color_temp_kelvin: number | null;
+      supports_kelvin: boolean;
+      min_kelvin: number | null;
+      max_kelvin: number | null;
       last_changed: string | null;
     }>> = {};
 
@@ -30,6 +33,13 @@ export async function GET() {
       const brightness = s.attributes.brightness as number | null | undefined;
       const modes      = s.attributes.supported_color_modes as string[] | undefined;
       const dimmable   = modes ? modes.some(m => m !== "onoff") : false;
+      // `color_temp` i supported_color_modes signalerar att lampan kan ställas
+      // till en specifik K-temperatur (även om lampan just nu är off, eller
+      // kör i xy/hs-mode och color_temp_kelvin är null). UI:t använder denna
+      // flagga för att gate:a K-pill/slider — inte aktuellt K-värde.
+      const supports_kelvin = modes ? modes.includes("color_temp") : false;
+      const minK = s.attributes.min_color_temp_kelvin as number | null | undefined;
+      const maxK = s.attributes.max_color_temp_kelvin as number | null | undefined;
 
       // Färgtemperatur: HA exponerar antingen `color_temp_kelvin` direkt eller
       // `color_temp` (mireds). Mireds → K via 1_000_000 / mired.
@@ -49,6 +59,9 @@ export async function GET() {
         brightness_pct: brightness != null ? Math.round((brightness / 255) * 100) : null,
         dimmable,
         color_temp_kelvin,
+        supports_kelvin,
+        min_kelvin:     typeof minK === "number" ? minK : null,
+        max_kelvin:     typeof maxK === "number" ? maxK : null,
         last_changed:   (s as { last_changed?: string }).last_changed ?? null,
       });
     }
