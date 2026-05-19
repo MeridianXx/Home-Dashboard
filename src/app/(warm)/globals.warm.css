@@ -134,6 +134,27 @@ input[type="time"] {
   --warm-track-color: rgba(255, 251, 240, 0.25);
 }
 
+/* Tap-ring — visuell echo vid knapptryck (Material-ripple-light). Spawnas
+   av WarmPress via React state. Färg kan override:as per knapp med
+   --warm-ring-color CSS-variabel; --warm-ring-scale beräknas i JS för att
+   ringen ska täcka hela knappen oavsett storlek. */
+.warm-tap-ring {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--warm-ring-color, rgba(201, 111, 74, 0.4));
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0);
+  animation: warm-tap-ring 380ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes warm-tap-ring {
+  0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0.55; }
+  60%  { opacity: 0.35; }
+  100% { transform: translate(-50%, -50%) scale(var(--warm-ring-scale, 10)); opacity: 0; }
+}
+
 /* Page-transition fade-in. Triggas via key={pathname} i
    (warm)/v3/layout.tsx — React mount:ar ny div med `.warm-page-fade`,
    CSS-animation körs från noll varje gång. */
