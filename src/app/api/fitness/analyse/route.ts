@@ -11,6 +11,7 @@ import { parseAllWorkouts } from "@/lib/fitness/parser";
 import { analyseWorkout, isClaudeReady } from "@/lib/fitness/claude";
 import { getWorkoutAnalysis, isLogDbReady, saveWorkoutAnalysis } from "@/lib/fitness/notion";
 import type { Workout } from "@/lib/fitness/types";
+import { rateLimitOr429, RATE_LIMIT_AI_EXPENSIVE } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 // Claude-anrop med full kontext tar 5–15 s beroende på input-längd.
@@ -63,6 +64,13 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const limited = await rateLimitOr429(
+    req,
+    "fitness:analyse",
+    RATE_LIMIT_AI_EXPENSIVE
+  );
+  if (limited) return limited;
+
   try {
     const q = readQuery(req);
     if (!q) return NextResponse.json({ error: "date, time och type krävs" }, { status: 400 });

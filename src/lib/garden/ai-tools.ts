@@ -15,6 +15,63 @@ import {
 } from "./notion";
 import { getWeatherSnapshot } from "./ai-context";
 
+// ─── Enum-validering ─────────────────────────────────────────────────────────
+// Schemat berättar för Claude vad som är giltigt, men Notion API accepterar
+// vilken sträng som helst på select/status-fält och skapar nytt option om
+// värdet saknas. En prompt-injektion via en växt-kommentar kan därför annars
+// smutsa Notion-DB:n med påhittade enum-värden. Kör säker server-side check.
+const TASK_STATUS = new Set(["Planerad", "Pågår", "Klar"]);
+const TASK_TYP = new Set(["Gräsmatta", "Rabatter", "Träd & buskar", "Grönsaker"]);
+const TASK_ATGARDER = new Set([
+  "Underhåll",
+  "Delning",
+  "Beskärning",
+  "Gödsling",
+  "Inspektion",
+  "Plantering",
+]);
+const PROJECT_STATUS = new Set([
+  "Ny",
+  "Utreds",
+  "Planerad",
+  "Pågående",
+  "Väntar",
+  "Klart",
+  "Skrotad",
+]);
+const PROJECT_PRIORITET = new Set(["Hög", "Normal", "Låg"]);
+const PROJECT_OMRADE = new Set([
+  "Uppfart",
+  "Finplanering",
+  "Grovplanering",
+  "Trädgård",
+  "Bygg",
+  "Altan",
+]);
+const PROJECT_TIDSRAM = new Set(["Oklart", "2026", "2027"]);
+
+function ensureEnum(
+  label: string,
+  value: string | undefined,
+  allowed: Set<string>
+): void {
+  if (value === undefined) return;
+  if (!allowed.has(value)) {
+    throw new Error(
+      `${label}=${JSON.stringify(value)} är inte tillåtet. Giltiga: ${[...allowed].join(", ")}`
+    );
+  }
+}
+
+function ensureEnumArray(
+  label: string,
+  values: string[] | undefined,
+  allowed: Set<string>
+): void {
+  if (!values) return;
+  for (const v of values) ensureEnum(label, v, allowed);
+}
+
 // ─── create_task ─────────────────────────────────────────────────────────────
 
 const createTaskTool: ToolDefinition = {
@@ -67,6 +124,9 @@ const createTaskTool: ToolDefinition = {
       kommentar?: string;
       plantIds?: string[];
     };
+    ensureEnum("status", i.status, TASK_STATUS);
+    ensureEnum("typ", i.typ, TASK_TYP);
+    ensureEnumArray("atgarder", i.atgarder, TASK_ATGARDER);
     const task = await createTask({
       uppgift: i.uppgift,
       datum: i.datum,
@@ -103,6 +163,9 @@ const updateTaskTool: ToolDefinition = {
   },
   handler: async (input) => {
     const i = input as { id: string } & Record<string, unknown>;
+    ensureEnum("status", i.status as string | undefined, TASK_STATUS);
+    ensureEnum("typ", i.typ as string | undefined, TASK_TYP);
+    ensureEnumArray("atgarder", i.atgarder as string[] | undefined, TASK_ATGARDER);
     const { id, ...patch } = i;
     const task = await updateTask(id, patch as Parameters<typeof updateTask>[1]);
     return { ok: true, taskId: task.id, uppgift: task.uppgift, datum: task.datum, status: task.status };
@@ -253,6 +316,10 @@ const createProjectTool: ToolDefinition = {
       budget?: number;
       kommentar?: string;
     };
+    ensureEnum("status", i.status, PROJECT_STATUS);
+    ensureEnum("prioritet", i.prioritet, PROJECT_PRIORITET);
+    ensureEnum("omrade", i.omrade, PROJECT_OMRADE);
+    ensureEnum("tidsram", i.tidsram, PROJECT_TIDSRAM);
     const project = await createProject({
       namn: i.namn,
       status: i.status ?? "Ny",

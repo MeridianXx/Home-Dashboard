@@ -37,6 +37,26 @@ const TYPE_OPTIONS = [
 const STATUS_OPTIONS = ["Planerat", "Genomfört", "Inställt"];
 const UNDERLAG_OPTIONS = ["Asfalt", "Grus", "Terräng", "Inomhus", "Löpband"];
 
+// Server-side enum-guards — schemat berättar för Claude vad som är giltigt
+// men Notion accepterar valfri sträng på select. En prompt-injektion via
+// passdetaljer kan annars skapa skräp-options i DB:n.
+const TYPE_SET = new Set(TYPE_OPTIONS);
+const STATUS_SET = new Set(STATUS_OPTIONS);
+const UNDERLAG_SET = new Set(UNDERLAG_OPTIONS);
+
+function ensureEnum(
+  label: string,
+  value: string | undefined,
+  allowed: Set<string>
+): void {
+  if (value === undefined) return;
+  if (!allowed.has(value)) {
+    throw new Error(
+      `${label}=${JSON.stringify(value)} är inte tillåtet. Giltiga: ${[...allowed].join(", ")}`
+    );
+  }
+}
+
 // ─── create_planned_workout ──────────────────────────────────────────────────
 
 const createPlannedWorkoutTool: ToolDefinition = {
@@ -63,6 +83,9 @@ const createPlannedWorkoutTool: ToolDefinition = {
   },
   handler: async (input) => {
     const i = input as Record<string, string | undefined>;
+    ensureEnum("typ", i.typ, TYPE_SET);
+    ensureEnum("underlag", i.underlag, UNDERLAG_SET);
+    ensureEnum("status", i.status, STATUS_SET);
     const plan = await createPlannedWorkout({
       datum: i.datum!,
       passnamn: i.passnamn,
@@ -112,6 +135,9 @@ const updatePlannedWorkoutTool: ToolDefinition = {
   },
   handler: async (input) => {
     const i = input as { id: string } & Record<string, string | undefined>;
+    ensureEnum("typ", i.typ, TYPE_SET);
+    ensureEnum("underlag", i.underlag, UNDERLAG_SET);
+    ensureEnum("status", i.status, STATUS_SET);
     const { id, ...patch } = i;
     const plan = await updatePlannedWorkout(id, patch);
     return {

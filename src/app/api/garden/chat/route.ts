@@ -12,6 +12,8 @@ import { isGardenReady } from "@/lib/garden/notion";
 import { buildGardenContext, formatContextAsSystemBlock } from "@/lib/garden/ai-context";
 import { gardenToolRegistry, describeTools } from "@/lib/garden/ai-tools";
 import { getGardenPersona } from "@/lib/garden/coach-persona";
+import { rateLimitOr429, RATE_LIMIT_AI_CHAT } from "@/lib/rate-limit";
+import { validateChatMessages } from "@/lib/ai/validate";
 import type {
   ChatMessage,
   StreamEvent,
@@ -42,6 +44,9 @@ function toSdkMessages(messages: ChatMessage[]): AnthropicMessageParam[] {
 }
 
 export async function POST(req: Request) {
+  const limited = await rateLimitOr429(req, "garden:chat", RATE_LIMIT_AI_CHAT);
+  if (limited) return limited;
+
   if (!isGardenReady()) {
     return NextResponse.json(
       { error: "Trädgårds-DB:erna är inte konfigurerade." },
@@ -61,8 +66,9 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Ogiltig JSON-body." }, { status: 400 });
   }
-  if (!Array.isArray(body.messages) || body.messages.length === 0) {
-    return NextResponse.json({ error: "messages krävs (icke-tom array)." }, { status: 400 });
+  const validationError = validateChatMessages(body.messages);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
   // Bygg kontext + persona parallellt. Persona-cache är 5 min så detta är

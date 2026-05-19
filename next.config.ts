@@ -13,6 +13,26 @@ const baseConfig: NextConfig = {
       },
     ],
   },
+
+  // Säkerhets-headers. Skyddar mot clickjacking (iframe-inramning) och
+  // MIME-sniff. Authelia + NPM ger TLS + auth; dessa headers ger en
+  // browser-level baseline ovanpå det.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 // PWA uses a webpack plugin which conflicts with Turbopack in dev.

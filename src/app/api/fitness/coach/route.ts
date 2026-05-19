@@ -22,6 +22,7 @@ import {
   createPlannedWorkouts,
   type PlannedWorkoutInput,
 } from "@/lib/fitness/notion";
+import { rateLimitOr429, RATE_LIMIT_AI_EXPENSIVE } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 // Plan-generering tar 20–30 s, save-only är snabbt.
@@ -46,6 +47,13 @@ function claudeGuard(): NextResponse | null {
 }
 
 export async function POST(req: Request) {
+  const limited = await rateLimitOr429(
+    req,
+    "fitness:coach",
+    RATE_LIMIT_AI_EXPENSIVE
+  );
+  if (limited) return limited;
+
   try {
     const body = (await req.json()) as CoachBody;
 

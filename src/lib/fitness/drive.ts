@@ -203,7 +203,12 @@ export async function findFitFileForWorkout(
   return best?.file ?? null;
 }
 
-/** Ladda ner en FIT-fil som Buffer med 30-min cache. */
+/** Ladda ner en FIT-fil som Buffer med 30-min cache.
+ *
+ * Säkerhet: servicekontot har potentiellt tillgång till fler filer än
+ * HealthFit-mappen (sharedWithMe-fallback). En attacker med fritt val av
+ * fileId skulle annars kunna hämta vad som helst som kontot är delat med.
+ * Vi verifierar att filnamnet faktiskt slutar på .fit innan vi laddar ner. */
 export async function downloadFitFile(fileId: string): Promise<{ buffer: Buffer; filename: string } | null> {
   const cached = fitCache.get(fileId);
   if (cached && Date.now() - cached.timestamp < FIT_CACHE_TTL) {
@@ -211,7 +216,10 @@ export async function downloadFitFile(fileId: string): Promise<{ buffer: Buffer;
   }
   const drive = getDrive();
   const meta = await drive.files.get({ fileId, fields: "name" });
-  const filename = meta.data.name ?? `${fileId}.fit`;
+  const filename = meta.data.name ?? "";
+  if (!filename.toLowerCase().endsWith(".fit")) {
+    throw new Error(`Filen är inte en .fit-fil: ${filename || fileId}`);
+  }
   const res = await drive.files.get({ fileId, alt: "media" }, { responseType: "arraybuffer" });
   const buffer = Buffer.from(res.data as ArrayBuffer);
   fitCache.set(fileId, { timestamp: Date.now(), buffer, filename, fileId });

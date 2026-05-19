@@ -14,6 +14,7 @@ import {
   summarizeContext,
 } from "@/lib/garden/ai-context";
 import { getGardenPersona } from "@/lib/garden/coach-persona";
+import { rateLimitOr429, RATE_LIMIT_AI_CACHED } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -48,6 +49,17 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const refresh = url.searchParams.get("refresh") === "1";
+
+  // Rate limit bara på refresh — cachade hits är gratis och kan släppas
+  // igenom utan budget-risk.
+  if (refresh) {
+    const limited = await rateLimitOr429(
+      req,
+      "garden:briefing",
+      RATE_LIMIT_AI_CACHED
+    );
+    if (limited) return limited;
+  }
 
   if (!refresh && cache && Date.now() - cache.timestamp < CACHE_TTL) {
     return NextResponse.json({
