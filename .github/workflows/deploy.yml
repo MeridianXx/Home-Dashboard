@@ -2,7 +2,7 @@ name: Bygg & deploya
 
 on:
   push:
-    branches: [v2]
+    branches: [main, v2]
 
 jobs:
   # ── Job 1: Bygg image och pusha till GHCR ──────────────────────────────────
