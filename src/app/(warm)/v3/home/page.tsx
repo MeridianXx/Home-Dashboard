@@ -24,6 +24,7 @@ import { weatherGlyph } from "@/lib/warm/weather";
 import { haptic } from "@/lib/warm/haptics";
 import SunArc from "@/components/warm/SunArc";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
+import { mergeTransition, useTapFeedback } from "@/lib/warm/use-tap-feedback";
 import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { HUB_FAVORITE_ROOMS, SLUG_TO_NAME } from "@/lib/warm/rooms";
 import {
@@ -319,6 +320,73 @@ function WeatherTile({
 
 // ─── Scen-rad: 4 pills + status till höger ──────────────────────────────────
 
+function ScenePill({
+  t,
+  entry,
+  isActive,
+  isLoading,
+  onActivate,
+}: {
+  t: WarmTheme;
+  entry: (typeof SCENE_ENTRIES)[number];
+  isActive: boolean;
+  isLoading: boolean;
+  onActivate: (key: string) => void;
+}) {
+  const tap = useTapFeedback({
+    ringColor: isActive ? "rgba(255, 251, 240, 0.45)" : undefined,
+  });
+  return (
+    <button
+      type="button"
+      {...tap.handlers}
+      onClick={() => {
+        void haptic("tap");
+        onActivate(entry.key);
+      }}
+      aria-pressed={isActive}
+      style={{
+        ...tap.style,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 5,
+        padding: "10px 4px",
+        borderRadius: 999,
+        background: isActive ? ACC : t.paper,
+        border: `1px solid ${isActive ? ACC : t.line}`,
+        color: isActive ? "#FFFBF0" : t.ink,
+        cursor: "pointer",
+        opacity: isLoading ? 0.6 : 1,
+        transition: mergeTransition(
+          tap.style.transition as string,
+          "background 160ms, border-color 160ms"
+        ),
+        flex: "1 1 0",
+        minWidth: 0,
+      }}
+    >
+      {tap.ring}
+      <SceneGlyph
+        scene={entry.glyph}
+        size={13}
+        color={isActive ? "#FFFBF0" : t.mute}
+      />
+      <span
+        style={{
+          fontFamily: body,
+          fontSize: 12,
+          fontWeight: isActive ? 600 : 500,
+          letterSpacing: "0.01em",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {entry.label}
+      </span>
+    </button>
+  );
+}
+
 function ScenesSection({
   t,
   active,
@@ -366,54 +434,16 @@ function ScenesSection({
           overflow: "hidden",
         }}
       >
-        {SCENE_ENTRIES.map((s) => {
-          const isActive = active === s.key;
-          const isLoading = loading === s.key;
-          return (
-            <button
-              key={s.key}
-              type="button"
-              onClick={() => {
-                void haptic("tap");
-                onActivate(s.key);
-              }}
-              aria-pressed={isActive}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5,
-                padding: "10px 4px",
-                borderRadius: 999,
-                background: isActive ? ACC : t.paper,
-                border: `1px solid ${isActive ? ACC : t.line}`,
-                color: isActive ? "#FFFBF0" : t.ink,
-                cursor: "pointer",
-                opacity: isLoading ? 0.6 : 1,
-                transition: "background 160ms, border-color 160ms",
-                flex: "1 1 0",
-                minWidth: 0,
-              }}
-            >
-              <SceneGlyph
-                scene={s.glyph}
-                size={13}
-                color={isActive ? "#FFFBF0" : t.mute}
-              />
-              <span
-                style={{
-                  fontFamily: body,
-                  fontSize: 12,
-                  fontWeight: isActive ? 600 : 500,
-                  letterSpacing: "0.01em",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {s.label}
-              </span>
-            </button>
-          );
-        })}
+        {SCENE_ENTRIES.map((s) => (
+          <ScenePill
+            key={s.key}
+            t={t}
+            entry={s}
+            isActive={active === s.key}
+            isLoading={loading === s.key}
+            onActivate={onActivate}
+          />
+        ))}
       </div>
     </div>
   );
@@ -642,126 +672,165 @@ function RoomList({
           overflow: "hidden",
         }}
       >
-        {rooms.map((r, i) => {
-          const on = (r.lightArea?.on_count ?? 0) > 0;
-          const avgPct = (() => {
-            if (!r.lightArea) return null;
-            const onLights = r.lightArea.lights.filter(
-              (l) => l.state === "on" && l.brightness_pct != null
-            );
-            if (onLights.length === 0) return null;
-            return Math.round(
-              onLights.reduce((s, l) => s + (l.brightness_pct ?? 0), 0) /
-                onLights.length
-            );
-          })();
-          const subtitleParts: string[] = [];
-          // Ordning: ljus-status först, temperatur sist (visar primär kontroll
-          // före kontextuellt mätvärde).
-          if (r.lightArea) {
-            if (on) {
-              subtitleParts.push(avgPct != null ? `ljus ${avgPct}%` : "ljus på");
-            } else {
-              subtitleParts.push("ljus av");
-            }
-          }
-          // Köket har en felklassad sensor (60° konstant) — visa inte temp.
-          const showTemp =
-            r.sensorArea && r.name.toLowerCase() !== "kök" && r.name.toLowerCase() !== "köket";
-          if (showTemp) {
-            subtitleParts.push(`${r.sensorArea!.temperature.toFixed(1)}°`);
-          }
-          const subtitle = subtitleParts.join(" · ");
-          return (
-            <div
-              key={r.slug}
+        {rooms.map((r, i) => (
+          <HubRoomRow
+            key={r.slug}
+            t={t}
+            room={r}
+            isFirst={i === 0}
+            onToggleArea={onToggleArea}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type HubRoom = {
+  slug: string;
+  name: string;
+  lightArea: LightArea | undefined;
+  sensorArea: SensorArea | undefined;
+};
+
+function HubRoomRow({
+  t,
+  room: r,
+  isFirst,
+  onToggleArea,
+}: {
+  t: WarmTheme;
+  room: HubRoom;
+  isFirst: boolean;
+  onToggleArea: (area: LightArea) => void;
+}) {
+  const on = (r.lightArea?.on_count ?? 0) > 0;
+  const avgPct = (() => {
+    if (!r.lightArea) return null;
+    const onLights = r.lightArea.lights.filter(
+      (l) => l.state === "on" && l.brightness_pct != null
+    );
+    if (onLights.length === 0) return null;
+    return Math.round(
+      onLights.reduce((s, l) => s + (l.brightness_pct ?? 0), 0) /
+        onLights.length
+    );
+  })();
+  const subtitleParts: string[] = [];
+  if (r.lightArea) {
+    if (on) {
+      subtitleParts.push(avgPct != null ? `ljus ${avgPct}%` : "ljus på");
+    } else {
+      subtitleParts.push("ljus av");
+    }
+  }
+  const showTemp =
+    r.sensorArea &&
+    r.name.toLowerCase() !== "kök" &&
+    r.name.toLowerCase() !== "köket";
+  if (showTemp) {
+    subtitleParts.push(`${r.sensorArea!.temperature.toFixed(1)}°`);
+  }
+  const subtitle = subtitleParts.join(" · ");
+  // En tap-instans per interaktiv yta. Dot-knappen har sin egen ring, Link-
+  // raden sin egen, så feedback följer fingret oavsett om du togglar eller
+  // navigerar.
+  const dotTap = useTapFeedback();
+  const linkTap = useTapFeedback();
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        borderTop: isFirst ? "none" : `1px solid ${t.line}`,
+      }}
+    >
+      {/* Dot-knappen — togglar rummets lampor på/av */}
+      <button
+        type="button"
+        {...dotTap.handlers}
+        onClick={(e) => {
+          e.stopPropagation();
+          void haptic("tap");
+          if (r.lightArea) onToggleArea(r.lightArea);
+        }}
+        disabled={!r.lightArea}
+        aria-label={
+          r.lightArea
+            ? on
+              ? `Släck ${r.name}`
+              : `Tänd ${r.name}`
+            : `${r.name} har inga lampor`
+        }
+        style={{
+          ...dotTap.style,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "12px 0 12px 16px",
+          cursor: r.lightArea ? "pointer" : "default",
+          flexShrink: 0,
+          // Dot-knappen är liten — vi vill att ringen ändå syns runt
+          // pricken. Egen border-radius gör ringen rund istället för fyrkantig.
+          borderRadius: 999,
+        }}
+      >
+        {dotTap.ring}
+        <span
+          aria-hidden="true"
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: on ? ACC : "transparent",
+            border: `1.5px solid ${on ? ACC : t.dim}`,
+            transition: "background-color 160ms, border-color 160ms",
+          }}
+        />
+      </button>
+      {/* Resten av raden = Link till rum-detalj */}
+      <Link
+        href={`/v3/home/rum/${r.slug}`}
+        {...linkTap.handlers}
+        style={{
+          ...linkTap.style,
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          padding: "12px 16px 12px 14px",
+          color: t.ink,
+          textDecoration: "none",
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
+        {linkTap.ring}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontFamily: serif,
+              fontSize: 16,
+              fontWeight: 500,
+              color: t.ink,
+              letterSpacing: "-0.01em",
+              lineHeight: 1.15,
+            }}
+          >
+            {r.name}
+          </p>
+          {subtitle && (
+            <p
               style={{
-                display: "flex",
-                alignItems: "center",
-                borderTop: i === 0 ? "none" : `1px solid ${t.line}`,
+                ...ital(t, 12, t.mute),
+                marginTop: 2,
               }}
             >
-              {/* Dot-knappen — togglar rummets lampor på/av */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void haptic("tap");
-                  if (r.lightArea) onToggleArea(r.lightArea);
-                }}
-                disabled={!r.lightArea}
-                aria-label={
-                  r.lightArea
-                    ? on
-                      ? `Släck ${r.name}`
-                      : `Tänd ${r.name}`
-                    : `${r.name} har inga lampor`
-                }
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "12px 0 12px 16px",
-                  cursor: r.lightArea ? "pointer" : "default",
-                  flexShrink: 0,
-                }}
-              >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: on ? ACC : "transparent",
-                    border: `1.5px solid ${on ? ACC : t.dim}`,
-                    transition: "background-color 160ms, border-color 160ms",
-                  }}
-                />
-              </button>
-              {/* Resten av raden = Link till rum-detalj */}
-              <Link
-                href={`/v3/home/rum/${r.slug}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  padding: "12px 16px 12px 14px",
-                  color: t.ink,
-                  textDecoration: "none",
-                  flex: 1,
-                  minWidth: 0,
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p
-                    style={{
-                      fontFamily: serif,
-                      fontSize: 16,
-                      fontWeight: 500,
-                      color: t.ink,
-                      letterSpacing: "-0.01em",
-                      lineHeight: 1.15,
-                    }}
-                  >
-                    {r.name}
-                  </p>
-                  {subtitle && (
-                    <p
-                      style={{
-                        ...ital(t, 12, t.mute),
-                        marginTop: 2,
-                      }}
-                    >
-                      {subtitle}
-                    </p>
-                  )}
-                </div>
-                <ChevronRight size={16} color={t.dim} />
-              </Link>
-            </div>
-          );
-        })}
-      </div>
+              {subtitle}
+            </p>
+          )}
+        </div>
+        <ChevronRight size={16} color={t.dim} />
+      </Link>
     </div>
   );
 }

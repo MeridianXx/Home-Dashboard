@@ -23,6 +23,7 @@ import { activeSceneByLastChanged, type ScenePayload } from "@/lib/scenes";
 import { RoomLightRow, type LightArea, type LightEntry } from "@/components/warm/RoomLights";
 import { NEDERVANING, OVERVANING, UTOMHUS } from "@/lib/warm/rooms";
 import { formatTime, lastDarkenedAt, sceneLabel } from "@/lib/warm/format";
+import { mergeTransition, useTapFeedback } from "@/lib/warm/use-tap-feedback";
 import type { AwayPayload } from "@/app/api/homeassistant/away/route";
 
 type LightsData = { areas: LightArea[] };
@@ -45,6 +46,72 @@ function sortByFloor(areas: LightArea[]) {
     )
     .sort(byName);
   return { neder, over, utomhus, other };
+}
+
+function ScenePill({
+  t,
+  entry,
+  isActive,
+  isLoading,
+  onActivate,
+}: {
+  t: WarmTheme;
+  entry: (typeof SCENE_ENTRIES)[number];
+  isActive: boolean;
+  isLoading: boolean;
+  onActivate: (key: string) => void;
+}) {
+  const tap = useTapFeedback({
+    ringColor: isActive ? "rgba(255, 251, 240, 0.45)" : undefined,
+  });
+  return (
+    <button
+      type="button"
+      {...tap.handlers}
+      onClick={() => {
+        void haptic("tap");
+        onActivate(entry.key);
+      }}
+      aria-pressed={isActive}
+      style={{
+        ...tap.style,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 5,
+        padding: "10px 4px",
+        borderRadius: 999,
+        background: isActive ? ACC : t.paper,
+        border: `1px solid ${isActive ? ACC : t.line}`,
+        color: isActive ? "#FFFBF0" : t.ink,
+        cursor: "pointer",
+        opacity: isLoading ? 0.6 : 1,
+        transition: mergeTransition(
+          tap.style.transition as string,
+          "background 160ms, border-color 160ms"
+        ),
+        flex: "1 1 0",
+        minWidth: 0,
+      }}
+    >
+      {tap.ring}
+      <SceneGlyph
+        scene={entry.glyph}
+        size={13}
+        color={isActive ? "#FFFBF0" : t.mute}
+      />
+      <span
+        style={{
+          fontFamily: body,
+          fontSize: 12,
+          fontWeight: isActive ? 600 : 500,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {entry.label}
+      </span>
+    </button>
+  );
 }
 
 function SceneRow({
@@ -87,53 +154,16 @@ function SceneRow({
           overflow: "hidden",
         }}
       >
-        {SCENE_ENTRIES.map((s) => {
-          const isActive = active === s.key;
-          const isLoading = loading === s.key;
-          return (
-            <button
-              key={s.key}
-              type="button"
-              onClick={() => {
-                void haptic("tap");
-                onActivate(s.key);
-              }}
-              aria-pressed={isActive}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5,
-                padding: "10px 4px",
-                borderRadius: 999,
-                background: isActive ? ACC : t.paper,
-                border: `1px solid ${isActive ? ACC : t.line}`,
-                color: isActive ? "#FFFBF0" : t.ink,
-                cursor: "pointer",
-                opacity: isLoading ? 0.6 : 1,
-                transition: "background 160ms, border-color 160ms",
-                flex: "1 1 0",
-                minWidth: 0,
-              }}
-            >
-              <SceneGlyph
-                scene={s.glyph}
-                size={13}
-                color={isActive ? "#FFFBF0" : t.mute}
-              />
-              <span
-                style={{
-                  fontFamily: body,
-                  fontSize: 12,
-                  fontWeight: isActive ? 600 : 500,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {s.label}
-              </span>
-            </button>
-          );
-        })}
+        {SCENE_ENTRIES.map((s) => (
+          <ScenePill
+            key={s.key}
+            t={t}
+            entry={s}
+            isActive={active === s.key}
+            isLoading={loading === s.key}
+            onActivate={onActivate}
+          />
+        ))}
       </div>
     </div>
   );
@@ -255,6 +285,7 @@ function SuitcaseIcon({ color, size = 18 }: { color: string; size?: number }) {
 
 function AwayModeTile({ t }: { t: WarmTheme }) {
   const hydrated = useHydrated();
+  const tap = useTapFeedback();
   const { data, mutate, error } = useSWR<AwayPayload>(
     hydrated ? "/api/homeassistant/away" : null,
     fetcher,
@@ -293,6 +324,7 @@ function AwayModeTile({ t }: { t: WarmTheme }) {
         role="button"
         tabIndex={disabled ? -1 : 0}
         aria-pressed={active}
+        {...tap.handlers}
         onClick={() => {
           if (disabled || pending) return;
           void haptic("tap");
@@ -307,6 +339,7 @@ function AwayModeTile({ t }: { t: WarmTheme }) {
           }
         }}
         style={{
+          ...tap.style,
           display: "flex",
           alignItems: "center",
           gap: 14,
@@ -318,9 +351,13 @@ function AwayModeTile({ t }: { t: WarmTheme }) {
           color: t.ink,
           cursor: disabled ? "default" : "pointer",
           opacity: pending ? 0.7 : 1,
-          transition: "background 160ms, border-color 160ms",
+          transition: mergeTransition(
+            tap.style.transition as string,
+            "background 160ms, border-color 160ms"
+          ),
         }}
       >
+        {tap.ring}
         <div
           style={{
             display: "inline-flex",
