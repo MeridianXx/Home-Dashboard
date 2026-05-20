@@ -15,7 +15,7 @@ import { fetcher } from "@/lib/fetcher";
 import { useDesktop, useWarmTheme } from "@/lib/warm/theme";
 import { formatHubEyebrow } from "@/lib/warm/format";
 import { ACC, body, lab, num } from "@/lib/warm/tokens";
-import type { MatReadyResponse } from "@/lib/mat/types";
+import type { MatReadyResponse, RecipesResponse } from "@/lib/mat/types";
 
 export default function MatHubPage() {
   const { t } = useWarmTheme();
@@ -26,8 +26,17 @@ export default function MatHubPage() {
     revalidateOnFocus: false,
   });
 
-  const notReady = readySwr.data && !readySwr.data.matReady;
+  const ready = readySwr.data?.matReady ?? false;
+  const recipesSwr = useSWR<RecipesResponse>(ready ? "/api/mat/recipes" : null, fetcher, {
+    revalidateOnFocus: false,
+  });
+
+  const notReady = readySwr.data && !ready;
   const missing = readySwr.data?.missing ?? [];
+  const recipeCount = recipesSwr.data?.recipes.length ?? 0;
+  const recipeStat = recipeCount === 0
+    ? "0 recept · importera ditt första"
+    : `${recipeCount} recept${recipeCount === 1 ? "" : ""} i biblioteket`;
 
   return (
     <div style={{ paddingBottom: 24 }}>
@@ -76,7 +85,7 @@ export default function MatHubPage() {
             eyebrow="BIBLIOTEK"
             title="Recepten,"
             tail="alla samlade."
-            stat="0 recept · importera ditt första"
+            stat={recipeStat}
             first
           />
           <DoorTile
