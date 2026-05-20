@@ -92,7 +92,7 @@ const RECIPES_DB_ID = await createIfMissing(
     "Taggar":        { multi_select: { options: [] } }, // Användaren bygger ut
     "Vintips":       { rich_text: {} },
     "BildURL":       { url: {} },                // OG-/schema.org-image, ev. tom
-    "KällURL":       { url: {} },
+    "Länk":          { url: {} },                // Källans URL (importerad)
     "Källa":         { rich_text: {} },          // Domännamn, t.ex. "ica.se"
     "AISkapad":      { checkbox: {} },
     "Skapad":        { created_time: {} },

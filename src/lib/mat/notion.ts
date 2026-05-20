@@ -6,7 +6,7 @@
 // implementeras stegvis.
 
 import { Client } from "@notionhq/client";
-import type { Ingredient } from "./types";
+import type { Ingredient, Recipe, RecipeInput } from "./types";
 
 const TOKEN = process.env.NOTION_TOKEN ?? "";
 const RECIPES_DB = process.env.NOTION_MAT_RECIPES_DB ?? "";
@@ -114,4 +114,223 @@ export function domainFromUrl(url: string): string {
   } catch {
     return "";
   }
+}
+
+// ── Notion API low-level wrappers (samma mönster som garden/notion.ts) ──────
+
+interface NotionPageLike {
+  id: string;
+  properties: Record<string, unknown>;
+  url?: string;
+  created_time?: string;
+}
+
+interface DsApi {
+  query: (args: {
+    data_source_id: string;
+    filter?: unknown;
+    sorts?: unknown;
+    page_size?: number;
+    start_cursor?: string;
+  }) => Promise<{ results: NotionPageLike[]; next_cursor: string | null; has_more?: boolean }>;
+}
+
+function dsApi(): DsApi {
+  return (getMatClient() as unknown as { dataSources: DsApi }).dataSources;
+}
+
+async function queryAll(
+  dsId: string,
+  extras: { filter?: unknown; sorts?: unknown } = {},
+): Promise<NotionPageLike[]> {
+  const results: NotionPageLike[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await dsApi().query({
+      data_source_id: dsId,
+      page_size: 100,
+      start_cursor: cursor,
+      ...extras,
+    });
+    for (const p of res.results) results.push(p);
+    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return results;
+}
+
+// ── Läs-helpers ────────────────────────────────────────────────────────────
+
+type Prop = {
+  title?: Array<{ plain_text: string }>;
+  rich_text?: Array<{ plain_text: string }>;
+  multi_select?: Array<{ name: string }>;
+  number?: number | null;
+  url?: string | null;
+  checkbox?: boolean;
+  created_time?: string;
+};
+
+function readTitle(p: Prop | undefined): string {
+  return p?.title?.map((t) => t.plain_text).join("") ?? "";
+}
+function readText(p: Prop | undefined): string {
+  return p?.rich_text?.map((t) => t.plain_text).join("") ?? "";
+}
+function readMulti(p: Prop | undefined): string[] {
+  return (p?.multi_select ?? []).map((s) => s.name);
+}
+function readNumber(p: Prop | undefined): number | null {
+  return p?.number ?? null;
+}
+function readUrl(p: Prop | undefined): string | null {
+  return p?.url ?? null;
+}
+function readCheckbox(p: Prop | undefined): boolean {
+  return p?.checkbox ?? false;
+}
+function readCreatedTime(p: Prop | undefined): string {
+  return p?.created_time ?? "";
+}
+
+// ── Notion rich_text-chunking ──────────────────────────────────────────────
+// Ett rich_text-element har 2000 teckens hård gräns. Långa ingrediens-JSON-
+// blobbar eller steg-strängar måste delas i flera element. Innehållet
+// concat:as transparent vid `readText`-läsning så det är fortfarande
+// en logisk sträng för callern.
+
+const NOTION_RICH_TEXT_MAX = 2000;
+
+function chunkRichText(text: string): Array<{ text: { content: string } }> {
+  if (text.length === 0) return [];
+  const parts: Array<{ text: { content: string } }> = [];
+  for (let i = 0; i < text.length; i += NOTION_RICH_TEXT_MAX) {
+    parts.push({ text: { content: text.slice(i, i + NOTION_RICH_TEXT_MAX) } });
+  }
+  return parts;
+}
+
+// ── Skriv-helpers ──────────────────────────────────────────────────────────
+
+function titleProp(v: string): unknown {
+  return { title: [{ text: { content: v } }] };
+}
+function textProp(v: string): unknown {
+  return { rich_text: chunkRichText(v) };
+}
+function multiProp(v: string[]): unknown {
+  return { multi_select: v.map((name) => ({ name })) };
+}
+function numberProp(v: number | null): unknown {
+  return { number: v };
+}
+function urlProp(v: string | null): unknown {
+  return { url: v && v.length > 0 ? v : null };
+}
+function checkboxProp(v: boolean): unknown {
+  return { checkbox: v };
+}
+
+// ── Mapper ──────────────────────────────────────────────────────────────────
+
+function mapRecipe(page: NotionPageLike): Recipe {
+  const p = page.properties as Record<string, Prop>;
+  const stegRaw = readText(p["Steg"]);
+  const steg = stegRaw.split(/\r?\n/).map((s) => s.trim()).filter((s) => s.length > 0);
+  return {
+    id: page.id,
+    namn: readTitle(p["Namn"]),
+    lede: readText(p["Lede"]),
+    ingredienser: parseIngredients(readText(p["Ingredienser"])),
+    steg,
+    minTotal: readNumber(p["MinTotal"]),
+    svarighet: readNumber(p["Svårighet"]),
+    basPortioner: readNumber(p["BasPortioner"]) ?? 4,
+    taggar: readMulti(p["Taggar"]),
+    vintips: readText(p["Vintips"]),
+    bildUrl: readUrl(p["BildURL"]),
+    kallaUrl: readUrl(p["Länk"]),
+    kallaLabel: readText(p["Källa"]),
+    aiSkapad: readCheckbox(p["AISkapad"]),
+    skapad: readCreatedTime(p["Skapad"]) || page.created_time || "",
+    notionUrl: page.url ?? matNotionUrl(page.id),
+  };
+}
+
+function recipeProps(input: RecipeInput): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (input.namn !== undefined) out["Namn"] = titleProp(input.namn);
+  if (input.lede !== undefined) out["Lede"] = textProp(input.lede);
+  if (input.ingredienser !== undefined) {
+    out["Ingredienser"] = textProp(serializeIngredients(input.ingredienser));
+  }
+  if (input.steg !== undefined) {
+    out["Steg"] = textProp(input.steg.map((s) => s.trim()).filter((s) => s.length > 0).join("\n"));
+  }
+  if (input.minTotal !== undefined) out["MinTotal"] = numberProp(input.minTotal);
+  if (input.svarighet !== undefined) out["Svårighet"] = numberProp(input.svarighet);
+  if (input.basPortioner !== undefined) out["BasPortioner"] = numberProp(input.basPortioner);
+  if (input.taggar !== undefined) out["Taggar"] = multiProp(input.taggar);
+  if (input.vintips !== undefined) out["Vintips"] = textProp(input.vintips);
+  if (input.bildUrl !== undefined) out["BildURL"] = urlProp(input.bildUrl);
+  if (input.kallaUrl !== undefined) out["Länk"] = urlProp(input.kallaUrl);
+  if (input.kallaLabel !== undefined) out["Källa"] = textProp(input.kallaLabel);
+  if (input.aiSkapad !== undefined) out["AISkapad"] = checkboxProp(input.aiSkapad);
+  return out;
+}
+
+// ── Recept-CRUD ────────────────────────────────────────────────────────────
+
+export async function listRecipes(filter?: { tag?: string }): Promise<Recipe[]> {
+  if (!RECIPES_DB) throw new Error("NOTION_MAT_RECIPES_DB saknas i env");
+  const dsId = await resolveMatDataSourceId(RECIPES_DB);
+
+  const f = filter?.tag
+    ? { property: "Taggar", multi_select: { contains: filter.tag } }
+    : undefined;
+
+  const pages = await queryAll(dsId, {
+    filter: f,
+    sorts: [{ timestamp: "created_time", direction: "descending" }],
+  });
+  return pages.map(mapRecipe);
+}
+
+export async function getRecipeById(id: string): Promise<Recipe | null> {
+  const n = getMatClient();
+  try {
+    const page = (await n.pages.retrieve({ page_id: id })) as NotionPageLike;
+    return mapRecipe(page);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("Could not find") || message.includes("object_not_found")) return null;
+    throw err;
+  }
+}
+
+export async function createRecipe(input: RecipeInput): Promise<Recipe> {
+  if (!RECIPES_DB) throw new Error("NOTION_MAT_RECIPES_DB saknas i env");
+  if (!input.namn) throw new Error("namn krävs vid skapande av recept");
+  const n = getMatClient();
+  const dsId = await resolveMatDataSourceId(RECIPES_DB);
+  // BasPortioner default 4 om inte angiven (per M0-bullet).
+  const seeded: RecipeInput = { basPortioner: 4, ...input };
+  const page = (await n.pages.create({
+    parent: { type: "data_source_id", data_source_id: dsId } as never,
+    properties: recipeProps(seeded) as never,
+  })) as NotionPageLike;
+  return mapRecipe(page);
+}
+
+export async function updateRecipe(id: string, patch: RecipeInput): Promise<Recipe> {
+  const n = getMatClient();
+  const page = (await n.pages.update({
+    page_id: id,
+    properties: recipeProps(patch) as never,
+  })) as NotionPageLike;
+  return mapRecipe(page);
+}
+
+export async function archiveRecipe(id: string): Promise<void> {
+  const n = getMatClient();
+  await n.pages.update({ page_id: id, archived: true } as never);
 }
