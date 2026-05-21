@@ -6,10 +6,12 @@
 // min, tomma visar "lägg till" med dashed border. Slot-väljar-modal med
 // två-läges-toggle: "Välj recept" eller "Fritext". CRUD mot /api/mat/plan.
 //
-// Inköpslista som expand-panel renderas i nästa M2-delsteg (separat commit).
+// Under vecka-grid: inköpslista som expand-panel. Aggregerar ingredienser
+// från veckans planerade recept via `aggregateShoppingList`, normaliserar
+// enheter, grupperar per butikskategori. "Kopiera lista"-knapp i ACC.
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import useSWR, { mutate as globalMutate } from "swr";
 import { useSearchParams, useRouter } from "next/navigation";
 import { HubDisplay, HubThemeToggle } from "@/components/warm/fit/parts";
@@ -19,7 +21,13 @@ import { WarmModal } from "@/components/warm/Modal";
 import { fetcher } from "@/lib/fetcher";
 import { haptic } from "@/lib/warm/haptics";
 import { useDesktop, useWarmTheme } from "@/lib/warm/theme";
-import { ACC, body, ital, lab } from "@/lib/warm/tokens";
+import { ACC, body, ital, lab, num } from "@/lib/warm/tokens";
+import {
+  CATEGORY_ORDER,
+  aggregateShoppingList,
+  formatItemAmount,
+  formatShoppingListPlaintext,
+} from "@/lib/mat/shopping";
 import type {
   MatReadyResponse,
   MealPlanResponse,
@@ -27,6 +35,8 @@ import type {
   MealSlot,
   Recipe,
   RecipesResponse,
+  ShoppingCategory,
+  ShoppingItem,
 } from "@/lib/mat/types";
 
 const SLOTS: MealSlot[] = ["Lunch", "Middag"];
@@ -85,6 +95,7 @@ function PlaneringInner() {
 
   const [anchor, setAnchor] = useState<Date>(() => mondayOf(new Date()));
   const [editing, setEditing] = useState<SlotDraft | null>(null);
+  const [shoppingOpen, setShoppingOpen] = useState(false);
 
   const weekStart = isoDate(anchor);
 
@@ -175,6 +186,7 @@ function PlaneringInner() {
     setEditing(null);
   }
 
+  const filledCount = slots.length;
   const weekNumber = isoWeekNumber(anchor);
 
   return (
@@ -282,7 +294,21 @@ function PlaneringInner() {
           />
         )}
 
-        {/* Inköpslista-panel renderas i M2-del 2 (separat commit). */}
+        {/* Inköpslista-panel */}
+        {ready ? (
+          <ShoppingListPanel
+            open={shoppingOpen}
+            onToggle={() => {
+              void haptic("tap");
+              setShoppingOpen((o) => !o);
+            }}
+            slots={slots}
+            recipesById={recipesById}
+            weekNumber={weekNumber}
+            weekLabel={formatWeekRange(anchor)}
+            filledCount={filledCount}
+          />
+        ) : null}
       </div>
 
       <AnimatePresence>
@@ -754,6 +780,224 @@ function SlotEditorModal({
   );
 }
 
+// ── Inköpslista-panel ───────────────────────────────────────────────────────
+
+function ShoppingListPanel({
+  open,
+  onToggle,
+  slots,
+  recipesById,
+  weekNumber,
+  weekLabel,
+  filledCount,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  slots: MealPlanSlot[];
+  recipesById: Map<string, Recipe>;
+  weekNumber: number;
+  weekLabel: string;
+  filledCount: number;
+}) {
+  const { t } = useWarmTheme();
+  const [copied, setCopied] = useState(false);
+
+  const { groups, freeItems } = useMemo(
+    () => aggregateShoppingList(slots, recipesById),
+    [slots, recipesById],
+  );
+
+  const totalRows = useMemo(() => {
+    let n = 0;
+    for (const arr of groups.values()) n += arr.length;
+    return n;
+  }, [groups]);
+
+  async function copy() {
+    const header = `Inköpslista (v.${weekNumber}, ${weekLabel})`;
+    const text = formatShoppingListPlaintext(groups, header);
+    try {
+      await navigator.clipboard.writeText(text);
+      void haptic("tap");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 800);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <div
+      style={{
+        background: t.paper,
+        border: `1px solid ${t.line}`,
+        borderRadius: 14,
+        overflow: "hidden",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          width: "100%",
+          background: "transparent",
+          border: "none",
+          padding: 14,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          cursor: "pointer",
+          color: t.ink,
+          textAlign: "left",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ ...lab(t, { color: ACC, marginBottom: 4 }) }}>INKÖPSLISTA</div>
+          <div style={{ ...num(t, 17, 500), lineHeight: 1.2 }}>
+            {totalRows === 0 ? (
+              <>Tomt än — <span style={{ fontStyle: "italic", color: t.dim }}>lägg till recept.</span></>
+            ) : (
+              <>{totalRows} rader, <span style={{ fontStyle: "italic", color: t.dim }}>aggregerat.</span></>
+            )}
+          </div>
+          <div style={{ fontFamily: body, fontSize: 12, color: t.mute, marginTop: 4 }}>
+            {filledCount} planerade slot{filledCount === 1 ? "" : "tar"} denna vecka
+          </div>
+        </div>
+        <span
+          style={{
+            transform: open ? "rotate(90deg)" : "rotate(0deg)",
+            transition: "transform 0.2s ease-out",
+            color: t.dim,
+            display: "inline-flex",
+          }}
+        >
+          <ChevronRight size={18} color={t.dim} />
+        </span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ overflow: "hidden", background: "var(--color-surface-container)" }}
+          >
+            <div
+              style={{
+                padding: 14,
+                borderTop: `1px solid ${t.line}`,
+                display: "flex",
+                flexDirection: "column",
+                gap: 14,
+                background: t.paperHi,
+              }}
+            >
+              {totalRows === 0 && freeItems.length === 0 ? (
+                <p style={{ ...ital(t, 13) }}>
+                  Inga ingredienser ännu — välj recept i veckans slottar så aggregeras
+                  listan här.
+                </p>
+              ) : (
+                <>
+                  {CATEGORY_ORDER.map((cat) => {
+                    const items = groups.get(cat);
+                    if (!items || items.length === 0) return null;
+                    return <CategoryBlock key={cat} cat={cat} items={items} />;
+                  })}
+                  {freeItems.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <div style={lab(t)}>FRITEXT-MÅLTIDER</div>
+                      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                        {freeItems.map((line) => (
+                          <li
+                            key={line}
+                            style={{
+                              ...ital(t, 12),
+                              padding: "2px 0",
+                            }}
+                          >
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={() => void copy()}
+                disabled={totalRows === 0}
+                style={{
+                  ...primaryBtn(totalRows === 0),
+                  marginLeft: 0,
+                  alignSelf: "flex-start",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                {copied ? "Kopierat ✓" : "Kopiera lista"}
+              </button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function CategoryBlock({
+  cat,
+  items,
+}: {
+  cat: ShoppingCategory;
+  items: ShoppingItem[];
+}) {
+  const { t } = useWarmTheme();
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ ...lab(t, { color: ACC }) }}>{cat.toUpperCase()}</div>
+      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        {items.map((item) => {
+          const amount = formatItemAmount(item);
+          return (
+            <li
+              key={item.namn}
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "baseline",
+                padding: "4px 0",
+                borderBottom: `1px solid ${t.line}`,
+              }}
+            >
+              <span
+                className="warm-tab-nums"
+                style={{
+                  fontFamily: body,
+                  fontSize: 13,
+                  color: ACC,
+                  minWidth: 78,
+                  fontWeight: 500,
+                }}
+              >
+                {amount || "—"}
+              </span>
+              <span style={{ fontFamily: body, fontSize: 13, color: t.ink, lineHeight: 1.4 }}>
+                {item.namn}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 // ── UI-styles ──────────────────────────────────────────────────────────────
 
