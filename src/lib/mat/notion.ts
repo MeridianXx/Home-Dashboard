@@ -6,7 +6,13 @@
 // implementeras stegvis.
 
 import { Client } from "@notionhq/client";
-import type { Ingredient, Recipe, RecipeInput } from "./types";
+import type {
+  Ingredient,
+  MealPlanInput,
+  MealPlanSlot,
+  Recipe,
+  RecipeInput,
+} from "./types";
 
 const TOKEN = process.env.NOTION_TOKEN ?? "";
 const RECIPES_DB = process.env.NOTION_MAT_RECIPES_DB ?? "";
@@ -168,6 +174,9 @@ type Prop = {
   url?: string | null;
   checkbox?: boolean;
   created_time?: string;
+  select?: { name: string } | null;
+  date?: { start: string } | null;
+  relation?: Array<{ id: string }>;
 };
 
 function readTitle(p: Prop | undefined): string {
@@ -331,6 +340,96 @@ export async function updateRecipe(id: string, patch: RecipeInput): Promise<Reci
 }
 
 export async function archiveRecipe(id: string): Promise<void> {
+  const n = getMatClient();
+  await n.pages.update({ page_id: id, archived: true } as never);
+}
+
+// ── Veckoplan-CRUD ─────────────────────────────────────────────────────────
+// Notion-schema enligt `scripts/create-mat-notion-dbs.mjs`:
+//   Datum (date) · Slot (select Lunch/Middag) · Recept (relation → Recept-DB)
+//   · EgetNamn (rich_text) · TidMin (number)
+
+function mapPlan(page: NotionPageLike): MealPlanSlot {
+  const p = page.properties as Record<string, Prop>;
+  return {
+    id: page.id,
+    datum: p["Datum"]?.date?.start ?? "",
+    slot: p["Slot"]?.select?.name ?? "",
+    receptIds: (p["Recept"]?.relation ?? []).map((r) => r.id),
+    egetNamn: readText(p["EgetNamn"]),
+    tidMin: readNumber(p["TidMin"]),
+    notionUrl: page.url ?? matNotionUrl(page.id),
+  };
+}
+
+function planProps(input: MealPlanInput): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (input.datum !== undefined) {
+    out["Datum"] = input.datum ? { date: { start: input.datum } } : { date: null };
+  }
+  if (input.slot !== undefined) {
+    out["Slot"] = input.slot ? { select: { name: input.slot } } : { select: null };
+  }
+  if (input.receptIds !== undefined) {
+    out["Recept"] = { relation: input.receptIds.map((id) => ({ id })) };
+  }
+  if (input.egetNamn !== undefined) {
+    out["EgetNamn"] = textProp(input.egetNamn);
+  }
+  if (input.tidMin !== undefined) {
+    out["TidMin"] = numberProp(input.tidMin);
+  }
+  return out;
+}
+
+/**
+ * Hämta planerade slottar inom ett datum-intervall (inklusive båda ändpunkter).
+ * Notion select kräver `multi_select`-stil filter inte här — vi filtrerar på
+ * datum-intervall via `on_or_after` / `on_or_before`.
+ */
+export async function listPlanSlots(
+  range: { from: string; to: string },
+): Promise<MealPlanSlot[]> {
+  if (!PLAN_DB) throw new Error("NOTION_MAT_PLAN_DB saknas i env");
+  const dsId = await resolveMatDataSourceId(PLAN_DB);
+  const pages = await queryAll(dsId, {
+    filter: {
+      and: [
+        { property: "Datum", date: { on_or_after: range.from } },
+        { property: "Datum", date: { on_or_before: range.to } },
+      ],
+    },
+    sorts: [{ property: "Datum", direction: "ascending" }],
+  });
+  return pages.map(mapPlan);
+}
+
+export async function createPlanSlot(input: MealPlanInput): Promise<MealPlanSlot> {
+  if (!PLAN_DB) throw new Error("NOTION_MAT_PLAN_DB saknas i env");
+  if (!input.datum) throw new Error("datum (YYYY-MM-DD) krävs");
+  if (!input.slot) throw new Error("slot (Lunch/Middag) krävs");
+  const n = getMatClient();
+  const dsId = await resolveMatDataSourceId(PLAN_DB);
+  const page = (await n.pages.create({
+    parent: { type: "data_source_id", data_source_id: dsId } as never,
+    properties: planProps(input) as never,
+  })) as NotionPageLike;
+  return mapPlan(page);
+}
+
+export async function updatePlanSlot(
+  id: string,
+  patch: MealPlanInput,
+): Promise<MealPlanSlot> {
+  const n = getMatClient();
+  const page = (await n.pages.update({
+    page_id: id,
+    properties: planProps(patch) as never,
+  })) as NotionPageLike;
+  return mapPlan(page);
+}
+
+export async function archivePlanSlot(id: string): Promise<void> {
   const n = getMatClient();
   await n.pages.update({ page_id: id, archived: true } as never);
 }

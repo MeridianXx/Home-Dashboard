@@ -6,6 +6,7 @@
 // (mängd i ACC mono / namn) + steg-kort med ACC-tint cirkel + valfri vintips
 // (LINGON) + sticky bottom-bar.
 
+import Link from "next/link";
 import { use, useState } from "react";
 import useSWR from "swr";
 import { DetailHero } from "@/components/warm/fit/parts";
@@ -353,6 +354,14 @@ function StepCard({ index, text }: { index: number; text: string }) {
 
 // ── Sticky bottom-bar ──────────────────────────────────────────────────────
 
+function todayIso(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function StickyBottom({ recipeId, hasSteps }: { recipeId: string; hasSteps: boolean }) {
   const { t } = useWarmTheme();
   return (
@@ -383,25 +392,26 @@ function StickyBottom({ recipeId, hasSteps }: { recipeId: string; hasSteps: bool
           maxWidth: "100%",
         }}
       >
-        <button
-          type="button"
-          aria-disabled
-          title="Tillgängligt i M2 (Planering)"
+        <Link
+          href={`/v3/mat/planering?add=${todayIso()}|Middag|${recipeId}`}
+          onClick={() => void haptic("tap")}
           style={{
             padding: "10px 14px",
-            background: t.paper,
-            color: t.dim,
+            background: t.paperHi,
+            color: t.ink,
             border: `1px solid ${t.line}`,
             borderRadius: 12,
             fontFamily: body,
             fontSize: 13,
             fontWeight: 500,
-            cursor: "not-allowed",
-            opacity: 0.7,
+            cursor: "pointer",
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
           }}
         >
           Lägg på veckan
-        </button>
+        </Link>
         {hasSteps ? (
           <a
             href={`/v3/mat/recept/${recipeId}?step=0`}
