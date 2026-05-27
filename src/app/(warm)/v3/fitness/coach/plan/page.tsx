@@ -175,7 +175,9 @@ function WarmFitnessCoachInner() {
   const goToday = () => setAnchor(view === "week" ? mondayOf(new Date()) : new Date());
 
   const openNew = (iso: string) => setEditing({ datum: iso, status: "Planerat" });
-  const openEdit = (plan: PlannedWorkout) => setEditing({ ...plan });
+  // openEdit() är inte längre behövd — kalender-tap routar via detail-sidan
+  // och `?edit=<planId>`-deep-linken (från detail-sidan) hanteras av
+  // auto-open-effekten ovan som anropar setEditing direkt.
 
   const handleSave = async (d: Draft) => {
     if (d.id) {
@@ -353,7 +355,10 @@ function WarmFitnessCoachInner() {
             planToWorkout={planToWorkout}
             consumedWorkouts={consumedWorkouts}
             onOpen={(x) => {
-              if ("id" in x) openEdit(x as PlannedWorkout);
+              // Befintlig plan → detail-sida (read-only med edit-CTA).
+              // Tom dag → öppna skapa-modalen direkt eftersom det inte finns
+              // något att läsa upp.
+              if ("id" in x) router.push(`/v3/fitness/plan/${x.id}`);
               else openNew((x as { datum: string }).datum);
             }}
           />
@@ -365,7 +370,7 @@ function WarmFitnessCoachInner() {
             planToWorkout={planToWorkout}
             consumedWorkouts={consumedWorkouts}
             onOpen={(x) => {
-              if ("id" in x) openEdit(x as PlannedWorkout);
+              if ("id" in x) router.push(`/v3/fitness/plan/${x.id}`);
               else openNew((x as { datum: string }).datum);
             }}
           />
