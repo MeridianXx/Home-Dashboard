@@ -11,8 +11,8 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useWarmTheme } from "@/lib/warm/theme";
-import { ACC, body, ital } from "@/lib/warm/tokens";
-import { DetailHero, SectionLabel, StatBox } from "@/components/warm/fit/parts";
+import { ACC, body, ital, lab } from "@/lib/warm/tokens";
+import { DetailHero, SectionLabel } from "@/components/warm/fit/parts";
 import { sportIcon } from "@/components/warm/icons/fit";
 import { sportColor, shortDateSv } from "@/lib/warm/fit";
 import { Tile } from "@/components/warm/primitives";
@@ -27,6 +27,53 @@ import type {
 import { matchWorkoutsToPlans } from "@/lib/fitness/match";
 import { ChevronRight } from "@/components/warm/icons/extra";
 import Link from "next/link";
+
+/** Notion lagrar ibland text med literala "\n"-sekvenser (backslash + n)
+ *  istället för faktiska newlines. Konvertera tillbaka så `pre-wrap` faktiskt
+ *  bryter raderna. Andra escape-sekvenser lämnas oförändrade. */
+function unescapeNewlines(s: string): string {
+  return s.replace(/\\n/g, "\n");
+}
+
+function StatRow({
+  t,
+  label,
+  value,
+  first = false,
+}: {
+  t: import("@/lib/warm/tokens").WarmTheme;
+  label: string;
+  value: string;
+  first?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        justifyContent: "space-between",
+        gap: 16,
+        padding: "10px 0",
+        borderTop: first ? "none" : `1px solid ${t.line}`,
+      }}
+    >
+      <span style={lab(t)}>{label}</span>
+      <span
+        style={{
+          fontFamily: body,
+          fontSize: 14,
+          fontWeight: 500,
+          color: t.ink,
+          textAlign: "right",
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
 
 function fmtPlanDate(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);
@@ -173,20 +220,18 @@ export default function WarmPlanDetailPage({
         </Tile>
       </div>
 
-      {/* Stat-rad: tid · tempo · puls */}
+      {/* Stat-list — label vänster, värde höger. Stack-format eftersom plan-
+          värden ofta är beskrivande ("7:20–7:45/km eller långsammare") och
+          inte numeriska, så 3-grid clip:ar och blir trångt på mobil. */}
       {(plan.tid || plan.tempo || plan.pulsintervall) ? (
         <div style={{ padding: "0 18px" }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-              gap: 8,
-            }}
-          >
-            <StatBox label="TID" value={plan.tid || "—"} />
-            <StatBox label="TEMPO" value={plan.tempo || "—"} />
-            <StatBox label="PULS" value={plan.pulsintervall || "—"} />
-          </div>
+          <Tile t={t}>
+            {plan.tid ? <StatRow t={t} label="Tid" value={plan.tid} /> : null}
+            {plan.tempo ? <StatRow t={t} label="Tempo" value={plan.tempo} first={!plan.tid} /> : null}
+            {plan.pulsintervall ? (
+              <StatRow t={t} label="Puls" value={plan.pulsintervall} first={!plan.tid && !plan.tempo} />
+            ) : null}
+          </Tile>
         </div>
       ) : null}
 
@@ -204,7 +249,7 @@ export default function WarmPlanDetailPage({
                 whiteSpace: "pre-wrap",
               }}
             >
-              {plan.syfte}
+              {unescapeNewlines(plan.syfte)}
             </p>
           </Tile>
         </div>
@@ -224,7 +269,7 @@ export default function WarmPlanDetailPage({
                 whiteSpace: "pre-wrap",
               }}
             >
-              {plan.passdetaljer}
+              {unescapeNewlines(plan.passdetaljer)}
             </p>
           </Tile>
         </div>
