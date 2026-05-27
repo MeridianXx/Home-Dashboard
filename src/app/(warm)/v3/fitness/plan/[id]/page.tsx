@@ -80,8 +80,8 @@ export default function WarmPlanDetailPage({
   if (plansErr) {
     return (
       <WarmErrorBanner
-        title="Kunde inte läsa planerade pass"
-        detail={String(plansErr)}
+        t={t}
+        message={`Kunde inte läsa planerade pass: ${String(plansErr)}`}
       />
     );
   }
