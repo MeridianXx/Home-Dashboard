@@ -25,15 +25,9 @@ import type {
   WorkoutsResponse,
 } from "@/lib/fitness/types";
 import { matchWorkoutsToPlans } from "@/lib/fitness/match";
+import { unescapeNewlines } from "@/lib/fitness/text";
 import { ChevronRight } from "@/components/warm/icons/extra";
 import Link from "next/link";
-
-/** Notion lagrar ibland text med literala "\n"-sekvenser (backslash + n)
- *  istället för faktiska newlines. Konvertera tillbaka så `pre-wrap` faktiskt
- *  bryter raderna. Andra escape-sekvenser lämnas oförändrade. */
-function unescapeNewlines(s: string): string {
-  return s.replace(/\\n/g, "\n");
-}
 
 function StatRow({
   t,

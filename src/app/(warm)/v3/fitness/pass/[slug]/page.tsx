@@ -24,6 +24,7 @@ import { HeartRateCard, ElevationChart, LapsList } from "@/components/warm/fit/P
 import { WarmAIAnalysisCard } from "@/components/warm/fit/AIAnalysisCard";
 import WarmErrorBanner from "@/components/warm/WarmErrorBanner";
 import type { WorkoutsResponse, Workout, PlansResponse, PlannedWorkout } from "@/lib/fitness/types";
+import { unescapeNewlines } from "@/lib/fitness/text";
 import type { FitResponse } from "@/app/api/fitness/fit/route";
 
 // Leaflet client-only — Warm-stilad wrapper
@@ -341,7 +342,7 @@ function PlanMatchTile({ plan, workoutDate }: { plan: PlannedWorkout; workoutDat
             Planerat till {new Date(plan.datum).toLocaleDateString("sv-SE", { weekday: "short", day: "numeric", month: "short" })}
           </div>
         ) : null}
-        {plan.syfte ? <div style={{ fontFamily: body, fontSize: 13, color: t.ink, lineHeight: 1.45 }}>{plan.syfte}</div> : null}
+        {plan.syfte ? <div style={{ fontFamily: body, fontSize: 13, color: t.ink, lineHeight: 1.45, whiteSpace: "pre-wrap" }}>{unescapeNewlines(plan.syfte)}</div> : null}
         {(plan.tid || plan.tempo || plan.pulsintervall) ? (
           <div style={{ ...ital(t, 11), marginTop: 8 }}>
             {[plan.tid, plan.tempo, plan.pulsintervall ? `puls ${plan.pulsintervall}` : null].filter(Boolean).join(" · ")}

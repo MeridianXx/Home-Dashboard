@@ -35,6 +35,7 @@ import { paceString, durationString } from "@/lib/fitness/parser";
 import { useFitnessProfile, hrZone } from "@/lib/fitness/profile";
 import { useHydrateProfile } from "@/lib/fitness/useHydrateProfile";
 import type { PlannedWorkout, PlansResponse, Workout, WorkoutsResponse } from "@/lib/fitness/types";
+import { unescapeNewlines } from "@/lib/fitness/text";
 import type { ReadinessResponse } from "@/app/api/fitness/readiness/route";
 
 function isoDate(d: Date): string {
@@ -334,7 +335,7 @@ function PlanHeroTile({ plan, linkedWorkout }: { plan: PlannedWorkout; linkedWor
           {subtitleParts.length > 0 ? (
             <p style={{ ...ital(t, 12), marginTop: 6 }}>{subtitleParts.join(" · ")}</p>
           ) : plan.syfte ? (
-            <p style={{ ...ital(t, 12), marginTop: 6 }}>{plan.syfte}</p>
+            <p style={{ ...ital(t, 12), marginTop: 6 }}>{unescapeNewlines(plan.syfte)}</p>
           ) : null}
         </div>
         <ChevronRight size={18} color={t.dim} style={{ marginTop: 4 }} />
@@ -459,7 +460,7 @@ function NextPlanHint({ plan }: { plan: PlannedWorkout }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ ...lab(t, { color: ACC, marginBottom: 8 }) }}>NÄSTA · {when.toUpperCase()}</div>
           <h2 style={{ ...num(t, 22, 500), lineHeight: 1.15 }}>{plan.passnamn || plan.typ || "Pass"}</h2>
-          {plan.syfte ? <p style={{ ...ital(t, 12), marginTop: 6 }}>{plan.syfte}</p> : null}
+          {plan.syfte ? <p style={{ ...ital(t, 12), marginTop: 6 }}>{unescapeNewlines(plan.syfte)}</p> : null}
         </div>
         <ChevronRight size={18} color={t.dim} style={{ marginTop: 4 }} />
       </div>
@@ -470,8 +471,10 @@ function NextPlanHint({ plan }: { plan: PlannedWorkout }) {
 /** Plocka ut "övningar" ur passdetaljer-fritext: rader / komma-separerat. */
 function parseExerciseTags(text: string | undefined): string[] {
   if (!text) return [];
-  // Acceptera båda format: rader åtskilda av newline ELLER komma-separerade
-  const parts = text
+  // Acceptera båda format: rader åtskilda av newline ELLER komma-separerade.
+  // unescapeNewlines() konverterar Notion-lagrade "\n"-literals till äkta
+  // newlines så split:en faktiskt hittar dem.
+  const parts = unescapeNewlines(text)
     .split(/[\n,;]/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0 && s.length < 32);

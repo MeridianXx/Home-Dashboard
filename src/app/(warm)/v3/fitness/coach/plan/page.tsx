@@ -35,6 +35,7 @@ import { workoutSlug } from "@/lib/fitness/slug";
 import { matchWorkoutsToPlans, workoutKey } from "@/lib/fitness/match";
 import { paceString, durationString } from "@/lib/fitness/parser";
 import type { PlannedWorkout, PlansResponse, Workout, WorkoutsResponse } from "@/lib/fitness/types";
+import { unescapeNewlines } from "@/lib/fitness/text";
 
 const TYPE_OPTIONS = ["Löpning", "Cykling", "Styrka", "Core", "Simning", "Annat"];
 const STATUS_OPTIONS = ["Planerat", "Genomfört", "Inställt"];
@@ -794,7 +795,15 @@ function PlanModal({
   onDelete?: () => Promise<void>;
 }) {
   const { t } = useWarmTheme();
-  const [form, setForm] = useState<Draft>({ ...draft });
+  // Normalisera literala "\n"-sekvenser till äkta newlines vid mount så
+  // textareorna visar riktiga radbrytningar (annars syns "\n" som synlig
+  // text i fältet). Vid spar skrivs äkta newlines tillbaka till Notion,
+  // vilket städar datan över tid.
+  const [form, setForm] = useState<Draft>({
+    ...draft,
+    syfte: draft.syfte ? unescapeNewlines(draft.syfte) : draft.syfte,
+    passdetaljer: draft.passdetaljer ? unescapeNewlines(draft.passdetaljer) : draft.passdetaljer,
+  });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const isEdit = Boolean(draft.id);
@@ -1227,11 +1236,11 @@ function SingleAIModal({
               {draft.tid ? ` · ${draft.tid}` : ""}
             </div>
             {draft.syfte ? (
-              <p style={{ fontFamily: body, fontSize: 13, color: t.ink, lineHeight: 1.5 }}>{draft.syfte}</p>
+              <p style={{ fontFamily: body, fontSize: 13, color: t.ink, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{unescapeNewlines(draft.syfte)}</p>
             ) : null}
             {draft.passdetaljer ? (
               <p style={{ fontFamily: body, fontSize: 12, color: t.mute, lineHeight: 1.5, whiteSpace: "pre-wrap", marginTop: 8 }}>
-                {draft.passdetaljer}
+                {unescapeNewlines(draft.passdetaljer)}
               </p>
             ) : null}
             {draft.pulsintervall || draft.tempo || draft.underlag ? (
@@ -1569,7 +1578,7 @@ function DraftPanel({
                   <RefreshIcon size={14} color={t.mute} style={{ animation: isRegenerating ? "spin-anim 0.8s linear infinite" : undefined }} />
                 </button>
               </div>
-              {p.syfte ? <div style={{ ...ital(t, 11), marginTop: 4 }}>{p.syfte}</div> : null}
+              {p.syfte ? <div style={{ ...ital(t, 11), marginTop: 4, whiteSpace: "pre-wrap" }}>{unescapeNewlines(p.syfte)}</div> : null}
               {p.tid || p.tempo || p.pulsintervall ? (
                 <div style={{ fontFamily: body, fontSize: 11, color: t.mute, marginTop: 4 }} className="warm-tab-nums">
                   {[p.tid, p.tempo, p.pulsintervall].filter(Boolean).join(" · ")}
@@ -1577,7 +1586,7 @@ function DraftPanel({
               ) : null}
               {p.passdetaljer ? (
                 <div style={{ fontFamily: body, fontSize: 11, color: t.mute, marginTop: 4, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
-                  {p.passdetaljer}
+                  {unescapeNewlines(p.passdetaljer)}
                 </div>
               ) : null}
             </div>
