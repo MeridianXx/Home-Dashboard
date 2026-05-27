@@ -226,7 +226,7 @@ export default function WarmPlanDetailPage({
       {(plan.tid || plan.tempo || plan.pulsintervall) ? (
         <div style={{ padding: "0 18px" }}>
           <Tile t={t}>
-            {plan.tid ? <StatRow t={t} label="Tid" value={plan.tid} /> : null}
+            {plan.tid ? <StatRow t={t} label="Tid" value={plan.tid} first /> : null}
             {plan.tempo ? <StatRow t={t} label="Tempo" value={plan.tempo} first={!plan.tid} /> : null}
             {plan.pulsintervall ? (
               <StatRow t={t} label="Puls" value={plan.pulsintervall} first={!plan.tid && !plan.tempo} />
