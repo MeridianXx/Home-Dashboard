@@ -386,11 +386,13 @@ function PlanHeroTile({ plan, linkedWorkout }: { plan: PlannedWorkout; linkedWor
       </Link>
     );
   }
-  // Ej genomfört än → öppna planen i kalender-vyn via ?edit=<id>. Plan-sidan
-  // läser query-paramen och autoöppnar redigeringsmodalen så användaren ser
-  // hela pass-detaljerna direkt utan att leta upp dagen i kalendern.
+  // Ej genomfört än → öppna read-only-detaljsidan med hela passets innehåll
+  // (syfte, detaljer, puls, tempo, underlag). Sidan har en "Redigera"-CTA som
+  // länkar vidare till coach/plan?edit=<id> där modalen tar över. Förr gick
+  // tappen direkt in i edit-läget vilket var förvirrande — det är ovanligt
+  // att vilja redigera, vanligast är att läsa upp dagens uppgift.
   return (
-    <Link href={`/v3/fitness/coach/plan?edit=${plan.id}`} style={baseStyle}>
+    <Link href={`/v3/fitness/plan/${plan.id}`} style={baseStyle}>
       {inner}
     </Link>
   );
