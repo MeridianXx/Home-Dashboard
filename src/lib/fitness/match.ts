@@ -36,9 +36,19 @@ function daysBetween(isoA: string, isoB: string): number {
   return Math.round((a - b) / 86400000);
 }
 
+/** "Idag" som YYYY-MM-DD i lokal tid — används för pre-completion-spärren. */
+function todayIso(now: Date = new Date()): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export interface ScoreOpts {
   /** Max datum-avstånd i dagar (default 2). */
   maxDateDiffDays?: number;
+  /** Referensdatum för "idag" (för testbarhet). Default: new Date(). */
+  now?: Date;
 }
 
 /**
@@ -51,6 +61,14 @@ export function scoreMatch(workout: Workout, plan: PlannedWorkout, opts: ScoreOp
   if (!plan.datum) return null;
   const diff = daysBetween(workout.date, plan.datum);
   if (Math.abs(diff) > maxDiff) return null;
+
+  // Pre-completion-spärr. Ett planerat pass IDAG eller i FRAMTIDEN ska inte
+  // matchas med ett tidigare workout — annars stämplas dagens plan som
+  // genomförd av gårdagens pass innan dagen ens börjat. När plan-dagen har
+  // passerat (planRelToToday < 0) tillåter vi ±-fönstret som vanligt så
+  // legit "gjorde det dagen före schemalagt"-fall reconcileas i efterhand.
+  const planRelToToday = daysBetween(plan.datum, todayIso(opts.now));
+  if (planRelToToday >= 0 && diff < 0) return null;
 
   const wCat = matchCategory(workout.type);
   // Planens kategori härleds från både typ OCH passnamn — användaren taggar
